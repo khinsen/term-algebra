@@ -2,8 +2,7 @@
 
 (module boolean term-algebra
   
-  (define-op true)
-  (define-op false)
+  (use term-algebra/truth)
   
   (define-op (not x))
   (define-op (and x y))
@@ -26,8 +25,7 @@
 
 (module peano-numbers term-algebra
 
-  (require (submod ".." boolean))
-  (provide (all-from-out (submod ".." boolean)))
+  (use (submod ".." boolean))
   
   (define-op zero)
 

@@ -2,7 +2,7 @@
 
 (provide (all-defined-out)
          (rename-out [module-begin #%module-begin])
-         provide all-defined-out all-from-out
+         provide
          require submod)
 
 (require (prefix-in terms: term-algebra/terms)
@@ -59,6 +59,11 @@
               [op (terms:term-op l)])
          (terms:set-op-rules! op (append (terms:op-rules op) (list rule))))]))
 
+(define-syntax (use stx)
+  (syntax-parse stx
+    [(_ module:expr)
+     #'(begin (require module)
+              (provide (all-from-out module)))]))
 
 (define-syntax (module-begin stx)
   (syntax-parse stx

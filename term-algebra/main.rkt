@@ -59,7 +59,7 @@
               [op (terms:term-op l)])
          (terms:set-op-rules! op (append (terms:op-rules op) (list rule))))]))
 
-(define-syntax (use stx)
+(define-syntax (include stx)
   (syntax-parse stx
     [(_ module:expr)
      #'(begin (require module)

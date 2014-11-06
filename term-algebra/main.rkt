@@ -1,7 +1,7 @@
 #lang racket
 
 (provide (all-defined-out)
-         #%module-begin
+         (rename-out [module-begin #%module-begin])
          provide all-defined-out all-from-out
          require submod)
 
@@ -11,10 +11,12 @@
 (define-syntax (define-op stx)
   (syntax-parse stx
     [(_ op-name:id)
-     #'(define op-name (terms:op (quote op-name) '() '()))]
+     #'(begin (define op-name (terms:op (quote op-name) '() '()))
+              (provide op-name))]
     [(_ (op-name:id arg-name:id ...))
-     #'(define op-name (terms:op (quote op-name)
-                                 (list (quote arg-name) ...) '()))]))
+     #'(begin (define op-name (terms:op (quote op-name)
+                                        (list (quote arg-name) ...) '()))
+              (provide op-name))]))
 
 (define-syntax (define-var stx)
   (syntax-parse stx
@@ -56,3 +58,10 @@
               [rule (cons l r)]
               [op (terms:term-op l)])
          (terms:set-op-rules! op (append (terms:op-rules op) (list rule))))]))
+
+
+(define-syntax (module-begin stx)
+  (syntax-parse stx
+    [(_ decl:expr ...)
+     #'(#%module-begin
+        decl ...)]))

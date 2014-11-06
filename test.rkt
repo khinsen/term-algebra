@@ -2,8 +2,6 @@
 
 (module boolean term-algebra
   
-  (provide (all-defined-out))
-  
   (define-op true)
   (define-op false)
   
@@ -16,10 +14,12 @@
 
   (define-vars X Y)
 
+  (=-> (not (not X)) X)
+
   (=-> (and false X) false)
   (=-> (and X false) false)
   (=-> (not (and X Y)) (or (not X) (not Y)))
-  
+    
   (=-> (or true X) true)
   (=-> (or X true) true)
   (=-> (not (or X Y)) (and (not X) (not Y))))
@@ -27,8 +27,7 @@
 (module peano-numbers term-algebra
 
   (require (submod ".." boolean))
-  (provide (all-defined-out)
-           (all-from-out (submod ".." boolean)))
+  (provide (all-from-out (submod ".." boolean)))
   
   (define-op zero)
 

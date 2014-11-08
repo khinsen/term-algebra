@@ -43,7 +43,9 @@
 (define-syntax (term stx)
   (syntax-parse stx
     [(_ t:term)
-     #'t.value]))
+     #'t.value]
+    [(_ module:expr t:term)
+     #'(let () (local-require module) t.value)]))
 
 (define-syntax (define-term stx)
   (syntax-parse stx

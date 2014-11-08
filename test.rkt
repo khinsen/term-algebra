@@ -25,8 +25,6 @@
 
 (module peano-numbers term-algebra
 
-  (include (submod ".." boolean))
-  
   (define-op zero)
 
   (define-vars N M)
@@ -60,8 +58,7 @@
   (=-> (shorten (succ four)) five)
   (=-> (shorten (succ N)) (shorten (succ (shorten N)))))
 
-(require 'peano-numbers
-         (only-in term-algebra/main term)
+(require (only-in term-algebra/main term)
          (only-in term-algebra/terms reduce))
 
 (define (test-for term)
@@ -69,10 +66,10 @@
   (display " -> ")
   (displayln (reduce term)))
 
-(test-for (term (succ zero)))
-(test-for (term (pred (succ zero))))
-(test-for (term (succ (pred (succ zero)))))
-(test-for (term (+ (succ (succ zero)) (succ zero))))
-(test-for (term (shorten (* (succ (succ zero)) (succ (succ zero))))))
+(test-for (term (submod "." peano-numbers) (succ zero)))
+(test-for (term (submod "." peano-numbers) (pred (succ zero))))
+(test-for (term (submod "." peano-numbers) (succ (pred (succ zero)))))
+(test-for (term (submod "." peano-numbers) (+ (succ (succ zero)) (succ zero))))
+(test-for (term (submod "." peano-numbers) (shorten (* (succ (succ zero)) (succ (succ zero))))))
 
-(test-for (term (and (not true) (not false))))
+(test-for (term (submod "." boolean) (and (not true) (not false))))

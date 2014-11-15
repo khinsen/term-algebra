@@ -1,7 +1,7 @@
 #lang racket
 
 (provide (struct-out op) (struct-out var) (struct-out term)
-         reduce)
+         reduce builtin:==)
 
 ; Struct definitions
 
@@ -27,6 +27,10 @@
             (if (null? (op-args op))
                 (write (op-symbol op) port)
                 (write (cons (op-symbol op) (term-args term)) port)))))
+
+; Built-in ops
+
+(define builtin:== (op '== '(term1 term2) '()))
 
 ; Term rewriting
 
@@ -63,9 +67,21 @@
   (or (for/fold ([rewritten-term #f])
                 ([rule (op-rules (term-op a-term))])
         #:break rewritten-term
-        (let ([s (match-pattern (car rule) a-term)])
+        (let* ([pattern (car rule)]
+               [rest (cdr rule)]
+               [condition (if (pair? rest) (car rest) #f)]
+               [value (if (pair? rest) (cdr rest) rest)]
+               [s (match-pattern pattern a-term)])
           (if s
-              (substitute (cdr rule) s)
+              (if condition
+                  ; For now, the only condition is ==
+                  (let* ([eq-term (reduce (substitute condition s))]
+                         [term1 (first (term-args eq-term))]
+                         [term2 (second (term-args eq-term))])
+                    (if (equal? term1 term2)
+                        (substitute value s)
+                        #f))
+                  (substitute value s))
               #f)))
       a-term))
 
@@ -83,3 +99,4 @@
       (if (eq? rewritten-term a-term)
           a-term
           (loop rewritten-term)))))
+

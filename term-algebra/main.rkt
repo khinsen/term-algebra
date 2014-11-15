@@ -38,7 +38,13 @@
                                 symbol
                                 (terms:term symbol '())))
     (pattern (op:id args:term ...)
-             #:with value #'(terms:term op (list args.value ...)))))
+             #:with value #'(terms:term op (list args.value ...))))
+  
+  (define-syntax-class condition
+    #:description "condition"
+    (pattern (== term1:term term2:term)
+             #:with value #'(terms:term terms:builtin:==
+                                        (list term1.value term2.value)))))
 
 (define-syntax (term stx)
   (syntax-parse stx
@@ -58,6 +64,13 @@
      #'(let* ([l left.value]
               [r right.value]
               [rule (cons l r)]
+              [op (terms:term-op l)])
+         (terms:set-op-rules! op (append (terms:op-rules op) (list rule))))]
+    [(_ left:term right:term #:if cond:condition)
+     #'(let* ([l left.value]
+              [r right.value]
+              [c cond.value]
+              [rule (cons l (cons c r))]
               [op (terms:term-op l)])
          (terms:set-op-rules! op (append (terms:op-rules op) (list rule))))]))
 

@@ -1,60 +1,43 @@
 #lang racket
 
-(module peano-numbers term-algebra
+(module truth term-algebra
+  (define-op true)
+  (define-op false))
 
-  ; Constructors
-  (define-op zero)
-  (define-op (succ n))
-
-  ; Error expression
-  (define-op error)
+(module boolean term-algebra
+  (define-op true)
+  (define-op false)
   
-  ; Function operators
-  (define-vars N M)
+  (define-op (not x))
+  (define-op (and x y))
+  (define-op (or x y))
+    
+  (=-> (not true) false)
+  (=-> (not false) true)
 
-  (define-op (pred n))
-  (=-> (pred (succ N)) N)
+  (define-vars X Y)
 
-  (define-op (+ a b))
-  (=-> (+ N zero) N)
-  (=-> (+ zero N) N)
-  (=-> (+ N (succ M)) (+ (succ N) M))
+  (=-> (not (not X)) X)
 
-  (define-op (- a b))
-  (=-> (- N zero) N)
-  (=-> (- zero (succ N)) error)
-  (=-> (- (succ N) (succ M)) (- N M))
-  
-  (define-op (* a b))
-  (=-> (* N zero) zero)
-  (=-> (* zero N) zero)
-  (=-> (* (succ N) (succ M)) (succ (+ N (+ M (* N M)))))
+  (=-> (and true true) true)
+  (=-> (and false X) false)
+  (=-> (and X false) false)
+  (=-> (not (and X Y)) (or (not X) (not Y)))
+      
+  (=-> (or false false) false)
+  (=-> (or true X) true)
+  (=-> (or X true) true)
+  (=-> (not (or X Y)) (and (not X) (not Y))))
 
-  (define-op (/ a b))
-  (=-> (/ zero (succ N)) zero)
-  (=-> (/ (succ N) zero) error)
-  (=-> (/ (succ N) (succ M)) (succ (/ (- (succ N) (succ M)) (succ M))))
 
-  (define-op (foo n))
-  (=-> (foo N) zero #:if (== N (succ zero)))
-
-  )
-
-(require (only-in term-algebra/main term)
+(require term-algebra/client
          (only-in term-algebra/terms reduce))
+
+(use-module boolean (submod "." boolean))
 
 (define (test-for term)
   (display term)
   (display " -> ")
   (displayln (reduce term)))
 
-(test-for (term (submod "." peano-numbers) (- (succ (succ zero)) (succ zero))))
-(test-for (term (submod "." peano-numbers) (- zero (succ (succ zero)))))
-
-(test-for (term (submod "." peano-numbers) (/ zero (succ zero))))
-(test-for (term (submod "." peano-numbers) (/ (succ (succ (succ zero))) (succ (succ zero)))))
-
-(test-for (term (submod "." peano-numbers) (foo zero)))
-(test-for (term (submod "." peano-numbers) (foo (succ zero))))
-(test-for (term (submod "." peano-numbers) (foo (succ (succ zero)))))
-
+(test-for (term boolean (and true true)))

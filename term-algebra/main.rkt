@@ -11,17 +11,22 @@
 (define-syntax (define-op stx)
   (syntax-parse stx
     [(_ op-name:id)
-     #'(begin (define op-name (terms:op (quote op-name) '() '()))
-              (provide op-name))]
+     (with-syntax ([ops-id (datum->syntax stx (string->unreadable-symbol "ops"))])
+       #'(begin (define op-name (terms:op (quote op-name) '() '()))
+                (set! ops-id (hash-set ops-id (quote op-name) op-name))))]
     [(_ (op-name:id arg-name:id ...))
-     #'(begin (define op-name (terms:op (quote op-name)
-                                        (list (quote arg-name) ...) '()))
-              (provide op-name))]))
+     (with-syntax ([ops-id (datum->syntax stx (string->unreadable-symbol "ops"))])
+       #'(begin (define op-name (terms:op (quote op-name)
+                                          (list (quote arg-name) ...) '()))
+                (set! ops-id (hash-set ops-id (quote op-name) op-name))))]))
 
 (define-syntax (define-var stx)
   (syntax-parse stx
     [(_ var-name:id)
-     #'(define var-name (terms:var (quote var-name)))]))
+     (with-syntax ([vars-id (datum->syntax stx
+                                           (string->unreadable-symbol "vars"))])
+       #'(begin (define var-name (terms:var (quote var-name)))
+                (set! vars-id (hash-set vars-id (quote var-name) var-name))))]))
 
 (define-syntax (define-vars stx)
   (syntax-parse stx
@@ -46,18 +51,6 @@
              #:with value #'(terms:term terms:builtin:==
                                         (list term1.value term2.value)))))
 
-(define-syntax (term stx)
-  (syntax-parse stx
-    [(_ t:term)
-     #'t.value]
-    [(_ module:expr t:term)
-     #'(let () (local-require module) t.value)]))
-
-(define-syntax (define-term stx)
-  (syntax-parse stx
-    [(_ symbol:id t:term)
-     #'(define symbol t.value)]))
-
 (define-syntax (=-> stx)
   (syntax-parse stx
     [(_ left:term right:term)
@@ -76,12 +69,31 @@
 
 (define-syntax (include stx)
   (syntax-parse stx
-    [(_ module:expr)
-     #'(begin (require module)
-              (provide (all-from-out module)))]))
+    [(_ module-expr:expr)
+     (with-syntax ([module-id (datum->syntax stx 'module)]
+                   [ops-id (datum->syntax stx
+                                          (string->unreadable-symbol "ops"))]
+                   [vars-id (datum->syntax stx
+                                           (string->unreadable-symbol "vars"))])
+       #'(let ()
+           (local-require module-expr)
+           (hash-for-each (hash-ref module-id 'ops)
+                          (lambda (key value) (hash-set! ops-id key value)))
+           (hash-for-each (hash-ref module-id 'vars)
+                          (lambda (key value) (hash-set! vars-id key value)))))]))
 
 (define-syntax (module-begin stx)
   (syntax-parse stx
     [(_ decl:expr ...)
-     #'(#%module-begin
-        decl ...)]))
+     (with-syntax ([module-id (datum->syntax stx 'module)]
+                   [ops-id (datum->syntax stx
+                                          (string->unreadable-symbol "ops"))]
+                   [vars-id (datum->syntax stx
+                                           (string->unreadable-symbol "vars"))])
+       #'(#%module-begin
+          (define module-id
+            (let ([ops-id (hash)]
+                  [vars-id (hash)])
+              decl ...
+              (hash 'ops ops-id 'vars vars-id)))
+          (provide module-id)))]))

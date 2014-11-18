@@ -1,7 +1,9 @@
 #lang term-algebra
   
-(include term-algebra/truth)
-  
+;; (include term-algebra/truth)
+(define-op true)
+(define-op false)
+ 
 (define-op (not x))
 (define-op (and x y))
 (define-op (or x y))

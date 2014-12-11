@@ -58,15 +58,8 @@
 
 (test-case "term-syntax"
 
-  ;; (check-exn "term: expected term"
-  ;;            (lambda () (term boolean 42)))
-  ;; (check-exn #rx"illegal syntax.*"
-  ;;            (lambda () (term boolean (false 42))))
-  ;; (check-exn #rx"illegal syntax.*"
-  ;;            (lambda () (term boolean (42 false))))
-
-  ;; (check-exn #rx"wrong number of arguments.*"
-  ;;            (lambda () (term boolean (false false))))
+  (check-exn #rx"wrong number of arguments.*"
+             (lambda () (term boolean (false false))))
 
   (check-exn #rx"undefined op or var.*"
              (lambda () (term boolean foo)))

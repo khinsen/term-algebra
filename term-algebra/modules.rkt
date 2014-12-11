@@ -59,10 +59,15 @@
    [(not (symbol? op-or-var))
     (error "not a symbol: " op-or-var)]
    [(hash-has-key? ops op-or-var)
-    (terms:term (hash-ref ops op-or-var)
-                (for/list ([arg args]) (term-from-meta ops vars arg)))]
+    (let ([op (hash-ref ops op-or-var)]
+          [arg-terms (for/list ([arg args]) (term-from-meta ops vars arg))])
+      (if (equal? (length arg-terms) (length (terms:op-args op)))
+          (terms:term op arg-terms)
+          (error "wrong number of arguments for op " op)))]
    [(hash-has-key? vars op-or-var)
-    (hash-ref vars op-or-var)]
+    (if (empty? args)
+        (hash-ref vars op-or-var)
+        (error "var has non-empty argument list: " args))]
    [else (error "undefined op or var: " op-or-var)]))
 
 (define (module-from-meta module-term)

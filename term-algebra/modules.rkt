@@ -1,6 +1,6 @@
 #lang racket
 
-; A plain macro version of the module definition - no #lang
+(provide define-module define-meta-module term meta-term)
 
 (require (prefix-in terms: term-algebra/terms)
          (for-syntax syntax/parse)
@@ -206,43 +206,3 @@
   (syntax-parse stx
     [(_ module:expr expr:term)
      #'(term-from-meta (module-ops module) (hash) expr.value)]))
-
-
-; Test code
-
-(define-module truth
-  (define-op true)
-  (define-op false))
-
-(define-module boolean
-
-  (define-op true)
-  (define-op false)
- 
-  (define-op (not x))
-  (=-> (not true) false)
-  (=-> (not false) true)
-
-  (define-op (and x y))
-  (=-> (and true true) true)
-  (=-> #:var X (and false X) false)
-  (=-> #:var X (and X false) false)
-
-  (define-op (or x y))
-  (=-> (or false false) false)
-  (=-> #:var X (or true X) true)
-  (=-> #:var X (or X true) true)
-  )
-
-(terms:reduce (term boolean (not true)))
-(terms:reduce (term boolean (not (not true))))
-
-(terms:reduce (term boolean (and true true)))
-(terms:reduce (term boolean (and true false)))
-(terms:reduce (term boolean (and false false)))
-
-(terms:reduce (term boolean (or true true)))
-(terms:reduce (term boolean (or true false)))
-(terms:reduce (term boolean (or false false)))
-
-(terms:reduce (term boolean (or (and false) (not false))))

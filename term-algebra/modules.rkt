@@ -10,17 +10,19 @@
 ; The external representation of modules as terms
 ;
 (define op-op (terms:op 'op '(name ...) '()))
+
+(define op-vars (terms:op 'vars '(...) '()))
 (define op-eqrule (terms:op '=-> '(left right) '()))
+(define op-eq (terms:op '== '(x y) '()))
 (define op-ceqrule (terms:op '=->? '(left condition right) '()))
+
 (define op-term (terms:op 'term '(symbol ...) '()))
-;; (define op-id (terms:op 'id '(symbol) '()))
-;; (define op-arg (terms:op 'arg '(term) '()))
 
 (define op-ops (terms:op 'ops '(op ...) '()))
 (define op-rules (terms:op 'rules '(rule ...) '()))
 (define op-module (terms:op 'module '(ops rules) '()))
 
-(define (terms-module . decls)
+(define (meta-module . decls)
   (let ([ops (filter (λ (t) (eq? (terms:term-op t) op-op)) decls)]
         [rules (filter (λ (t) (member (terms:term-op t) (list op-eqrule
                                                               op-ceqrule)))
@@ -48,18 +50,20 @@
     (error "not a list of symbols: " arg-symbols)]
    [else (terms:op id-symbol arg-symbols '())]))
 
-(define (term-from-meta ops term-term)
+(define (term-from-meta ops vars term-term)
   (condd
    [(not (and (terms:term? term-term)
               (equal? (terms:term-op term-term) op-term)))
     (error "not a term: " term-term)]
-   #:do (match-define (cons op args) (terms:term-args term-term))
-   [(not (symbol? op))
-    (error "not a symbol: " op)]
-   [(not (hash-has-key? ops op))
-    (error "undefined op: " op)]
-   [else (terms:term (hash-ref ops op)
-                     (for/list ([arg args]) (term-from-meta ops arg)))]))
+   #:do (match-define (cons op-or-var args) (terms:term-args term-term))
+   [(not (symbol? op-or-var))
+    (error "not a symbol: " op-or-var)]
+   [(hash-has-key? ops op-or-var)
+    (terms:term (hash-ref ops op-or-var)
+                (for/list ([arg args]) (term-from-meta ops vars arg)))]
+   [(hash-has-key? vars op-or-var)
+    (hash-ref vars op-or-var)]
+   [else (error "undefined op or var: " op-or-var)]))
 
 (define (module-from-meta module-term)
 
@@ -70,17 +74,35 @@
           (error "op already defined: " symbol)
           (hash-set ops symbol op))))
 
+  (define (add-var var-symbol vars)
+    (if (hash-has-key? vars var-symbol)
+        (error "var already defined: " var-symbol)
+        (hash-set vars var-symbol (terms:var var-symbol))))
+
   (define (add-rule rule-term ops)
     (unless (and (terms:term? rule-term)
-                 (member (terms:term-op rule-term) (list op-eqrule)))
+                 (member (terms:term-op rule-term) (list op-eqrule op-ceqrule)))
       (error "not a rule: " rule-term))
-    (match-let* ([(list left right) (terms:term-args rule-term)]
-                 [left-term (term-from-meta ops left)]
-                 [right-term (term-from-meta ops right)]
-                 [left-op (terms:term-op left-term)])
-      (terms:set-op-rules! left-op
-                           (append (terms:op-rules left-op)
-                                   (list (cons left-term right-term)))))
+    (if (equal? (terms:term-op rule-term) op-eqrule)
+        (match-let* ([(list vars left right) (terms:term-args rule-term)]
+                     [vars (foldl add-var (hash) (terms:term-args vars))]
+                     [left-term (term-from-meta ops vars left)]
+                     [right-term (term-from-meta ops vars right)]
+                     [left-op (terms:term-op left-term)])
+          (terms:set-op-rules! left-op
+                               (append (terms:op-rules left-op)
+                                       (list (cons left-term right-term)))))
+        (match-let* ([(list vars left c right) (terms:term-args rule-term)]
+                     [vars (foldl add-var (hash) (terms:term-args vars))]
+                     [cond-term (term-from-meta ops vars c)]
+                     [left-term (term-from-meta ops vars left)]
+                     [right-term (term-from-meta ops vars right)]
+                     [left-op (terms:term-op left-term)])
+          (terms:set-op-rules! left-op
+                               (append (terms:op-rules left-op)
+                                       (list (cons left-term
+                                                   (cons cond-term
+                                                         right-term)))))))
     ops)
 
   (condd
@@ -105,9 +127,14 @@
                                         (list (quote symbol))))
     (pattern (op:id args:term ...)
              #:with value #'(terms:term op-term
-                                        (list (quote op) args.value ...)))))
+                                        (list (quote op) args.value ...))))
 
-(define-syntax (define-module stx)
+  (define-syntax-class condition
+    ; FIXME
+    #:description "condition"
+    (pattern (== term1:term term2:term)
+             #:with value #'(terms:term op-eq
+                                        (list term1.value term2.value))))
   
   (define-syntax-class decl
     #:description "declaration"
@@ -121,20 +148,54 @@
 
     (pattern (=-> left:term right:term)
              #:with value #'(terms:term op-eqrule
-                                        (list left.value right.value)))
-    (pattern (=-> left:term right:term #:if cond:term)
+                                        (list (terms:term op-vars '())
+                                              left.value right.value)))
+    (pattern (=-> #:vars (var:id ...) left:term right:term)
+             #:with value #'(terms:term op-eqrule
+                                        (list (terms:term op-vars
+                                                          (list (quote var) ...))
+                                              left.value right.value)))
+    (pattern (=-> #:var var:id left:term right:term)
+             #:with value #'(terms:term op-eqrule
+                                        (list (terms:term op-vars
+                                                          (list (quote var)))
+                                              left.value right.value)))
+    (pattern (=-> left:term  #:if cond:condition right:term)
              #:with value #'(terms:term op-ceqrule
-                                        (list left.value
+                                        (list (terms:term op-vars '())
+                                              left.value
                                               cond.value
                                               right.value)))
-    )
-  
+    (pattern (=-> #:vars (var:id ...) left:term  #:if cond:condition right:term)
+             #:with value #'(terms:term op-ceqrule
+                                        (list (terms:term op-vars
+                                                          (list (quote var) ...))
+                                              left.value
+                                              cond.value
+                                              right.value)))
+    (pattern (=-> #:var var:id left:term  #:if cond:condition right:term)
+             #:with value #'(terms:term op-ceqrule
+                                        (list (terms:term op-vars
+                                                          (list (quote var)))
+                                              left.value
+                                              cond.value
+                                              right.value)))))
+
+(define-syntax (define-meta-module stx)
   (syntax-parse stx
     [(_ module-name:id
         decl:decl
         ...)
      #'(define module-name
-         (module-from-meta (terms-module decl.value ...)))]))
+         (meta-module decl.value ...))]))
+
+(define-syntax (define-module stx)
+  (syntax-parse stx
+    [(_ module-name:id
+        decl:decl
+        ...)
+     #'(define module-name
+         (module-from-meta (meta-module decl.value ...)))]))
 
 (define-syntax (meta-term stx)
   (syntax-parse stx
@@ -144,7 +205,7 @@
 (define-syntax (term stx)
   (syntax-parse stx
     [(_ module:expr expr:term)
-     #'(term-from-meta (module-ops module) expr.value)]))
+     #'(term-from-meta (module-ops module) (hash) expr.value)]))
 
 
 ; Test code
@@ -161,7 +222,27 @@
   (define-op (not x))
   (=-> (not true) false)
   (=-> (not false) true)
-  
+
+  (define-op (and x y))
+  (=-> (and true true) true)
+  (=-> #:var X (and false X) false)
+  (=-> #:var X (and X false) false)
+
+  (define-op (or x y))
+  (=-> (or false false) false)
+  (=-> #:var X (or true X) true)
+  (=-> #:var X (or X true) true)
   )
 
 (terms:reduce (term boolean (not true)))
+(terms:reduce (term boolean (not (not true))))
+
+(terms:reduce (term boolean (and true true)))
+(terms:reduce (term boolean (and true false)))
+(terms:reduce (term boolean (and false false)))
+
+(terms:reduce (term boolean (or true true)))
+(terms:reduce (term boolean (or true false)))
+(terms:reduce (term boolean (or false false)))
+
+(terms:reduce (term boolean (or (and false) (not false))))

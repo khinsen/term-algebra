@@ -2,10 +2,10 @@
 
 (require rackunit
          term-algebra/modules
-         (only-in term-algebra/terms reduce))
+         term-algebra/rewrite)
 
-(define (check-reduce term reduced-term)
-  (check-equal? (reduce term) reduced-term))
+(define-syntax-rule (check-reduce module initial-term reduced-term)
+  (check-equal? (reduce (term module initial-term)) (term module reduced-term)))
 
 (define-module pn
   (define-op zero)
@@ -27,18 +27,18 @@
 
 (test-case "peano-numbers"
 
-  (check-reduce (term pn (pred (succ zero)))
-                (term pn zero))
+  (check-reduce pn (pred (succ zero))
+                   zero)
 
-  (check-reduce (term pn (+ zero zero))
-                (term pn zero))
-  (check-reduce (term pn (+ (succ zero) (succ zero)))
-                (term pn (succ (succ zero))))
-  (check-reduce (term pn (+ (succ zero) (succ (succ zero))))
-                (term pn (succ (succ (succ zero)))))
+  (check-reduce pn (+ zero zero)
+                   zero)
+  (check-reduce pn (+ (succ zero) (succ zero))
+                   (succ (succ zero)))
+  (check-reduce pn (+ (succ zero) (succ (succ zero)))
+                   (succ (succ (succ zero))))
 
-  (check-reduce (term pn (* zero zero))
-                (term pn zero))
-  (check-reduce (term pn (* (succ (succ zero)) (succ (succ (succ zero)))))
-                (term pn (succ (succ (succ (succ (succ (succ zero)))))))))
+  (check-reduce pn (* zero zero)
+                   zero)
+  (check-reduce pn (* (succ (succ zero)) (succ (succ (succ zero))))
+                   (succ (succ (succ (succ (succ (succ zero))))))))
 

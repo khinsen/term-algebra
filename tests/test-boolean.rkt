@@ -2,10 +2,10 @@
 
 (require rackunit
          term-algebra/modules
-         (only-in term-algebra/terms reduce))
+         term-algebra/rewrite)
 
-(define (check-reduce term reduced-term)
-  (check-equal? (reduce term) reduced-term))
+(define-syntax-rule (check-reduce module initial-term reduced-term)
+  (check-equal? (reduce (term module initial-term)) (term module reduced-term)))
 
 (define-module boolean
 
@@ -28,32 +28,32 @@
 
 (test-case "boolean"
 
-  (check-reduce (term boolean (not true))
-                (term boolean false))
-  (check-reduce (term boolean (not false))
-                (term boolean true))
+  (check-reduce boolean (not true)
+                        false)
+  (check-reduce boolean (not false)
+                        true)
 
-  (check-reduce (term boolean (and true true))
-                (term boolean true))
-  (check-reduce (term boolean (and false false))
-                (term boolean false))
-  (check-reduce (term boolean (and true false))
-                (term boolean false))
-  (check-reduce (term boolean (and false true))
-                (term boolean false))
-  (check-reduce (term boolean (and (not false) (not false)))
-                (term boolean true))
-   
-  (check-reduce (term boolean (or true true))
-                (term boolean true))
-  (check-reduce (term boolean (or false false))
-                (term boolean false))
-  (check-reduce (term boolean (or true false))
-                (term boolean true))
-  (check-reduce (term boolean (or false true))
-                (term boolean true))
-  (check-reduce (term boolean (or (not false) (not false)))
-                (term boolean true)))
+  (check-reduce boolean (and true true)
+                        true)
+  (check-reduce boolean (and false false)
+                        false)
+  (check-reduce boolean (and true false)
+                        false)
+  (check-reduce boolean (and false true)
+                        false)
+  (check-reduce boolean (and (not false) (not false))
+                        true)
+
+  (check-reduce boolean (or true true)
+                        true)
+  (check-reduce boolean (or false false)
+                        false)
+  (check-reduce boolean (or true false)
+                        true)
+  (check-reduce boolean (or false true)
+                        true)
+  (check-reduce boolean (or (not false) (not false))
+                        true))
 
 
 (test-case "term-syntax"

@@ -1,13 +1,13 @@
 #lang racket
 
-(provide define-module define-meta-module term meta-term)
+(provide define-module define-meta-module term meta-term meta)
 
 (require (prefix-in terms: term-algebra/terms)
          (for-syntax syntax/parse)
          "./condd.rkt")
 
 ;
-; The external representation of modules as terms
+; The meta-representation of modules as terms
 ;
 (define op-op (terms:op 'op '(name ...) '()))
 
@@ -20,22 +20,32 @@
 
 (define op-ops (terms:op 'ops '(op ...) '()))
 (define op-rules (terms:op 'rules '(rule ...) '()))
-(define op-module (terms:op 'module '(ops rules) '()))
+(define op-module (terms:op 'module '(name ops meta) '()))
 
-(define (meta-module . decls)
+(define meta
+  (let ([ops (hash 'op op-op
+                   'vars op-vars
+                   '=-> op-eqrule
+                   '=->? op-ceqrule
+                   '== op-eq
+                   'term op-term
+                   'ops op-ops
+                   'rules op-rules
+                   'module op-module)])
+    (terms:module 'meta ops #f)))
+
+(define (meta-module module-name . decls)
   (let ([ops (filter (λ (t) (eq? (terms:term-op t) op-op)) decls)]
         [rules (filter (λ (t) (member (terms:term-op t) (list op-eqrule
                                                               op-ceqrule)))
                        decls)])
-    (terms:term op-module (list (terms:term op-ops ops)
+    (terms:term op-module (list module-name
+                                (terms:term op-ops ops)
                                 (terms:term op-rules rules)))))
 
 ;
-; The internal representation of a module
+; Make a "compiled" module from a meta-module
 ;
-(struct module (term ops)
-        #:transparent)
-
 (define (op-from-meta op-term)
   (condd
    [(not (and (terms:term? op-term)
@@ -114,11 +124,11 @@
    [(not (and (terms:term? module-term)
               (equal? (terms:term-op module-term) op-module)))
     (error "not a term module: " module-term)]
-   #:do (match-define (list ops-term rules-term) 
+   #:do (match-define (list module-name ops-term rules-term) 
                       (terms:term-args module-term))
    #:do (define ops (foldl add-op (hash) (terms:term-args ops-term)))
    #:do (define ops-with-rules (foldl add-rule ops (terms:term-args rules-term)))
-   [else (module module-term ops-with-rules)]))
+   [else (terms:module module-name ops-with-rules module-term)]))
 
 ;
 ; Macros
@@ -134,13 +144,6 @@
              #:with value #'(terms:term op-term
                                         (list (quote op) args.value ...))))
 
-  (define-syntax-class condition
-    ; FIXME
-    #:description "condition"
-    (pattern (== term1:term term2:term)
-             #:with value #'(terms:term op-eq
-                                        (list term1.value term2.value))))
-  
   (define-syntax-class decl
     #:description "declaration"
 
@@ -165,20 +168,20 @@
                                         (list (terms:term op-vars
                                                           (list (quote var)))
                                               left.value right.value)))
-    (pattern (=-> left:term  #:if cond:condition right:term)
+    (pattern (=-> left:term  #:if cond:term right:term)
              #:with value #'(terms:term op-ceqrule
                                         (list (terms:term op-vars '())
                                               left.value
                                               cond.value
                                               right.value)))
-    (pattern (=-> #:vars (var:id ...) left:term  #:if cond:condition right:term)
+    (pattern (=-> #:vars (var:id ...) left:term  #:if cond:term right:term)
              #:with value #'(terms:term op-ceqrule
                                         (list (terms:term op-vars
                                                           (list (quote var) ...))
                                               left.value
                                               cond.value
                                               right.value)))
-    (pattern (=-> #:var var:id left:term  #:if cond:condition right:term)
+    (pattern (=-> #:var var:id left:term  #:if cond:term right:term)
              #:with value #'(terms:term op-ceqrule
                                         (list (terms:term op-vars
                                                           (list (quote var)))
@@ -192,7 +195,7 @@
         decl:decl
         ...)
      #'(define module-name
-         (meta-module decl.value ...))]))
+         (meta-module (quote module-name) decl.value ...))]))
 
 (define-syntax (define-module stx)
   (syntax-parse stx
@@ -200,7 +203,7 @@
         decl:decl
         ...)
      #'(define module-name
-         (module-from-meta (meta-module decl.value ...)))]))
+         (module-from-meta (meta-module (quote module-name) decl.value ...)))]))
 
 (define-syntax (meta-term stx)
   (syntax-parse stx
@@ -210,4 +213,4 @@
 (define-syntax (term stx)
   (syntax-parse stx
     [(_ module:expr expr:term)
-     #'(term-from-meta (module-ops module) (hash) expr.value)]))
+     #'(term-from-meta (terms:module-ops module) (hash) expr.value)]))

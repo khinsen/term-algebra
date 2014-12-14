@@ -2,15 +2,15 @@
 
 (require rackunit
          term-algebra/modules
-         term-algebra/rewrite)
+         term-algebra/rewrite
+         (only-in term-algebra/builtin truth))
 
 (define-syntax-rule (check-reduce module initial-term reduced-term)
   (check-equal? (reduce (term module initial-term)) (term module reduced-term)))
 
 (define-module boolean
 
-  (define-op true)
-  (define-op false)
+  (use truth)
  
   (define-op (not x))
   (=-> (not true) false)

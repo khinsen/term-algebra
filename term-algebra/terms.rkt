@@ -31,7 +31,7 @@
                 (write (op-symbol op) port)
                 (write (cons (op-symbol op) (term-args term)) port)))))
 
-(struct module (name ops meta)
+(struct module (name ops meta meta-hash)
         #:transparent)
 
 ; Basic operations

@@ -4,7 +4,35 @@
 
 (require (prefix-in terms: term-algebra/terms)
          (for-syntax syntax/parse)
+         (only-in file/sha1 sha1)
          "./condd.rkt")
+
+;
+; The module registry
+;
+(define (hash-of-string s)
+  (sha1 (open-input-string s)))
+
+(define (hash-of-meta-module meta-module)
+  (let ([o (open-output-string)])
+    (write meta-module o)
+    (hash-of-string (get-output-string o))))
+
+(define *modules* (make-hash))
+
+(define (register-module module)
+  (hash-set! *modules* (terms:module-meta-hash module) (make-weak-box module)))
+
+(define (lookup-module-hash hash)
+  (weak-box-value (hash-ref *modules* hash)))
+
+(define (make-module module-name ops meta-terms)
+  (let* ([meta-hash (if meta-terms
+                        (hash-of-meta-module meta-terms)
+                        (hash-of-string (symbol->string module-name)))]
+         [mod (terms:module module-name ops meta-terms meta-hash)])
+    (register-module mod)
+    mod))
 
 ;
 ; The meta-representation of modules as terms
@@ -22,6 +50,9 @@
 (define op-rules (terms:op 'rules '(rule ...) '()))
 (define op-module (terms:op 'module '(name ops meta) '()))
 
+(define op-imports (terms:op 'imports '(module ...) '()))
+(define op-use (terms:op 'use '(name) '()))
+
 (define meta
   (let ([ops (hash 'op op-op
                    'vars op-vars
@@ -31,15 +62,18 @@
                    'term op-term
                    'ops op-ops
                    'rules op-rules
-                   'module op-module)])
-    (terms:module 'meta ops #f)))
+                   'module op-module
+                   'imports op-imports
+                   'use op-use)])
+    (make-module 'meta ops #f)))
 
-(define (meta-module module-name . decls)
+(define (meta-module module-name imports decls)
   (let ([ops (filter (λ (t) (eq? (terms:term-op t) op-op)) decls)]
         [rules (filter (λ (t) (member (terms:term-op t) (list op-eqrule
                                                               op-ceqrule)))
                        decls)])
     (terms:term op-module (list module-name
+                                (terms:term op-imports imports)
                                 (terms:term op-ops ops)
                                 (terms:term op-rules rules)))))
 
@@ -82,6 +116,22 @@
 
 (define (module-from-meta module-term)
 
+  (define (do-import import-term ops)
+    (let* ([import-op (terms:term-op import-term)]
+           [import-hash (first (terms:term-args import-term))]
+           [imported-module (lookup-module-hash import-hash)]
+           [imported-ops (hash-values (terms:module-ops imported-module))])
+      (cond
+       [(equal? import-op op-use)
+        (for/fold ([ops ops])
+                  ([op imported-ops])
+          (let ([symbol (terms:op-symbol op)])
+            (if (hash-has-key? ops symbol)
+                (error "op already defined: " symbol)
+                (hash-set ops symbol op))))]
+       [else
+        (error "unknown import op " import-op)])))
+
   (define (add-op op-term ops)
     (let* ([op (op-from-meta op-term)]
            [symbol (terms:op-symbol op)])
@@ -123,12 +173,23 @@
   (condd
    [(not (and (terms:term? module-term)
               (equal? (terms:term-op module-term) op-module)))
-    (error "not a term module: " module-term)]
-   #:do (match-define (list module-name ops-term rules-term) 
+    (error "not a meta-module: " module-term)]
+   #:do (match-define (list module-name imports-term ops-term rules-term) 
                       (terms:term-args module-term))
-   #:do (define ops (foldl add-op (hash) (terms:term-args ops-term)))
-   #:do (define ops-with-rules (foldl add-rule ops (terms:term-args rules-term)))
-   [else (terms:module module-name ops-with-rules module-term)]))
+   [(not (and (terms:term? imports-term)
+              (equal? (terms:term-op imports-term) op-imports)))
+    (error "not an imports term: " imports-term)]
+   [(not (and (terms:term? ops-term)
+              (equal? (terms:term-op ops-term) op-ops)))
+    (error "not an ops module: " ops-term)]
+   [(not (and (terms:term? rules-term)
+              (equal? (terms:term-op rules-term) op-rules)))
+    (error "not an ops module: " ops-term)]
+   #:do (define ops (hash))
+   #:do (set! ops (foldl do-import ops (terms:term-args imports-term)))
+   #:do (set! ops (foldl add-op ops (terms:term-args ops-term)))
+   #:do (set! ops (foldl add-rule ops (terms:term-args rules-term)))
+   [else (make-module module-name ops module-term)]))
 
 ;
 ; Macros
@@ -146,6 +207,7 @@
 
   (define-syntax-class decl
     #:description "declaration"
+    #:datum-literals (define-op =->)
 
     (pattern (define-op op-name:id)
              #:with value #'(terms:term op-op (list (quote op-name))))
@@ -187,23 +249,34 @@
                                                           (list (quote var)))
                                               left.value
                                               cond.value
-                                              right.value)))))
+                                              right.value))))
+  
+  (define-syntax-class import
+    #:description "import"
+    #:datum-literals (use)
+    (pattern (use module:id)
+             #:with value #'(terms:term
+                             op-use (list (terms:module-meta-hash module))))))
 
 (define-syntax (define-meta-module stx)
   (syntax-parse stx
     [(_ module-name:id
-        decl:decl
-        ...)
+        import:import ...
+        decl:decl ...)
      #'(define module-name
-         (meta-module (quote module-name) decl.value ...))]))
+         (meta-module (quote module-name)
+                      (list import.value ...)
+                      (list decl.value ...)))]))
 
 (define-syntax (define-module stx)
   (syntax-parse stx
     [(_ module-name:id
-        decl:decl
-        ...)
+        import:import ...
+        decl:decl ...)
      #'(define module-name
-         (module-from-meta (meta-module (quote module-name) decl.value ...)))]))
+         (module-from-meta (meta-module (quote module-name)
+                      (list import.value ...)
+                      (list decl.value ...))))]))
 
 (define-syntax (meta-term stx)
   (syntax-parse stx

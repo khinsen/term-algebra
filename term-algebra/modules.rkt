@@ -4,8 +4,7 @@
 
 (require (prefix-in terms: term-algebra/terms)
          (for-syntax syntax/parse)
-         (only-in file/sha1 sha1)
-         "./condd.rkt")
+         (only-in file/sha1 sha1))
 
 ;
 ; The module registry
@@ -78,116 +77,118 @@
 ;
 ; Make a "compiled" module from a meta-module
 ;
-(define (op-from-meta op-term)
-  (condd
-   [(not (and (terms:term? op-term)
-              (equal? (terms:term-op op-term) op-op)))
-    (error "not an op term: " op-term)]
-   #:do (match-define (cons id-symbol arg-symbols) 
-                      (terms:term-args op-term))
-   [(not (symbol? id-symbol))
-    (error "not a symbol: " id-symbol)]
-   [(not (and (list? arg-symbols)
-              (andmap symbol? arg-symbols)))
-    (error "not a list of symbols: " arg-symbols)]
-   [else (terms:op id-symbol arg-symbols '())]))
+(define-match-expander mterm
+  (lambda (stx)
+    (syntax-parse stx
+      [(_ an-op some-args)
+       #'(struct* terms:term ([op (==  an-op eq?)] [args some-args]))])))
+
+(define-match-expander mterm0
+  (lambda (stx)
+    (syntax-parse stx
+      [(_ an-op)
+       #'(struct* terms:term ([op (==  an-op eq?)] [args (list)]))])))
 
 (define (term-from-meta ops vars term-term)
-  (condd
-   [(not (and (terms:term? term-term)
-              (equal? (terms:term-op term-term) op-term)))
-    (error "not a term: " term-term)]
-   #:do (match-define (cons op-or-var args) (terms:term-args term-term))
-   [(not (symbol? op-or-var))
-    (error "not a symbol: " op-or-var)]
-   [(hash-has-key? ops op-or-var)
-    (let ([op (hash-ref ops op-or-var)]
-          [arg-terms (for/list ([arg args]) (term-from-meta ops vars arg))])
+
+  (define (make-op-term ops vars op args)
+    (let ([arg-terms (for/list ([arg args]) (term-from-meta ops vars arg))])
       (if (equal? (length arg-terms) (length (terms:op-args op)))
           (terms:term op arg-terms)
-          (error "wrong number of arguments for op " op)))]
-   [(hash-has-key? vars op-or-var)
+          (error "wrong number of arguments for op " op))))
+  
+  (define (make-var var args)
     (if (empty? args)
-        (hash-ref vars op-or-var)
-        (error "var has non-empty argument list: " args))]
-   [else (error "undefined op or var: " op-or-var)]))
+        var
+        (error "var has non-empty argument list: " args)))
+  
+  (match term-term
+    [(mterm op-term (cons op-or-var args))
+     #:when (symbol? op-or-var)
+     (cond
+      [(hash-has-key? ops op-or-var)
+       (make-op-term ops vars (hash-ref ops op-or-var) args)]
+      [(hash-has-key? vars op-or-var)
+       (make-var (hash-ref vars op-or-var) args)]
+      [else (error "undefined op or var: " op-or-var)])]
+    [_ (error "not a meta-term: " term-term)]))
 
 (define (module-from-meta module-term)
 
   (define (do-import import-term ops)
-    (let* ([import-op (terms:term-op import-term)]
-           [import-hash (first (terms:term-args import-term))]
-           [imported-module (lookup-module-hash import-hash)]
-           [imported-ops (hash-values (terms:module-ops imported-module))])
-      (cond
-       [(equal? import-op op-use)
-        (for/fold ([ops ops])
-                  ([op imported-ops])
-          (let ([symbol (terms:op-symbol op)])
-            (if (hash-has-key? ops symbol)
-                (error "op already defined: " symbol)
-                (hash-set ops symbol op))))]
-       [else
-        (error "unknown import op " import-op)])))
+    (match import-term
+      [(mterm op-use (list import-hash))
+       (for/fold ([ops ops])
+                 ([op (hash-values (terms:module-ops
+                                    (lookup-module-hash import-hash)))])
+         (let ([symbol (terms:op-symbol op)])
+           (if (hash-has-key? ops symbol)
+               (error "op already defined: " symbol)
+               (hash-set ops symbol op))))]
+      [_ (error "unknown import syntax " import-term)]))
 
   (define (add-op op-term ops)
+
+    (define (op-from-meta op-term)
+      (match op-term
+        [(mterm op-op (cons id-symbol arg-symbols))
+         #:when (and (symbol? id-symbol)
+                     (list? arg-symbols)
+                     (andmap symbol? arg-symbols))
+         (terms:op id-symbol arg-symbols '())]
+        [_ (error "not an op term: " op-term)]))
+    
     (let* ([op (op-from-meta op-term)]
            [symbol (terms:op-symbol op)])
       (if (hash-has-key? ops symbol)
           (error "op already defined: " symbol)
           (hash-set ops symbol op))))
 
-  (define (add-var var-symbol vars)
-    (if (hash-has-key? vars var-symbol)
-        (error "var already defined: " var-symbol)
-        (hash-set vars var-symbol (terms:var var-symbol))))
-
   (define (add-rule rule-term ops)
-    (unless (and (terms:term? rule-term)
-                 (member (terms:term-op rule-term) (list op-eqrule op-ceqrule)))
-      (error "not a rule: " rule-term))
-    (if (equal? (terms:term-op rule-term) op-eqrule)
-        (match-let* ([(list vars left right) (terms:term-args rule-term)]
-                     [vars (foldl add-var (hash) (terms:term-args vars))]
-                     [left-term (term-from-meta ops vars left)]
-                     [right-term (term-from-meta ops vars right)]
-                     [left-op (terms:term-op left-term)])
-          (terms:set-op-rules! left-op
-                               (append (terms:op-rules left-op)
-                                       (list (cons left-term right-term)))))
-        (match-let* ([(list vars left c right) (terms:term-args rule-term)]
-                     [vars (foldl add-var (hash) (terms:term-args vars))]
-                     [cond-term (term-from-meta ops vars c)]
-                     [left-term (term-from-meta ops vars left)]
-                     [right-term (term-from-meta ops vars right)]
-                     [left-op (terms:term-op left-term)])
-          (terms:set-op-rules! left-op
-                               (append (terms:op-rules left-op)
-                                       (list (cons left-term
-                                                   (cons cond-term
-                                                         right-term)))))))
+
+    (define (add-var var-symbol vars)
+      (if (hash-has-key? vars var-symbol)
+          (error "var already defined: " var-symbol)
+          (hash-set vars var-symbol (terms:var var-symbol))))
+  
+    (define (add-rule* vars left right condition)
+      (let* ([vars (foldl add-var (hash) vars)]
+             [left-term (term-from-meta ops vars left)]
+             [left-op (terms:term-op left-term)]
+             [right-term (term-from-meta ops vars right)]
+             [cond-term (when condition
+                          (term-from-meta ops vars condition))]
+             [rule (if condition
+                       (list (cons left-term
+                                   (cons cond-term
+                                         right-term)))
+                       (list (cons left-term
+                                   right-term)))])
+        (terms:set-op-rules! left-op
+                             (append (terms:op-rules left-op)
+                                     rule))))
+
+    (match rule-term
+      [(mterm op-eqrule (list (mterm op-vars vars) left right))
+       (add-rule* vars left right #f)]
+      [(mterm op-ceqrule (list (mterm op-vars vars) left condition right))
+       (add-rule* vars left right condition)]
+      [_ (error "not a rule: " rule-term)])
+
     ops)
 
-  (condd
-   [(not (and (terms:term? module-term)
-              (equal? (terms:term-op module-term) op-module)))
-    (error "not a meta-module: " module-term)]
-   #:do (match-define (list module-name imports-term ops-term rules-term) 
-                      (terms:term-args module-term))
-   [(not (and (terms:term? imports-term)
-              (equal? (terms:term-op imports-term) op-imports)))
-    (error "not an imports term: " imports-term)]
-   [(not (and (terms:term? ops-term)
-              (equal? (terms:term-op ops-term) op-ops)))
-    (error "not an ops module: " ops-term)]
-   [(not (and (terms:term? rules-term)
-              (equal? (terms:term-op rules-term) op-rules)))
-    (error "not an ops module: " ops-term)]
-   #:do (define ops (hash))
-   #:do (set! ops (foldl do-import ops (terms:term-args imports-term)))
-   #:do (set! ops (foldl add-op ops (terms:term-args ops-term)))
-   #:do (set! ops (foldl add-rule ops (terms:term-args rules-term)))
-   [else (make-module module-name ops module-term)]))
+  (match module-term
+    [(mterm op-module (list module-name
+                            (mterm op-imports import-terms)
+                            (mterm op-ops op-terms)
+                            (mterm op-rules rule-terms)))
+     #:when (symbol? module-name)
+     (let* ([ops (hash)]
+            [ops (foldl do-import ops import-terms)]
+            [ops (foldl add-op ops op-terms)]
+            [ops (foldl add-rule ops rule-terms)])
+       (make-module module-name ops module-term))]
+    [_ (error "not a meta-module: " module-term)]))
 
 ;
 ; Macros

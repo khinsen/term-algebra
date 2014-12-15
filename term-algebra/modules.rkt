@@ -41,7 +41,6 @@
 
 (define op-vars (terms:op 'vars '(...) '()))
 (define op-eqrule (terms:op '=-> '(left right) '()))
-(define op-eq (terms:op '== '(x y) '()))
 (define op-ceqrule (terms:op '=->? '(left condition right) '()))
 
 (define op-term (terms:op 'term '(symbol ...) '()))
@@ -58,7 +57,6 @@
                    'vars op-vars
                    '=-> op-eqrule
                    '=->? op-ceqrule
-                   '== op-eq
                    'term op-term
                    'ops op-ops
                    'rules op-rules

@@ -13,9 +13,9 @@
   (use truth)
   (define-op (== term1 term2)))
 
-(let ([true (terms:term (terms:module-op equality 'true) '())]
-      [false (terms:term (terms:module-op equality 'false) '())])
-  (terms:make-special-op equality '==
+(let ([true (terms:term (modules:op-from equality 'true) '())]
+      [false (terms:term (modules:op-from equality 'false) '())])
+  (modules:make-special-op equality '==
     (lambda (term1 term2)
       (if (equal? term1 term2)
           true

@@ -3,11 +3,12 @@
 (provide reduce)
 
 (require term-algebra/terms
+         (only-in term-algebra/modules op-from)
          (prefix-in builtin: term-algebra/builtin))
 
-(define true-op (module-op builtin:truth 'true))
+(define true-op (op-from builtin:truth 'true))
 (define true-term (term true-op '()))
-(define false-op (module-op builtin:truth 'false))
+(define false-op (op-from builtin:truth 'false))
 (define false-term (term false-op '()))
 
 ; Term rewriting

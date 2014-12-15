@@ -3,8 +3,7 @@
 (provide (struct-out op)
          (struct-out var)
          (struct-out term)
-         (struct-out module)
-         module-op make-special-op)
+         (struct-out module))
 
 ; Struct definitions
 
@@ -33,14 +32,3 @@
 
 (struct module (name ops meta meta-hash)
         #:transparent)
-
-; Basic operations
-
-(define (module-op module op-symbol)
-  (hash-ref (module-ops module) op-symbol))
-
-(define (make-special-op module op-symbol proc)
-  (let ([op (hash-ref (module-ops module) op-symbol)])
-    (if (empty? (op-rules op))
-        (set-op-rules! op proc)
-        (error "non-empty rule list for operator " op))))

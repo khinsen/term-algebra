@@ -1,6 +1,9 @@
 #lang racket
 
-(provide define-module define-meta-module term meta-term meta)
+(provide define-module define-meta-module
+         term meta-term
+         op-from make-special-op
+         meta)
 
 (require (prefix-in terms: term-algebra/terms)
          (for-syntax syntax/parse)
@@ -77,6 +80,47 @@
 ;
 ; Make a "compiled" module from a meta-module
 ;
+
+; Manage the module-ops data structure that combines
+; a hash map for the operators with a set flagging the
+; imported operators.
+(struct ops-in-module (ops imported-ops)
+        #:transparent)
+
+(define (empty-ops)
+  (ops-in-module (hash) (set)))
+
+(define (add-op ops op imported?)
+  (let* ([all-ops (ops-in-module-ops ops)]
+         [imported (ops-in-module-imported-ops ops)]
+         [op-symbol (terms:op-symbol op)])
+    (when (hash-has-key? all-ops op-symbol)
+        (error "op already defined: " op-symbol))
+    (ops-in-module (hash-set all-ops op-symbol op)
+                   (if imported?
+                       (set-add imported op-symbol)
+                       imported))))
+
+(define (get-op ops symbol)
+  (hash-ref (ops-in-module-ops ops) symbol #f))
+
+(define (all-ops ops)
+  (hash-values (ops-in-module-ops ops)))
+
+(define (op-is-imported? ops symbol)
+  (and (hash-has-key? (ops-in-module-ops ops) symbol)
+       (set-member? (ops-in-module-imported-ops ops) symbol)))
+
+(define (op-from module op-symbol)
+  (get-op (terms:module-ops module) op-symbol))
+
+(define (make-special-op module op-symbol proc)
+  (let ([op (op-from module op-symbol)])
+    (if (empty? (terms:op-rules op))
+        (terms:set-op-rules! op proc)
+        (error "non-empty rule list for operator " op))))
+
+; Two match expanders for simplifying the parser for meta-modules.
 (define-match-expander mterm
   (lambda (stx)
     (syntax-parse stx
@@ -89,6 +133,7 @@
       [(_ an-op)
        #'(struct* terms:term ([op (==  an-op eq?)] [args (list)]))])))
 
+; Convert a meta-term to a concrete term
 (define (term-from-meta ops vars term-term)
 
   (define (make-op-term ops vars op args)
@@ -106,28 +151,24 @@
     [(mterm op-term (cons op-or-var args))
      #:when (symbol? op-or-var)
      (cond
-      [(hash-has-key? ops op-or-var)
-       (make-op-term ops vars (hash-ref ops op-or-var) args)]
+      [(get-op ops op-or-var)
+       => (lambda (op) (make-op-term ops vars op args))]
       [(hash-has-key? vars op-or-var)
        (make-var (hash-ref vars op-or-var) args)]
       [else (error "undefined op or var: " op-or-var)])]
     [_ (error "not a meta-term: " term-term)]))
 
-(define (module-from-meta module-term)
-
+; Convert a meta-module to a concrete module
   (define (do-import import-term ops)
     (match import-term
       [(mterm op-use (list import-hash))
        (for/fold ([ops ops])
-                 ([op (hash-values (terms:module-ops
-                                    (lookup-module-hash import-hash)))])
-         (let ([symbol (terms:op-symbol op)])
-           (if (hash-has-key? ops symbol)
-               (error "op already defined: " symbol)
-               (hash-set ops symbol op))))]
+                 ([op (all-ops (terms:module-ops
+                                (lookup-module-hash import-hash)))])
+         (add-op ops op #t))]
       [_ (error "unknown import syntax " import-term)]))
 
-  (define (add-op op-term ops)
+  (define (define-op op-term ops)
 
     (define (op-from-meta op-term)
       (match op-term
@@ -138,11 +179,7 @@
          (terms:op id-symbol arg-symbols '())]
         [_ (error "not an op term: " op-term)]))
     
-    (let* ([op (op-from-meta op-term)]
-           [symbol (terms:op-symbol op)])
-      (if (hash-has-key? ops symbol)
-          (error "op already defined: " symbol)
-          (hash-set ops symbol op))))
+    (add-op ops (op-from-meta op-term) #f))
 
   (define (add-rule rule-term ops)
 
@@ -151,7 +188,7 @@
           (error "var already defined: " var-symbol)
           (hash-set vars var-symbol (terms:var var-symbol))))
   
-    (define (add-rule* vars left right condition)
+    (define (add-rule* ops vars left right condition)
       (let* ([vars (foldl add-var (hash) vars)]
              [left-term (term-from-meta ops vars left)]
              [left-op (terms:term-op left-term)]
@@ -164,18 +201,23 @@
                                          right-term)))
                        (list (cons left-term
                                    right-term)))])
-        (terms:set-op-rules! left-op
-                             (append (terms:op-rules left-op)
-                                     rule))))
+        (if (op-is-imported? ops (terms:op-symbol left-op))
+            (error "cannot add rule to imported operator" left-op)
+            (terms:set-op-rules! left-op
+                                 (append (terms:op-rules left-op)
+                                         rule)))))
 
     (match rule-term
       [(mterm op-eqrule (list (mterm op-vars vars) left right))
-       (add-rule* vars left right #f)]
+       (add-rule* ops vars left right #f)]
       [(mterm op-ceqrule (list (mterm op-vars vars) left condition right))
-       (add-rule* vars left right condition)]
+       (add-rule* ops vars left right condition)]
       [_ (error "not a rule: " rule-term)])
 
     ops)
+
+(define (module-from-meta module-term)
+
 
   (match module-term
     [(mterm op-module (list module-name
@@ -183,9 +225,9 @@
                             (mterm op-ops op-terms)
                             (mterm op-rules rule-terms)))
      #:when (symbol? module-name)
-     (let* ([ops (hash)]
+     (let* ([ops (empty-ops)]
             [ops (foldl do-import ops import-terms)]
-            [ops (foldl add-op ops op-terms)]
+            [ops (foldl define-op ops op-terms)]
             [ops (foldl add-rule ops rule-terms)])
        (make-module module-name ops module-term))]
     [_ (error "not a meta-module: " module-term)]))

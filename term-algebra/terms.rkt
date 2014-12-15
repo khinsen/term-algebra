@@ -2,8 +2,7 @@
 
 (provide (struct-out op)
          (struct-out var)
-         (struct-out term)
-         (struct-out module))
+         (struct-out term))
 
 ; Struct definitions
 
@@ -29,6 +28,3 @@
             (if (null? (op-args op))
                 (write (op-symbol op) port)
                 (write (cons (op-symbol op) (term-args term)) port)))))
-
-(struct module (name ops meta meta-hash)
-        #:transparent)

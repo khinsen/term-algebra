@@ -10,6 +10,12 @@
          (only-in file/sha1 sha1))
 
 ;
+; The data structure for the internal module representation
+;
+(struct module (name ops meta meta-hash)
+        #:transparent)
+
+;
 ; The module registry
 ;
 (define (hash-of-string s)
@@ -23,7 +29,7 @@
 (define *modules* (make-hash))
 
 (define (register-module module)
-  (hash-set! *modules* (terms:module-meta-hash module) (make-weak-box module)))
+  (hash-set! *modules* (module-meta-hash module) (make-weak-box module)))
 
 (define (lookup-module-hash hash)
   (weak-box-value (hash-ref *modules* hash)))
@@ -32,7 +38,7 @@
   (let* ([meta-hash (if meta-terms
                         (hash-of-meta-module meta-terms)
                         (hash-of-string (symbol->string module-name)))]
-         [mod (terms:module module-name ops meta-terms meta-hash)])
+         [mod (module module-name ops meta-terms meta-hash)])
     (register-module mod)
     mod))
 
@@ -112,7 +118,7 @@
        (set-member? (ops-in-module-imported-ops ops) symbol)))
 
 (define (op-from module op-symbol)
-  (get-op (terms:module-ops module) op-symbol))
+  (get-op (module-ops module) op-symbol))
 
 (define (make-special-op module op-symbol proc)
   (let ([op (op-from module op-symbol)])
@@ -163,7 +169,7 @@
     (match import-term
       [(mterm op-use (list import-hash))
        (for/fold ([ops ops])
-                 ([op (all-ops (terms:module-ops
+                 ([op (all-ops (module-ops
                                 (lookup-module-hash import-hash)))])
          (add-op ops op #t))]
       [_ (error "unknown import syntax " import-term)]))
@@ -297,7 +303,7 @@
     #:datum-literals (use)
     (pattern (use module:id)
              #:with value #'(terms:term
-                             op-use (list (terms:module-meta-hash module))))))
+                             op-use (list (module-meta-hash module))))))
 
 (define-syntax (define-meta-module stx)
   (syntax-parse stx
@@ -327,4 +333,4 @@
 (define-syntax (term stx)
   (syntax-parse stx
     [(_ module:expr expr:term)
-     #'(term-from-meta (terms:module-ops module) (hash) expr.value)]))
+     #'(term-from-meta (module-ops module) (hash) expr.value)]))

@@ -254,11 +254,11 @@
 
   (define-syntax-class decl
     #:description "declaration"
-    #:datum-literals (define-op =->)
+    #:datum-literals (op =->)
 
-    (pattern (define-op op-name:id)
+    (pattern (op op-name:id)
              #:with value #'(terms:term op-op (list (quote op-name))))
-    (pattern (define-op (op-name:id arg-name:id ...))
+    (pattern (op (op-name:id arg-name:id ...))
              #:with value #'(terms:term op-op
                                         (list (quote op-name)
                                               (quote arg-name) ...)))

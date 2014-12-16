@@ -9,5 +9,5 @@
 
   (use builtin:truth)
  
-  (define-op (not x))
+  (op (not x))
   (=-> (not true) false))

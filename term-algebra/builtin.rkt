@@ -6,12 +6,12 @@
          (prefix-in modules: term-algebra/modules))
 
 (modules:define-module truth
-  (define-op true)
-  (define-op false))
+  (op true)
+  (op false))
 
 (modules:define-module equality
   (use truth)
-  (define-op (== term1 term2)))
+  (op (== term1 term2)))
 
 (let ([true (terms:term (modules:op-from equality 'true) '())]
       [false (terms:term (modules:op-from equality 'false) '())])

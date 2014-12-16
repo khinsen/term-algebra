@@ -12,6 +12,12 @@
                (reduce (term module initial-term))
                (term module reduced-term)))
 
+(define-syntax-rule (test-reduce-all initial-term reduced-term)
+  (begin
+    (test-reduce boolean initial-term reduced-term)
+    (test-reduce use-boolean initial-term reduced-term)
+    (test-reduce extend-boolean initial-term reduced-term)))
+
 (define-module boolean
 
   (use truth)
@@ -30,34 +36,40 @@
   (=-> #:var X (or true X) true)
   (=-> #:var X (or X true) true))
 
+(define-module use-boolean
+  (use boolean))
+
+(define-module extend-boolean
+  (extend boolean))
+
 (define-test-suite boolean-tests
 
-  (test-reduce boolean (not true)
-                       false)
-  (test-reduce boolean (not false)
-                       true)
+  (test-reduce-all (not true)
+                   false)
+  (test-reduce-all (not false)
+                   true)
 
-  (test-reduce boolean (and true true)
-                       true)
-  (test-reduce boolean (and false false)
-                       false)
-  (test-reduce boolean (and true false)
-                       false)
-  (test-reduce boolean (and false true)
-                       false)
-  (test-reduce boolean (and (not false) (not false))
-                       true)
+  (test-reduce-all (and true true)
+                   true)
+  (test-reduce-all (and false false)
+                   false)
+  (test-reduce-all (and true false)
+                   false)
+  (test-reduce-all (and false true)
+                   false)
+  (test-reduce-all (and (not false) (not false))
+                   true)
 
-  (test-reduce boolean (or true true)
-                       true)
-  (test-reduce boolean (or false false)
-                       false)
-  (test-reduce boolean (or true false)
-                       true)
-  (test-reduce boolean (or false true)
-                       true)
-  (test-reduce boolean (or (not false) (not false))
-                       true)
+  (test-reduce-all (or true true)
+                   true)
+  (test-reduce-all (or false false)
+                   false)
+  (test-reduce-all (or true false)
+                   true)
+  (test-reduce-all (or false true)
+                   true)
+  (test-reduce-all (or (not false) (not false))
+                   true)
   
   (test-case "term-syntax"
 

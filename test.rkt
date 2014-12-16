@@ -11,3 +11,6 @@
  
   (op (not x))
   (=-> (not true) false))
+
+(modules:define-module boolean2
+  (extend boolean))

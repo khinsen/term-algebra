@@ -31,6 +31,11 @@
                     (use truth)
                     (=-> true false))
                test))
+  (test-not-exn "rule-for-imported-op"
+            (lambda () (define-module test
+                    (extend truth)
+                    (=-> true false))
+               test))
 
   (test-not-exn "string-imported"
             (lambda () (define-module test

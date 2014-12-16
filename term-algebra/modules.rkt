@@ -69,6 +69,7 @@
 
 (define op-imports (terms:op 'imports '(module ...) '()))
 (define op-use (terms:op 'use '(name) '()))
+(define op-extend (terms:op 'extend '(name) '()))
 
 (define meta
   (let ([ops (hash 'op op-op
@@ -80,7 +81,8 @@
                    'rules op-rules
                    'module op-module
                    'imports op-imports
-                   'use op-use)])
+                   'use op-use
+                   'extend op-extend)])
     (make-special-module 'meta ops (set) (set 'string 'symbol))))
 
 (define (meta-module module-name imports decls)
@@ -121,6 +123,16 @@
 
 (define (all-ops ops)
   (hash-values (ops-in-module-ops ops)))
+
+(define (all-imported-ops ops)
+  (filter (lambda (op) (set-member? (ops-in-module-imported-ops ops) 
+                               (terms:op-symbol op)))
+          (hash-values (ops-in-module-ops ops))))
+
+(define (all-defined-ops ops)
+  (filter (lambda (op) (not (set-member? (ops-in-module-imported-ops ops) 
+                                    (terms:op-symbol op))))
+          (hash-values (ops-in-module-ops ops))))
 
 (define (op-is-imported? ops symbol)
   (and (hash-has-key? (ops-in-module-ops ops) symbol)
@@ -195,15 +207,55 @@
 
 ; Convert a meta-module to a concrete module
 
+(define (copy-ops ops)
+
+  (define (copy-term term ops-map)
+    (if (terms:term? term)
+        (let ([op (terms:term-op term)]
+              [args (terms:term-args term)])
+          (struct-copy terms:term term
+                       [op (hash-ref ops-map op op)]
+                       [args (map (lambda (a) (copy-term a ops-map)) args)]))
+        term))
+
+  (define (copy-rule rule ops-map)
+    (if (procedure? rule)
+        rule
+        (cons (copy-term (car rule) ops-map)
+              (let ([rest (cdr rule)])
+                (if (pair? rest)
+                    (copy-rule rest ops-map)
+                    (copy-term rest ops-map))))))
+
+  (let* ([copies (make-hasheq
+                  (map (lambda (op)
+                         (cons op (struct-copy terms:op op [rules '()])))
+                       ops))])
+    (for* ([op ops])
+      (terms:set-op-rules! (hash-ref copies op)
+                           (map (lambda (rule) (copy-rule rule copies))
+                                (terms:op-rules op))))
+    (hash-values copies)))
+
 (define (module-from-meta module-term)
 
   (define (do-import import-term ops)
     (match import-term
       [(mterm op-use (list import-hash))
-       (let ([new-ops (module-ops (lookup-module-hash import-hash))])
-         (for/fold ([ops (merge-special ops new-ops)])
+       (let* ([new-ops (module-ops (lookup-module-hash import-hash))]
+              [with-special (merge-special ops new-ops)])
+         (for/fold ([ops with-special])
                    ([op (all-ops new-ops)])
            (add-op ops op #t)))]
+      [(mterm op-extend (list import-hash))
+       (let* ([new-ops (module-ops (lookup-module-hash import-hash))]
+              [with-special (merge-special ops new-ops)]
+              [with-imported (for/fold ([ops with-special])
+                                       ([op (all-imported-ops new-ops)])
+                               (add-op ops op #t))])
+         (for/fold ([ops with-imported])
+                   ([op (copy-ops (all-defined-ops new-ops))])
+           (add-op ops op #f)))]
       [_ (error "unknown import syntax " import-term)]))
 
   (define (define-op op-term ops)
@@ -331,10 +383,13 @@
   
   (define-syntax-class import
     #:description "import"
-    #:datum-literals (use)
+    #:datum-literals (use extend)
     (pattern (use module:id)
              #:with value #'(terms:term
-                             op-use (list (module-meta-hash module))))))
+                             op-use (list (module-meta-hash module))))
+    (pattern (extend module:id)
+             #:with value #'(terms:term
+                             op-extend (list (module-meta-hash module))))))
 
 (define-syntax (define-meta-module stx)
   (syntax-parse stx

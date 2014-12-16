@@ -165,6 +165,9 @@
     [_ (error "not a meta-term: " term-term)]))
 
 ; Convert a meta-module to a concrete module
+
+(define (module-from-meta module-term)
+
   (define (do-import import-term ops)
     (match import-term
       [(mterm op-use (list import-hash))
@@ -221,9 +224,6 @@
       [_ (error "not a rule: " rule-term)])
 
     ops)
-
-(define (module-from-meta module-term)
-
 
   (match module-term
     [(mterm op-module (list module-name

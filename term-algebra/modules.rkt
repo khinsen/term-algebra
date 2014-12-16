@@ -203,6 +203,10 @@
      (if (has-special? ops 'symbol)
          s
          (error "import the symbol module to use symbols"))]
+    [x #:when (exact? x)
+     (if (has-special? ops 'exact-number)
+         x
+         (error "import the exact-number module to use numbers"))]
     [_ (error "not a meta-term: " term-term)]))
 
 ; Convert a meta-module to a concrete module
@@ -338,7 +342,9 @@
     (pattern ((~literal quote) symbol:id) #:with value #'(quote symbol))
     (pattern (op:id args:term ...)
              #:with value #'(terms:term op-term
-                                        (list (quote op) args.value ...))))
+                                        (list (quote op) args.value ...)))
+    (pattern x:number #:when (exact? (syntax-e #'x))
+             #:with value #'x))
 
   (define-syntax-class decl
     #:description "declaration"

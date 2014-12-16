@@ -5,12 +5,11 @@
          (prefix-in terms: term-algebra/terms)
          (only-in term-algebra/rewrite reduce))
 
-(modules:define-module boolean
+(modules:define-module test
 
-  (use builtin:truth)
+  (use builtin:exact-number)
  
-  (op (not x))
-  (=-> #:vars [X Y] (not Y) false))
+  (op zero))
 
-(modules:define-module boolean2
-  (extend boolean))
+(reduce (modules:term test (+ zero 2)))
+

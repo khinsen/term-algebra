@@ -5,7 +5,7 @@
 (require rackunit
          (only-in term-algebra/rewrite reduce)
          (only-in term-algebra/modules term define-module)
-         (only-in term-algebra/builtin truth equality string symbol))
+         term-algebra/builtin)
 
 (define-syntax-rule (test-reduce module initial-term reduced-term)
   (test-equal? (symbol->string (quote module))
@@ -24,7 +24,30 @@
                         false)
   (test-reduce equality (== (== true true) (== false false))
                         true)
-  
+
+  (test-reduce exact-number (+ 2 3)
+                            5)
+  (test-reduce exact-number (+ 2/3 1/3)
+                            1)
+  (test-reduce exact-number (- 2 3)
+                            -1)
+  (test-reduce exact-number (* 2 3)
+                            6)
+  (test-reduce exact-number (/ 2 3)
+                            2/3)
+  (test-reduce exact-number (/ 1 0)
+                            (/ 1 0))
+  (test-reduce exact-number (div 2 3)
+                            0)
+  (test-reduce exact-number (> 2 3)
+                            false)
+  (test-reduce exact-number (< 2 3)
+                            true)
+  (test-reduce exact-number (= 2 3)
+                            false)
+  (test-reduce exact-number (= 1/5 2/10)
+                            true)
+
   (test-exn "too-many-vars"
             #rx"vars unused in left-hand-side.*"
             (lambda () (define-module test
@@ -68,6 +91,19 @@
             (lambda () (define-module test
                     (op foo)
                     (=-> foo 'foo))
+               test))
+  
+  (test-not-exn "number-imported"
+            (lambda () (define-module test
+                    (use exact-number)
+                    (op foo)
+                    (=-> foo 2))
+               test))
+  (test-exn "number-not-imported"
+            #rx"import the exact-number module.*"
+            (lambda () (define-module test
+                    (op foo)
+                    (=-> foo 2))
                test)))
 
 

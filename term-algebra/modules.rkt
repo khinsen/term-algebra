@@ -2,7 +2,7 @@
 
 (provide define-module define-meta-module
          term meta-term
-         op-from make-special-op
+         op-from make-special-rule make-special-module
          meta)
 
 (require (prefix-in terms: term-algebra/terms)
@@ -12,6 +12,9 @@
 ;
 ; The data structure for the internal module representation
 ;
+(struct ops-in-module (ops imported-ops special-ops)
+        #:transparent)
+
 (struct module (name ops meta meta-hash)
         #:transparent)
 
@@ -39,6 +42,13 @@
                         (hash-of-meta-module meta-terms)
                         (hash-of-string (symbol->string module-name)))]
          [mod (module module-name ops meta-terms meta-hash)])
+    (register-module mod)
+    mod))
+
+(define (make-special-module module-name defined-ops imported-ops special-ops)
+  (let* ([meta-hash (hash-of-string (symbol->string module-name))]
+         [ops (ops-in-module defined-ops imported-ops special-ops)]
+         [mod (module module-name ops #f meta-hash)])
     (register-module mod)
     mod))
 
@@ -71,7 +81,7 @@
                    'module op-module
                    'imports op-imports
                    'use op-use)])
-    (make-module 'meta ops #f)))
+    (make-special-module 'meta ops (set) (set))))
 
 (define (meta-module module-name imports decls)
   (let ([ops (filter (λ (t) (eq? (terms:term-op t) op-op)) decls)]
@@ -90,22 +100,21 @@
 ; Manage the module-ops data structure that combines
 ; a hash map for the operators with a set flagging the
 ; imported operators.
-(struct ops-in-module (ops imported-ops)
-        #:transparent)
-
 (define (empty-ops)
-  (ops-in-module (hash) (set)))
+  (ops-in-module (hash) (set) (set)))
 
 (define (add-op ops op imported?)
   (let* ([all-ops (ops-in-module-ops ops)]
          [imported (ops-in-module-imported-ops ops)]
+         [special (ops-in-module-special-ops ops)]
          [op-symbol (terms:op-symbol op)])
     (when (hash-has-key? all-ops op-symbol)
         (error "op already defined: " op-symbol))
     (ops-in-module (hash-set all-ops op-symbol op)
                    (if imported?
                        (set-add imported op-symbol)
-                       imported))))
+                       imported)
+                   special)))
 
 (define (get-op ops symbol)
   (hash-ref (ops-in-module-ops ops) symbol #f))
@@ -120,11 +129,23 @@
 (define (op-from module op-symbol)
   (get-op (module-ops module) op-symbol))
 
-(define (make-special-op module op-symbol proc)
+(define (make-special-rule module op-symbol proc)
   (let ([op (op-from module op-symbol)])
     (if (empty? (terms:op-rules op))
         (terms:set-op-rules! op proc)
         (error "non-empty rule list for operator " op))))
+
+(define (merge-special ops added-ops)
+  (let* ([defined-ops (ops-in-module-ops ops)]
+         [imported (ops-in-module-imported-ops ops)]
+         [special (ops-in-module-special-ops ops)]
+         [added-special (ops-in-module-special-ops added-ops)])
+    (ops-in-module defined-ops
+                   imported
+                   (set-union special added-special))))
+
+(define (has-special? ops symbol)
+  (set-member? (ops-in-module-special-ops ops) symbol))
 
 ; Two match expanders for simplifying the parser for meta-modules.
 (define-match-expander mterm
@@ -162,6 +183,10 @@
       [(hash-has-key? vars op-or-var)
        (make-var (hash-ref vars op-or-var) args)]
       [else (error "undefined op or var: " op-or-var)])]
+    [s #:when (string? s)
+     (if (has-special? ops 'string)
+         s
+         (error "import the string module to use strings"))]
     [_ (error "not a meta-term: " term-term)]))
 
 ; Convert a meta-module to a concrete module
@@ -171,10 +196,10 @@
   (define (do-import import-term ops)
     (match import-term
       [(mterm op-use (list import-hash))
-       (for/fold ([ops ops])
-                 ([op (all-ops (module-ops
-                                (lookup-module-hash import-hash)))])
-         (add-op ops op #t))]
+       (let ([new-ops (module-ops (lookup-module-hash import-hash))])
+         (for/fold ([ops (merge-special ops new-ops)])
+                   ([op (all-ops new-ops)])
+           (add-op ops op #t)))]
       [_ (error "unknown import syntax " import-term)]))
 
   (define (define-op op-term ops)
@@ -250,7 +275,8 @@
                                         (list (quote symbol))))
     (pattern (op:id args:term ...)
              #:with value #'(terms:term op-term
-                                        (list (quote op) args.value ...))))
+                                        (list (quote op) args.value ...)))
+    (pattern s:str #:with value #'s))
 
   (define-syntax-class decl
     #:description "declaration"

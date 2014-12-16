@@ -39,14 +39,18 @@
              (merge-substitutions s (match-pattern p-arg t-arg)))]))
   
   (define (substitute p s)
-    (if (var? p)
-        (hash-ref s p)
-        (term (term-op p) (for/list ([a (term-args p)]) (substitute a s)))))
+    (cond
+     [(var? p)
+      (hash-ref s p)]
+     [(term? p)
+      (term (term-op p) (for/list ([a (term-args p)]) (substitute a s)))]
+     [else p]))
   
   (let ([rules (op-rules (term-op a-term))])
     (if (procedure? rules)
         ; special operator
-        (apply rules (term-args a-term))
+        (with-handlers ([exn:fail? (lambda (v) a-term)])
+          (apply rules (term-args a-term)))
         ; rule list
         (or (for/fold ([rewritten-term #f])
                       ([rule rules])
@@ -66,12 +70,14 @@
             a-term))))
 
 (define (rewrite-leftmost-innermost a-term)
-  (let* ([args (term-args a-term)]
-         [reduced-args (map reduce args)]
-         [with-reduced-args (if (andmap eq? args reduced-args)
-                                a-term
-                                (term (term-op a-term) reduced-args))])
-    (rewrite-head-once with-reduced-args)))
+  (if (term? a-term)
+      (let* ([args (term-args a-term)]
+             [reduced-args (map reduce args)]
+             [with-reduced-args (if (andmap eq? args reduced-args)
+                                    a-term
+                                    (term (term-op a-term) reduced-args))])
+        (rewrite-head-once with-reduced-args))
+      a-term))
 
 (define (reduce a-term)
   (let loop ([a-term a-term])
@@ -79,4 +85,3 @@
       (if (eq? rewritten-term a-term)
           a-term
           (loop rewritten-term)))))
-

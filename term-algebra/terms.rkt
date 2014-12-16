@@ -2,7 +2,8 @@
 
 (provide (struct-out op)
          (struct-out var)
-         (struct-out term))
+         (struct-out term)
+         vars-in-term)
 
 ; Struct definitions
 
@@ -28,3 +29,14 @@
             (if (null? (op-args op))
                 (write (op-symbol op) port)
                 (write (cons (op-symbol op) (term-args term)) port)))))
+
+; Basic operations
+
+(define (vars-in-term term)
+  (cond
+   [(var? term)  (seteq term)]
+   [(term? term) (let ([args (term-args term)])
+                   (if (empty? args)
+                       (seteq)
+                       (apply set-union (map vars-in-term args))))]
+   [else         (seteq)]))

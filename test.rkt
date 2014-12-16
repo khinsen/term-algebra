@@ -10,7 +10,7 @@
   (use builtin:truth)
  
   (op (not x))
-  (=-> (not true) false))
+  (=-> #:vars [X Y] (not Y) false))
 
 (modules:define-module boolean2
   (extend boolean))

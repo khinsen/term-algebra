@@ -25,6 +25,13 @@
   (test-reduce equality (== (== true true) (== false false))
                         true)
   
+  (test-exn "too-many-vars"
+            #rx"vars unused in left-hand-side.*"
+            (lambda () (define-module test
+                    (use truth)
+                    (=-> #:var X true false))
+               test))
+
   (test-exn "no-rule-for-imported-op"
             #rx"cannot add rule to imported operator.*"
             (lambda () (define-module test

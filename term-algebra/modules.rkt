@@ -281,6 +281,11 @@
     (define (add-rule* ops vars left right condition)
       (let* ([vars (foldl add-var (hash) vars)]
              [left-term (term-from-meta ops vars left)]
+             [unused-vars (set-subtract (list->seteq (hash-values vars))
+                                        (terms:vars-in-term left-term))]
+             [_ (unless (set-empty? unused-vars)
+                  (error (format "vars unused in left-hand-side: ~a"
+                                 (set->list unused-vars))))]
              [left-op (terms:term-op left-term)]
              [right-term (term-from-meta ops vars right)]
              [cond-term (when condition

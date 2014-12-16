@@ -1,6 +1,6 @@
 #lang racket
 
-(provide meta truth equality string)
+(provide meta truth equality string symbol)
 
 (require (prefix-in terms: term-algebra/terms)
          (prefix-in modules: term-algebra/modules))
@@ -25,3 +25,6 @@
 
 (define string (modules:make-special-module 'string
                                             (hash) (set) (set 'string)))
+
+(define symbol (modules:make-special-module 'symbol
+                                            (hash) (set) (set 'symbol)))

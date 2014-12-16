@@ -5,7 +5,7 @@
 (require rackunit
          (only-in term-algebra/rewrite reduce)
          (only-in term-algebra/modules term define-module)
-         (only-in term-algebra/builtin truth equality string))
+         (only-in term-algebra/builtin truth equality string symbol))
 
 (define-syntax-rule (test-reduce module initial-term reduced-term)
   (test-equal? (symbol->string (quote module))
@@ -31,7 +31,7 @@
                     (use truth)
                     (=-> true false))
                test))
-  
+
   (test-not-exn "string-imported"
             (lambda () (define-module test
                     (use string)
@@ -43,6 +43,19 @@
             (lambda () (define-module test
                     (op foo)
                     (=-> foo "foo"))
+               test))
+
+  (test-not-exn "symbol-imported"
+            (lambda () (define-module test
+                    (use symbol)
+                    (op foo)
+                    (=-> foo 'foo))
+               test))
+  (test-exn "symbol-not-imported"
+            #rx"import the symbol module.*"
+            (lambda () (define-module test
+                    (op foo)
+                    (=-> foo 'foo))
                test)))
 
 

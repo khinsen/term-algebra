@@ -81,7 +81,7 @@
                    'module op-module
                    'imports op-imports
                    'use op-use)])
-    (make-special-module 'meta ops (set) (set))))
+    (make-special-module 'meta ops (set) (set 'string 'symbol))))
 
 (define (meta-module module-name imports decls)
   (let ([ops (filter (λ (t) (eq? (terms:term-op t) op-op)) decls)]
@@ -187,6 +187,10 @@
      (if (has-special? ops 'string)
          s
          (error "import the string module to use strings"))]
+    [s #:when (symbol? s)
+     (if (has-special? ops 'symbol)
+         s
+         (error "import the symbol module to use symbols"))]
     [_ (error "not a meta-term: " term-term)]))
 
 ; Convert a meta-module to a concrete module
@@ -273,10 +277,11 @@
     (pattern symbol:id
              #:with value #'(terms:term op-term
                                         (list (quote symbol))))
+    (pattern s:str #:with value #'s)
+    (pattern ((~literal quote) symbol:id) #:with value #'(quote symbol))
     (pattern (op:id args:term ...)
              #:with value #'(terms:term op-term
-                                        (list (quote op) args.value ...)))
-    (pattern s:str #:with value #'s))
+                                        (list (quote op) args.value ...))))
 
   (define-syntax-class decl
     #:description "declaration"

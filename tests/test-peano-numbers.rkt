@@ -1,44 +1,51 @@
 #lang racket
 
+(provide peano-number-tests)
+
 (require rackunit
          term-algebra/modules
          term-algebra/rewrite)
 
-(define-syntax-rule (check-reduce module initial-term reduced-term)
-  (check-equal? (reduce (term module initial-term)) (term module reduced-term)))
+(define-syntax-rule (test-reduce module initial-term reduced-term)
+  (test-equal? (symbol->string (quote module))
+               (reduce (term module initial-term))
+               (term module reduced-term)))
 
 (define-module pn
-  (define-op zero)
+  (op zero)
 
-  (define-op (succ n))
+  (op (succ n))
 
-  (define-op (pred n))
+  (op (pred n))
   (=-> #:var N (pred (succ N)) N)
 
-  (define-op (+ a b))
+  (op (+ a b))
   (=-> #:var N (+ N zero) N)
   (=-> #:var N (+ zero N) N)
   (=-> #:vars (N M) (+ N (succ M)) (+ (succ N) M))
   
-  (define-op (* a b))
+  (op (* a b))
   (=-> #:var N (* N zero) zero)
   (=-> #:var N (* zero N) zero)
   (=-> #:vars (N M) (* (succ N) (succ M)) (succ (+ N (+ M (* N M))))))
 
-(test-case "peano-numbers"
+(define-test-suite peano-number-tests
 
-  (check-reduce pn (pred (succ zero))
-                   zero)
+  (test-reduce pn (pred (succ zero))
+                  zero)
 
-  (check-reduce pn (+ zero zero)
-                   zero)
-  (check-reduce pn (+ (succ zero) (succ zero))
-                   (succ (succ zero)))
-  (check-reduce pn (+ (succ zero) (succ (succ zero)))
-                   (succ (succ (succ zero))))
+  (test-reduce pn (+ zero zero)
+                  zero)
+  (test-reduce pn (+ (succ zero) (succ zero))
+                  (succ (succ zero)))
+  (test-reduce pn (+ (succ zero) (succ (succ zero)))
+                  (succ (succ (succ zero))))
 
-  (check-reduce pn (* zero zero)
-                   zero)
-  (check-reduce pn (* (succ (succ zero)) (succ (succ (succ zero))))
-                   (succ (succ (succ (succ (succ (succ zero))))))))
+  (test-reduce pn (* zero zero)
+                  zero)
+  (test-reduce pn (* (succ (succ zero)) (succ (succ (succ zero))))
+                  (succ (succ (succ (succ (succ (succ zero))))))))
 
+(module* main #f
+  (require rackunit/text-ui)
+  (run-tests peano-number-tests))

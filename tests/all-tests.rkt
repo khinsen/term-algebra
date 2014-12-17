@@ -2,6 +2,7 @@
 
 (require rackunit
          "test-builtin.rkt"
+         "test-sorts.rkt"
          "test-boolean.rkt"
          "test-peano-numbers.rkt")
 
@@ -10,6 +11,7 @@
 (define all-tests
   (make-test-suite "All term algebra tests"
     (list builtin-tests
+          sort-tests
           boolean-tests
           peano-number-tests)))
 

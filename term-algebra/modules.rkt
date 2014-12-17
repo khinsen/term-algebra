@@ -6,6 +6,7 @@
          meta)
 
 (require (prefix-in terms: term-algebra/terms)
+         (prefix-in sorts: term-algebra/sorts)
          (for-syntax syntax/parse)
          (only-in file/sha1 sha1))
 
@@ -15,7 +16,7 @@
 (struct ops-in-module (ops imported-ops special-ops)
         #:transparent)
 
-(struct module (name ops meta meta-hash)
+(struct module (name sorts ops meta meta-hash)
         #:transparent)
 
 ;
@@ -37,61 +38,72 @@
 (define (lookup-module-hash hash)
   (weak-box-value (hash-ref *modules* hash)))
 
-(define (make-module module-name ops meta-terms)
+(define (make-module module-name sorts ops meta-terms)
   (let* ([meta-hash (if meta-terms
                         (hash-of-meta-module meta-terms)
                         (hash-of-string (symbol->string module-name)))]
-         [mod (module module-name ops meta-terms meta-hash)])
+         [mod (module module-name sorts ops meta-terms meta-hash)])
     (register-module mod)
     mod))
 
-(define (make-special-module module-name defined-ops imported-ops special-ops)
+(define (make-special-module module-name sorts
+                             defined-ops imported-ops special-ops)
   (let* ([meta-hash (hash-of-string (symbol->string module-name))]
          [ops (ops-in-module defined-ops imported-ops special-ops)]
-         [mod (module module-name ops #f meta-hash)])
+         [mod (module module-name sorts ops #f meta-hash)])
     (register-module mod)
     mod))
 
 ;
 ; The meta-representation of modules as terms
 ;
-(define op-op (terms:op 'op '(name ...) '()))
-
-(define op-vars (terms:op 'vars '(...) '()))
-(define op-eqrule (terms:op '=-> '(left right) '()))
-(define op-ceqrule (terms:op '=->? '(left condition right) '()))
-
-(define op-term (terms:op 'term '(symbol ...) '()))
-
-(define op-ops (terms:op 'ops '(op ...) '()))
-(define op-rules (terms:op 'rules '(rule ...) '()))
 (define op-module (terms:op 'module '(name ops meta) '()))
 
 (define op-imports (terms:op 'imports '(module ...) '()))
 (define op-use (terms:op 'use '(name) '()))
 (define op-extend (terms:op 'extend '(name) '()))
 
-(define meta
-  (let ([ops (hash 'op op-op
-                   'vars op-vars
-                   '=-> op-eqrule
-                   '=->? op-ceqrule
-                   'term op-term
-                   'ops op-ops
-                   'rules op-rules
-                   'module op-module
-                   'imports op-imports
-                   'use op-use
-                   'extend op-extend)])
-    (make-special-module 'meta ops (set) (set 'string 'symbol))))
+(define op-sorts (terms:op 'sorts '(op ...) '()))
+(define op-subsorts (terms:op 'subsorts '(op ...) '()))
+(define op-subsort (terms:op 'subsort '(op ...) '()))
 
-(define (meta-module module-name imports decls)
-  (let ([ops (filter (λ (t) (eq? (terms:term-op t) op-op)) decls)]
+(define op-ops (terms:op 'ops '(op ...) '()))
+(define op-op (terms:op 'op '(name ...) '()))
+
+(define op-rules (terms:op 'rules '(rule ...) '()))
+(define op-eqrule (terms:op '=-> '(left right) '()))
+(define op-ceqrule (terms:op '=->? '(left condition right) '()))
+(define op-vars (terms:op 'vars '(...) '()))
+(define op-term (terms:op 'term '(symbol ...) '()))
+
+
+(define meta
+  (let ([sorts (sorts:empty-sort-graph)]
+        [ops (hash 'module op-module
+                      'imports op-imports
+                      'use op-use
+                      'extend op-extend
+                      'sorts op-sorts
+                      'subsorts op-subsorts
+                      'subsort op-subsort
+                      'ops op-ops
+                      'op op-op
+                      'rules op-rules
+                      '=-> op-eqrule
+                      '=->? op-ceqrule
+                      'vars op-vars
+                      'term op-term)])
+    (make-special-module 'meta sorts ops (set) (set 'string 'symbol))))
+
+(define (meta-module module-name imports sorts subsorts op-decls)
+  (let ([ops (filter (λ (t) (eq? (terms:term-op t) op-op)) op-decls)]
         [rules (filter (λ (t) (member (terms:term-op t) (list op-eqrule
                                                               op-ceqrule)))
-                       decls)])
+                       op-decls)])
     (terms:term op-module (list module-name
                                 (terms:term op-imports imports)
+                                (terms:term op-sorts sorts)
+                                (terms:term op-subsorts subsorts)
                                 (terms:term op-ops ops)
                                 (terms:term op-rules rules)))))
 
@@ -243,7 +255,20 @@
 
 (define (module-from-meta module-term)
 
-  (define (do-import import-term ops)
+  (define (do-import-sorts import-term sorts)
+
+    (define (import-sorts import-hash sorts)
+      (let ([new-sorts (module-sorts (lookup-module-hash import-hash))])
+        (sorts:merge-sort-graph sorts new-sorts)))
+
+    (match import-term
+      [(mterm op-use (list import-hash))
+       (import-sorts import-hash sorts)]
+      [(mterm op-extend (list import-hash))
+       (import-sorts import-hash sorts)]
+      [_ (error "unknown import syntax " import-term)]))
+
+  (define (do-import-ops import-term ops)
     (match import-term
       [(mterm op-use (list import-hash))
        (let* ([new-ops (module-ops (lookup-module-hash import-hash))]
@@ -261,6 +286,17 @@
                    ([op (copy-ops (all-defined-ops new-ops))])
            (add-op ops op #f)))]
       [_ (error "unknown import syntax " import-term)]))
+
+  (define (define-sort sort-symbol sorts)
+    (if (symbol? sort-symbol)
+        (sorts:add-sort sorts (terms:sort sort-symbol))
+        (error "not a symbol: " sort-symbol)))
+
+  (define (define-subsort subsort-term sorts)
+    (match subsort-term
+      [(mterm op-subsort (list sort1 sort2))
+       (sorts:add-subsort sorts (terms:sort sort1) (terms:sort sort2))]
+      [_ (error "not a subsort term: " subsort-term)]))
 
   (define (define-op op-term ops)
 
@@ -318,14 +354,21 @@
   (match module-term
     [(mterm op-module (list module-name
                             (mterm op-imports import-terms)
+                            (mterm op-sorts sort-terms)
+                            (mterm op-subsorts subsort-terms)
                             (mterm op-ops op-terms)
                             (mterm op-rules rule-terms)))
      #:when (symbol? module-name)
-     (let* ([ops (empty-ops)]
-            [ops (foldl do-import ops import-terms)]
+     (let* ([sorts (sorts:empty-sort-graph)]
+            [ops (empty-ops)]
+            [sorts (foldl do-import-sorts sorts import-terms)]
+            [ops (foldl do-import-ops ops import-terms)]
+            [sorts (foldl define-sort sorts sort-terms)]
+            [sorts (foldl define-subsort sorts subsort-terms)]
             [ops (foldl define-op ops op-terms)]
             [ops (foldl add-rule ops rule-terms)])
-       (make-module module-name ops module-term))]
+       (sorts:check-subsort-graph sorts)
+       (make-module module-name sorts ops module-term))]
     [_ (error "not a meta-module: " module-term)]))
 
 ;
@@ -400,27 +443,53 @@
                              op-use (list (module-meta-hash module))))
     (pattern (extend module:id)
              #:with value #'(terms:term
-                             op-extend (list (module-meta-hash module))))))
+                             op-extend (list (module-meta-hash module)))))
+  
+  (define-syntax-class sort
+    #:description "sort"
+    #:attributes (sorts subsorts)
+    (pattern ((~datum sort) s-id:id)
+             #:with sorts #'(list (quote s-id))
+             #:with subsorts #'(list))
+    (pattern ((~datum sorts) s-id:id ...)
+             #:with sorts #'(list (quote s-id) ...)
+             #:with subsorts #'(list))
+    (pattern ((~datum subsort) s-id1:id s-id2:id)
+             #:with sorts #'(list)
+             #:with subsorts #'(list (terms:term op-subsort
+                                                 (list (quote s-id1)
+                                                       (quote s-id2)))))
+    (pattern ((~datum subsorts) [s-id1:id s-id2:id] ...)
+             #:with sorts #'(list)
+             #:with subsorts #'(list (terms:term op-subsort
+                                                 (list (quote s-id1)
+                                                       (quote s-id2))) ...))))
 
 (define-syntax (define-meta-module stx)
   (syntax-parse stx
     [(_ module-name:id
-        import:import ...
-        decl:decl ...)
+        import-decl:import ...
+        sort-decl:sort ...
+        op-decl:decl ...)
      #'(define module-name
          (meta-module (quote module-name)
-                      (list import.value ...)
-                      (list decl.value ...)))]))
+                      (list import-decl.value ...)
+                      (append sort-decl.sorts ...)
+                      (append sort-decl.subsorts ...)
+                      (list op-decl.value ...)))]))
 
 (define-syntax (define-module stx)
   (syntax-parse stx
     [(_ module-name:id
-        import:import ...
-        decl:decl ...)
+        import-decl:import ...
+        sort-decl:sort ...
+        op-decl:decl ...)
      #'(define module-name
          (module-from-meta (meta-module (quote module-name)
-                      (list import.value ...)
-                      (list decl.value ...))))]))
+                                        (list import-decl.value ...)
+                                        (append sort-decl.sorts ...)
+                                        (append sort-decl.subsorts ...)
+                                        (list op-decl.value ...))))]))
 
 (define-syntax (meta-term stx)
   (syntax-parse stx

@@ -3,6 +3,7 @@
 (provide meta truth equality string symbol exact-number)
 
 (require (prefix-in terms: term-algebra/terms)
+         (prefix-in sorts: term-algebra/sorts)
          (prefix-in modules: term-algebra/modules))
 
 (define meta modules:meta)
@@ -25,9 +26,11 @@
          false)))
 
 (define string (modules:make-special-module 'string
+                                            (sorts:empty-sort-graph)
                                             (hash) (set) (set 'string)))
 
 (define symbol (modules:make-special-module 'symbol
+                                            (sorts:empty-sort-graph)
                                             (hash) (set) (set 'symbol)))
 
 (define exact-number
@@ -60,4 +63,5 @@
                    'false (modules:op-from truth 'false)
                    )])
     (modules:make-special-module 'exact-number
+                                 (sorts:empty-sort-graph)
                                  ops (set) (set 'exact-number))))

@@ -3,6 +3,7 @@
 (provide (struct-out op)
          (struct-out var)
          (struct-out term)
+         (struct-out sort)
          vars-in-term)
 
 ; Struct definitions
@@ -29,6 +30,12 @@
             (if (null? (op-args op))
                 (write (op-symbol op) port)
                 (write (cons (op-symbol op) (term-args term)) port)))))
+
+(struct sort (symbol)
+        #:transparent
+        #:property prop:custom-write
+        (lambda (sort port mode)
+          (write (sort-symbol sort) port)))
 
 ; Basic operations
 

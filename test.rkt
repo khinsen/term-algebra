@@ -3,13 +3,22 @@
 (require (prefix-in modules: term-algebra/modules)
          (prefix-in builtin: term-algebra/builtin)
          (prefix-in terms: term-algebra/terms)
-         (only-in term-algebra/rewrite reduce))
+         (only-in term-algebra/rewrite reduce)
+         graph)
 
-(modules:define-module test
-
-  (use builtin:exact-number)
- 
+(modules:define-module test1
+  (sort toto)
+  (sorts foo bar)
+  (subsort foo bar)
   (op zero))
 
-(reduce (modules:term test (+ zero 2)))
+(modules:define-module test2
+  (use test1)
+  (sorts baz quux)
+  (subsort baz quux)
+  (subsort baz bar)
+  (op one))
 
+(with-output-to-file "/Users/hinsen/Desktop/sort-graph.dot"
+  #:exists 'replace
+  (lambda () (display (graphviz (modules:module-sorts test2)))))

@@ -95,17 +95,13 @@
                       'term op-term)])
     (make-special-module 'meta sorts ops (set) (set 'string 'symbol))))
 
-(define (meta-module module-name imports sorts subsorts op-decls)
-  (let ([ops (filter (λ (t) (eq? (terms:term-op t) op-op)) op-decls)]
-        [rules (filter (λ (t) (member (terms:term-op t) (list op-eqrule
-                                                              op-ceqrule)))
-                       op-decls)])
-    (terms:term op-module (list module-name
-                                (terms:term op-imports imports)
-                                (terms:term op-sorts sorts)
-                                (terms:term op-subsorts subsorts)
-                                (terms:term op-ops ops)
-                                (terms:term op-rules rules)))))
+(define (meta-module module-name imports sorts subsorts ops rules)
+  (terms:term op-module (list module-name
+                              (terms:term op-imports imports)
+                              (terms:term op-sorts sorts)
+                              (terms:term op-subsorts subsorts)
+                              (terms:term op-ops ops)
+                              (terms:term op-rules rules))))
 
 ;
 ; Make a "compiled" module from a meta-module
@@ -389,51 +385,66 @@
     (pattern x:number #:when (exact? (syntax-e #'x))
              #:with value #'x))
 
-  (define-syntax-class decl
-    #:description "declaration"
+  (define-syntax-class operator
+    #:description "operator/rule"
+    #:attributes (ops rules)
     #:datum-literals (op =->)
 
     (pattern (op op-name:id)
-             #:with value #'(terms:term op-op (list (quote op-name))))
+             #:with ops #'(list (terms:term op-op (list (quote op-name))))
+             #:with rules #'(list))
     (pattern (op (op-name:id arg-name:id ...))
-             #:with value #'(terms:term op-op
-                                        (list (quote op-name)
-                                              (quote arg-name) ...)))
+             #:with ops #'(list (terms:term op-op
+                                            (list (quote op-name)
+                                                  (quote arg-name) ...)))
+             #:with rules #'(list))
 
     (pattern (=-> left:term right:term)
-             #:with value #'(terms:term op-eqrule
-                                        (list (terms:term op-vars '())
-                                              left.value right.value)))
+             #:with ops #'(list)
+             #:with rules #'(list (terms:term op-eqrule
+                                              (list (terms:term op-vars '())
+                                                    left.value right.value))))
     (pattern (=-> #:vars (var:id ...) left:term right:term)
-             #:with value #'(terms:term op-eqrule
-                                        (list (terms:term op-vars
-                                                          (list (quote var) ...))
-                                              left.value right.value)))
+             #:with ops #'(list)
+             #:with rules #'(list (terms:term op-eqrule
+                                              (list (terms:term op-vars
+                                                                (list (quote
+                                                                       var)
+                                                                      ...))
+                                                    left.value right.value))))
     (pattern (=-> #:var var:id left:term right:term)
-             #:with value #'(terms:term op-eqrule
-                                        (list (terms:term op-vars
-                                                          (list (quote var)))
-                                              left.value right.value)))
+             #:with ops #'(list)
+             #:with rules #'(list (terms:term op-eqrule
+                                              (list (terms:term op-vars
+                                                                (list (quote
+                                                                       var)))
+                                                    left.value right.value))))
     (pattern (=-> left:term  #:if cond:term right:term)
-             #:with value #'(terms:term op-ceqrule
-                                        (list (terms:term op-vars '())
-                                              left.value
-                                              cond.value
-                                              right.value)))
+             #:with ops #'(list)
+             #:with rules #'(list (terms:term op-ceqrule
+                                              (list (terms:term op-vars '())
+                                                    left.value
+                                                    cond.value
+                                                    right.value))))
     (pattern (=-> #:vars (var:id ...) left:term  #:if cond:term right:term)
-             #:with value #'(terms:term op-ceqrule
-                                        (list (terms:term op-vars
-                                                          (list (quote var) ...))
-                                              left.value
-                                              cond.value
-                                              right.value)))
+             #:with ops #'(list)
+             #:with rules #'(list (terms:term op-ceqrule
+                                              (list (terms:term op-vars
+                                                                (list (quote
+                                                                       var)
+                                                                      ...))
+                                                    left.value
+                                                    cond.value
+                                                    right.value))))
     (pattern (=-> #:var var:id left:term  #:if cond:term right:term)
-             #:with value #'(terms:term op-ceqrule
-                                        (list (terms:term op-vars
-                                                          (list (quote var)))
-                                              left.value
-                                              cond.value
-                                              right.value))))
+             #:with ops #'(list)
+             #:with rules #'(list (terms:term op-ceqrule
+                                              (list (terms:term op-vars
+                                                                (list (quote
+                                                                       var)))
+                                                    left.value
+                                                    cond.value
+                                                    right.value)))))
   
   (define-syntax-class import
     #:description "import"
@@ -470,26 +481,28 @@
     [(_ module-name:id
         import-decl:import ...
         sort-decl:sort ...
-        op-decl:decl ...)
+        op-decl:operator ...)
      #'(define module-name
          (meta-module (quote module-name)
                       (list import-decl.value ...)
                       (append sort-decl.sorts ...)
                       (append sort-decl.subsorts ...)
-                      (list op-decl.value ...)))]))
+                      (append op-decl.ops ...)
+                      (append op-decl.rules ...)))]))
 
 (define-syntax (define-module stx)
   (syntax-parse stx
     [(_ module-name:id
         import-decl:import ...
         sort-decl:sort ...
-        op-decl:decl ...)
+        op-decl:operator ...)
      #'(define module-name
          (module-from-meta (meta-module (quote module-name)
                                         (list import-decl.value ...)
                                         (append sort-decl.sorts ...)
                                         (append sort-decl.subsorts ...)
-                                        (list op-decl.value ...))))]))
+                                        (append op-decl.ops ...)
+                                        (append op-decl.rules ...))))]))
 
 (define-syntax (meta-term stx)
   (syntax-parse stx

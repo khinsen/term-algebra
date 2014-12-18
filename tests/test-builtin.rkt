@@ -70,39 +70,39 @@
   (test-not-exn "string-imported"
             (lambda () (define-module test
                     (use string)
-                    (op foo)
+                    (op foo String)
                     (=-> foo "foo"))
                test))
   (test-exn "string-not-imported"
             #rx"import the string module.*"
             (lambda () (define-module test
-                    (op foo)
+                    (op foo String)
                     (=-> foo "foo"))
                test))
 
   (test-not-exn "symbol-imported"
             (lambda () (define-module test
                     (use symbol)
-                    (op foo)
+                    (op foo Symbol)
                     (=-> foo 'foo))
                test))
   (test-exn "symbol-not-imported"
             #rx"import the symbol module.*"
             (lambda () (define-module test
-                    (op foo)
+                    (op foo Symbol)
                     (=-> foo 'foo))
                test))
   
   (test-not-exn "number-imported"
             (lambda () (define-module test
                     (use exact-number)
-                    (op foo)
+                    (op foo ExactNumber)
                     (=-> foo 2))
                test))
   (test-exn "number-not-imported"
             #rx"import the exact-number module.*"
             (lambda () (define-module test
-                    (op foo)
+                    (op foo ExactNumber)
                     (=-> foo 2))
                test)))
 

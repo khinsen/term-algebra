@@ -8,13 +8,16 @@
 
 ; Struct definitions
 
-(struct op (symbol args [rules #:mutable])
+(struct op (symbol domain range [rules #:mutable])
         #:transparent
         #:property prop:custom-write
         (lambda (op port mode)
-          (if (null? (op-args op))
-              (write (op-symbol op) port)
-              (write (cons (op-symbol op) (op-args op)) port))))
+          (if (null? (op-domain op))
+              (write (list 'op (op-symbol op) (op-range op)) port)
+              (write (list 'op (op-symbol op) 
+                           (cons (op-symbol op) (op-domain op))
+                           (op-range op))
+                     port))))
 
 (struct var (symbol)
         #:transparent
@@ -27,7 +30,7 @@
         #:property prop:custom-write
         (lambda (term port mode)
           (let ([op (term-op term)])
-            (if (null? (op-args op))
+            (if (null? (op-domain op))
                 (write (op-symbol op) port)
                 (write (cons (op-symbol op) (term-args term)) port)))))
 

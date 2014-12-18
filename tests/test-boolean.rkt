@@ -22,16 +22,16 @@
 
   (use truth)
  
-  (op (not x))
+  (op (not Boolean) Boolean)
   (=-> (not true) false)
   (=-> (not false) true)
 
-  (op (and x y))
+  (op (and Boolean Boolean) Boolean)
   (=-> (and true true) true)
   (=-> #:var X (and false X) false)
   (=-> #:var X (and X false) false)
 
-  (op (or x y))
+  (op (or Boolean Boolean) Boolean)
   (=-> (or false false) false)
   (=-> #:var X (or true X) true)
   (=-> #:var X (or X true) true))

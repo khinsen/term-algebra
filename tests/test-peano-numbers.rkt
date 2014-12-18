@@ -12,19 +12,21 @@
                (term module reduced-term)))
 
 (define-module pn
-  (op zero)
+  (sort PN)
 
-  (op (succ n))
+  (op zero PN)
 
-  (op (pred n))
+  (op (succ PN) PN)
+
+  (op (pred PN) PN)
   (=-> #:var N (pred (succ N)) N)
 
-  (op (+ a b))
+  (op (+ PN PN) PN)
   (=-> #:var N (+ N zero) N)
   (=-> #:var N (+ zero N) N)
   (=-> #:vars (N M) (+ N (succ M)) (+ (succ N) M))
   
-  (op (* a b))
+  (op (* PN PN) PN)
   (=-> #:var N (* N zero) zero)
   (=-> #:var N (* zero N) zero)
   (=-> #:vars (N M) (* (succ N) (succ M)) (succ (+ N (+ M (* N M))))))

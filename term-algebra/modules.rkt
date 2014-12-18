@@ -57,28 +57,35 @@
 ;
 ; The meta-representation of modules as terms
 ;
-(define op-module (terms:op 'module '(name ops meta) '()))
+(define meta-sorts '(Module ImportList Import
+                     SortList Sort SubsortList Subsort
+                     OpList Op Domain
+                     RuleList Rule VarList
+                     Term))
 
-(define op-imports (terms:op 'imports '(module ...) '()))
-(define op-use (terms:op 'use '(name) '()))
-(define op-extend (terms:op 'extend '(name) '()))
+(define op-module (terms:op 'module '(Symbol ops meta) 'Module '()))
 
-(define op-sorts (terms:op 'sorts '(op ...) '()))
-(define op-subsorts (terms:op 'subsorts '(op ...) '()))
-(define op-subsort (terms:op 'subsort '(op ...) '()))
+(define op-imports (terms:op 'imports '(module ...) 'ImportList '()))
+(define op-use (terms:op 'use '(name) 'Import '()))
+(define op-extend (terms:op 'extend '(name) 'Import '()))
 
-(define op-ops (terms:op 'ops '(op ...) '()))
-(define op-op (terms:op 'op '(name ...) '()))
+(define op-sorts (terms:op 'sorts '(op ...) 'SortList '()))
+(define op-subsorts (terms:op 'subsorts '(op ...) 'SubsortList '()))
+(define op-subsort (terms:op 'subsort '(op ...) 'Subsort '()))
 
-(define op-rules (terms:op 'rules '(rule ...) '()))
-(define op-eqrule (terms:op '=-> '(left right) '()))
-(define op-ceqrule (terms:op '=->? '(left condition right) '()))
-(define op-vars (terms:op 'vars '(...) '()))
-(define op-term (terms:op 'term '(symbol ...) '()))
+(define op-ops (terms:op 'ops '(op ...) 'OpList '()))
+(define op-op (terms:op 'op '(name ...) 'Op '()))
+(define op-domain (terms:op 'domain '(sort ...) 'Domain '()))
+
+(define op-rules (terms:op 'rules '(rule ...) 'RuleList '()))
+(define op-eqrule (terms:op '=-> '(left right) 'Rule '()))
+(define op-ceqrule (terms:op '=->? '(left condition right) 'Rule '()))
+(define op-vars (terms:op 'vars '(...) 'VarList '()))
+(define op-term (terms:op 'term '(symbol ...) 'Term'()))
 
 
 (define meta
-  (let ([sorts (sorts:empty-sort-graph)]
+  (let ([sorts (foldl sorts:add-sort (sorts:empty-sort-graph) meta-sorts)]
         [ops (hash 'module op-module
                       'imports op-imports
                       'use op-use
@@ -88,6 +95,7 @@
                       'subsort op-subsort
                       'ops op-ops
                       'op op-op
+                      'domain op-domain
                       'rules op-rules
                       '=-> op-eqrule
                       '=->? op-ceqrule
@@ -185,7 +193,7 @@
 
   (define (make-op-term ops vars op args)
     (let ([arg-terms (for/list ([arg args]) (term-from-meta ops vars arg))])
-      (if (equal? (length arg-terms) (length (terms:op-args op)))
+      (if (equal? (length arg-terms) (length (terms:op-domain op)))
           (terms:term op arg-terms)
           (error "wrong number of arguments for op " op))))
   
@@ -255,7 +263,7 @@
 
     (define (import-sorts import-hash sorts)
       (let ([new-sorts (module-sorts (lookup-module-hash import-hash))])
-        (sorts:merge-sort-graph sorts new-sorts)))
+        (sorts:merge-sort-graph new-sorts sorts)))
 
     (match import-term
       [(mterm op-use (list import-hash))
@@ -285,24 +293,25 @@
 
   (define (define-sort sort-symbol sorts)
     (if (symbol? sort-symbol)
-        (sorts:add-sort sorts (terms:sort sort-symbol))
+        (sorts:add-sort (terms:sort sort-symbol) sorts)
         (error "not a symbol: " sort-symbol)))
 
   (define (define-subsort subsort-term sorts)
     (match subsort-term
       [(mterm op-subsort (list sort1 sort2))
-       (sorts:add-subsort sorts (terms:sort sort1) (terms:sort sort2))]
+       (sorts:add-subsort (terms:sort sort1) (terms:sort sort2) sorts)]
       [_ (error "not a subsort term: " subsort-term)]))
 
   (define (define-op op-term ops)
 
     (define (op-from-meta op-term)
       (match op-term
-        [(mterm op-op (cons id-symbol arg-symbols))
-         #:when (and (symbol? id-symbol)
-                     (list? arg-symbols)
-                     (andmap symbol? arg-symbols))
-         (terms:op id-symbol arg-symbols '())]
+        [(mterm op-op (list name (mterm op-domain arg-sorts) range-sort))
+         #:when (and (symbol? name)
+                     (list? arg-sorts)
+                     (andmap symbol? arg-sorts)
+                     (symbol? range-sort))
+         (terms:op name arg-sorts (terms:sort range-sort) '())]
         [_ (error "not an op term: " op-term)]))
     
     (add-op ops (op-from-meta op-term) #f))
@@ -390,13 +399,20 @@
     #:attributes (ops rules)
     #:datum-literals (op =->)
 
-    (pattern (op op-name:id)
-             #:with ops #'(list (terms:term op-op (list (quote op-name))))
+    (pattern (op op-name:id range-sort:id)
+             #:with ops #'(list (terms:term op-op (list (quote op-name)
+                                                        (terms:term op-domain
+                                                                    (list))
+                                                        (quote range-sort))))
              #:with rules #'(list))
-    (pattern (op (op-name:id arg-name:id ...))
+    (pattern (op (op-name:id arg-sort:id ...) range-sort:id)
              #:with ops #'(list (terms:term op-op
                                             (list (quote op-name)
-                                                  (quote arg-name) ...)))
+                                                  (terms:term op-domain
+                                                              (list (quote
+                                                                     arg-sort)
+                                                                    ...))
+                                                  (quote range-sort))))
              #:with rules #'(list))
 
     (pattern (=-> left:term right:term)

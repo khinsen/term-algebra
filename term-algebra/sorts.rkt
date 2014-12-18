@@ -11,13 +11,13 @@
 (define (empty-sort-graph)
   (unweighted-graph/directed '()))
 
-(define (add-sort graph sort)
+(define (add-sort sort graph)
   (if (has-vertex? graph sort)
       (error "sort already defined: " sort)
       (add-vertex! graph sort))
   graph)
 
-(define (add-subsort graph sort1 sort2)
+(define (add-subsort sort1 sort2 graph)
   (cond
    [(not (has-vertex? graph sort1))
     (error "sort undefined: " sort1)]
@@ -25,19 +25,19 @@
     (error "sort undefined: " sort2)]
    [(has-edge? graph sort1 sort2)
     (error "subsort relation already defined: " (cons sort1 sort2))]
-   [(is-subsort? graph sort2 sort1)
+   [(is-subsort? sort2 sort1 graph)
     (error "cyclic subsort dependence created by " (cons sort1 sort2))]
    [else (add-directed-edge! graph sort1 sort2)])
   graph)
 
-(define (merge-sort-graph graph to-merge)
+(define (merge-sort-graph to-merge graph)
   (for ([sort (in-vertices to-merge)])
-    (add-sort graph sort))
+    (add-sort sort graph))
   (for ([subsort (in-edges to-merge)])
-    (add-subsort graph (first subsort) (second subsort)))
+    (add-subsort (first subsort) (second subsort) graph))
   graph)
 
-(define (is-subsort? graph sort1 sort2)
+(define (is-subsort? sort1 sort2 graph)
   (fewest-vertices-path graph sort1 sort2))
 
 (define (check-subsort-graph graph)

@@ -2,7 +2,7 @@
 
 (provide define-module define-meta-module
          term meta-term
-         op-from make-special-rule make-special-module
+         sort-from op-from make-special-rule make-special-module
          meta)
 
 (require (prefix-in terms: term-algebra/terms)
@@ -81,6 +81,7 @@
 (define op-eqrule (terms:op '=-> '(left right) 'Rule '()))
 (define op-ceqrule (terms:op '=->? '(left condition right) 'Rule '()))
 (define op-vars (terms:op 'vars '(...) 'VarList '()))
+(define op-var (terms:op 'var '(name sort) 'Var '()))
 (define op-term (terms:op 'term '(symbol ...) 'Term'()))
 
 
@@ -100,6 +101,7 @@
                       '=-> op-eqrule
                       '=->? op-ceqrule
                       'vars op-vars
+                      'var op-var
                       'term op-term)])
     (make-special-module 'meta sorts ops (set) (set 'string 'symbol))))
 
@@ -154,6 +156,12 @@
   (and (hash-has-key? (ops-in-module-ops ops) symbol)
        (set-member? (ops-in-module-imported-ops ops) symbol)))
 
+(define (sort-from module sort-symbol)
+  (let ([sort (terms:sort sort-symbol)])
+    (if (sorts:has-sort? (module-sorts module) sort)
+        sort
+        (error (format "no sort ~s in module ~s" sort-symbol module)))))
+
 (define (op-from module op-symbol)
   (get-op (module-ops module) op-symbol))
 
@@ -189,13 +197,18 @@
        #'(struct* terms:term ([op (==  an-op eq?)] [args (list)]))])))
 
 ; Convert a meta-term to a concrete term
-(define (term-from-meta ops vars term-term)
+(define (term-from-meta sorts ops vars term-term)
 
-  (define (make-op-term ops vars op args)
-    (let ([arg-terms (for/list ([arg args]) (term-from-meta ops vars arg))])
-      (if (equal? (length arg-terms) (length (terms:op-domain op)))
-          (terms:term op arg-terms)
-          (error "wrong number of arguments for op " op))))
+  (define (make-op-term sorts ops vars op args)
+    (let ([arg-terms (for/list ([arg args]) (term-from-meta sorts ops vars arg))])
+      (when (not (equal? (length arg-terms) (length (terms:op-domain op))))
+          (error "wrong number of arguments for op " op))
+      (for ([arg arg-terms]
+            [sort (terms:op-domain op)])
+        (let ([tsort (terms:term-sort arg)])
+          (when (not (sorts:is-sort? tsort sort sorts))
+            (error (format "sort ~s not compatible with ~s" tsort sort)))))
+      (terms:term op arg-terms)))
   
   (define (make-var var args)
     (if (empty? args)
@@ -207,7 +220,7 @@
      #:when (symbol? op-or-var)
      (cond
       [(get-op ops op-or-var)
-       => (lambda (op) (make-op-term ops vars op args))]
+       => (lambda (op) (make-op-term sorts ops vars op args))]
       [(hash-has-key? vars op-or-var)
        (make-var (hash-ref vars op-or-var) args)]
       [else (error "undefined op or var: " op-or-var)])]
@@ -220,9 +233,9 @@
          s
          (error "import the symbol module to use symbols"))]
     [x #:when (exact? x)
-     (if (has-special? ops 'exact-number)
+     (if (has-special? ops 'rational-number)
          x
-         (error "import the exact-number module to use numbers"))]
+         (error "import the rational module to use numbers"))]
     [_ (error "not a meta-term: " term-term)]))
 
 ; Convert a meta-module to a concrete module
@@ -251,7 +264,7 @@
                   (map (lambda (op)
                          (cons op (struct-copy terms:op op [rules '()])))
                        ops))])
-    (for* ([op ops])
+    (for ([op ops])
       (terms:set-op-rules! (hash-ref copies op)
                            (map (lambda (rule) (copy-rule rule copies))
                                 (terms:op-rules op))))
@@ -302,7 +315,7 @@
        (sorts:add-subsort (terms:sort sort1) (terms:sort sort2) sorts)]
       [_ (error "not a subsort term: " subsort-term)]))
 
-  (define (define-op op-term ops)
+  (define (define-op sorts ops op-term)
 
     (define (op-from-meta op-term)
       (match op-term
@@ -311,30 +324,34 @@
                      (list? arg-sorts)
                      (andmap symbol? arg-sorts)
                      (symbol? range-sort))
-         (terms:op name arg-sorts (terms:sort range-sort) '())]
+         (terms:op name (map terms:sort arg-sorts) (terms:sort range-sort) '())]
         [_ (error "not an op term: " op-term)]))
     
     (add-op ops (op-from-meta op-term) #f))
 
-  (define (add-rule rule-term ops)
+  (define (add-rule sorts ops rule-term)
 
-    (define (add-var var-symbol vars)
-      (if (hash-has-key? vars var-symbol)
-          (error "var already defined: " var-symbol)
-          (hash-set vars var-symbol (terms:var var-symbol))))
+    (define (add-var var-term vars)
+      (match var-term
+        [(mterm op-var (list name-symbol sort-symbol))
+         (if (hash-has-key? vars name-symbol)
+             (error "var already defined: " name-symbol)
+             (hash-set vars name-symbol (terms:var name-symbol
+                                                   (terms:sort sort-symbol))))]
+        [_ (error "not a var terms: " var-term)]))
   
-    (define (add-rule* ops vars left right condition)
+    (define (add-rule* sorts ops vars left right condition)
       (let* ([vars (foldl add-var (hash) vars)]
-             [left-term (term-from-meta ops vars left)]
+             [left-term (term-from-meta sorts ops vars left)]
              [unused-vars (set-subtract (list->seteq (hash-values vars))
                                         (terms:vars-in-term left-term))]
              [_ (unless (set-empty? unused-vars)
                   (error (format "vars unused in left-hand-side: ~a"
                                  (set->list unused-vars))))]
              [left-op (terms:term-op left-term)]
-             [right-term (term-from-meta ops vars right)]
+             [right-term (term-from-meta sorts ops vars right)]
              [cond-term (when condition
-                          (term-from-meta ops vars condition))]
+                          (term-from-meta sorts ops vars condition))]
              [rule (if condition
                        (list (cons left-term
                                    (cons cond-term
@@ -349,9 +366,9 @@
 
     (match rule-term
       [(mterm op-eqrule (list (mterm op-vars vars) left right))
-       (add-rule* ops vars left right #f)]
+       (add-rule* sorts ops vars left right #f)]
       [(mterm op-ceqrule (list (mterm op-vars vars) left condition right))
-       (add-rule* ops vars left right condition)]
+       (add-rule* sorts ops vars left right condition)]
       [_ (error "not a rule: " rule-term)])
 
     ops)
@@ -370,8 +387,12 @@
             [ops (foldl do-import-ops ops import-terms)]
             [sorts (foldl define-sort sorts sort-terms)]
             [sorts (foldl define-subsort sorts subsort-terms)]
-            [ops (foldl define-op ops op-terms)]
-            [ops (foldl add-rule ops rule-terms)])
+            [ops (for/fold ([ops ops])
+                           ([op-term op-terms])
+                   (define-op sorts ops op-term))]
+            [ops (for/fold ([ops ops])
+                           ([rule-term rule-terms])
+                   (add-rule sorts ops rule-term))])
        (sorts:check-subsort-graph sorts)
        (make-module module-name sorts ops module-term))]
     [_ (error "not a meta-module: " module-term)]))
@@ -393,6 +414,13 @@
                                         (list (quote op) args.value ...)))
     (pattern x:number #:when (exact? (syntax-e #'x))
              #:with value #'x))
+
+  (define-syntax-class variable
+    #:description "variable in rule"
+    #:attributes (var)
+    (pattern [var-name:id var-sort:id]
+             #:with var #'(terms:term op-var (list (quote var-name)
+                                                   (quote var-sort)))))
 
   (define-syntax-class operator
     #:description "operator/rule"
@@ -420,20 +448,18 @@
              #:with rules #'(list (terms:term op-eqrule
                                               (list (terms:term op-vars '())
                                                     left.value right.value))))
-    (pattern (=-> #:vars (var:id ...) left:term right:term)
+    (pattern (=-> #:vars (var:variable ...) left:term right:term)
              #:with ops #'(list)
              #:with rules #'(list (terms:term op-eqrule
                                               (list (terms:term op-vars
-                                                                (list (quote
-                                                                       var)
+                                                                (list var.var
                                                                       ...))
                                                     left.value right.value))))
-    (pattern (=-> #:var var:id left:term right:term)
+    (pattern (=-> #:var var:variable left:term right:term)
              #:with ops #'(list)
              #:with rules #'(list (terms:term op-eqrule
                                               (list (terms:term op-vars
-                                                                (list (quote
-                                                                       var)))
+                                                                (list var.var))
                                                     left.value right.value))))
     (pattern (=-> left:term  #:if cond:term right:term)
              #:with ops #'(list)
@@ -442,22 +468,26 @@
                                                     left.value
                                                     cond.value
                                                     right.value))))
-    (pattern (=-> #:vars (var:id ...) left:term  #:if cond:term right:term)
+    (pattern (=-> #:vars (var:variable ...)
+                  left:term
+                  #:if cond:term
+                  right:term)
              #:with ops #'(list)
              #:with rules #'(list (terms:term op-ceqrule
                                               (list (terms:term op-vars
-                                                                (list (quote
-                                                                       var)
+                                                                (list var.var
                                                                       ...))
                                                     left.value
                                                     cond.value
                                                     right.value))))
-    (pattern (=-> #:var var:id left:term  #:if cond:term right:term)
+    (pattern (=-> #:var var:variable
+                  left:term 
+                  #:if cond:term
+                  right:term)
              #:with ops #'(list)
              #:with rules #'(list (terms:term op-ceqrule
                                               (list (terms:term op-vars
-                                                                (list (quote
-                                                                       var)))
+                                                                (list var.var))
                                                     left.value
                                                     cond.value
                                                     right.value)))))
@@ -528,4 +558,4 @@
 (define-syntax (term stx)
   (syntax-parse stx
     [(_ module:expr expr:term)
-     #'(term-from-meta (module-ops module) (hash) expr.value)]))
+     #'(term-from-meta (module-sorts module) (module-ops module) (hash) expr.value)]))

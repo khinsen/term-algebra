@@ -19,17 +19,31 @@
   (op (succ PN) PN)
 
   (op (pred PN) PN)
-  (=-> #:var N (pred (succ N)) N)
+  (=-> #:var [N PN] 
+       (pred (succ N))
+       N)
 
   (op (+ PN PN) PN)
-  (=-> #:var N (+ N zero) N)
-  (=-> #:var N (+ zero N) N)
-  (=-> #:vars (N M) (+ N (succ M)) (+ (succ N) M))
+  (=-> #:var [N PN]
+       (+ N zero)
+       N)
+  (=-> #:var [N PN]
+       (+ zero N)
+       N)
+  (=-> #:vars ([N PN] [M PN])
+       (+ N (succ M))
+       (+ (succ N) M))
   
   (op (* PN PN) PN)
-  (=-> #:var N (* N zero) zero)
-  (=-> #:var N (* zero N) zero)
-  (=-> #:vars (N M) (* (succ N) (succ M)) (succ (+ N (+ M (* N M))))))
+  (=-> #:var [N PN]
+       (* N zero)
+       zero)
+  (=-> #:var [N PN]
+       (* zero N)
+       zero)
+  (=-> #:vars ([N PN] [M PN])
+       (* (succ N) (succ M))
+       (succ (+ N (+ M (* N M))))))
 
 (define-test-suite peano-number-tests
 

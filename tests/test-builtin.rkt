@@ -25,34 +25,34 @@
   (test-reduce equality (== (== true true) (== false false))
                         true)
 
-  (test-reduce exact-number (+ 2 3)
-                            5)
-  (test-reduce exact-number (+ 2/3 1/3)
-                            1)
-  (test-reduce exact-number (- 2 3)
-                            -1)
-  (test-reduce exact-number (* 2 3)
-                            6)
-  (test-reduce exact-number (/ 2 3)
-                            2/3)
-  (test-reduce exact-number (/ 1 0)
-                            (/ 1 0))
-  (test-reduce exact-number (div 2 3)
-                            0)
-  (test-reduce exact-number (> 2 3)
-                            false)
-  (test-reduce exact-number (< 2 3)
-                            true)
-  (test-reduce exact-number (= 2 3)
-                            false)
-  (test-reduce exact-number (= 1/5 2/10)
-                            true)
+  (test-reduce rational (+ 2 3)
+                        5)
+  (test-reduce rational (+ 2/3 1/3)
+                        1)
+  (test-reduce rational (- 2 3)
+                        -1)
+  (test-reduce rational (* 2 3)
+                        6)
+  (test-reduce rational (/ 2 3)
+                        2/3)
+  (test-reduce rational (/ 1 0)
+                        (/ 1 0))
+  (test-reduce rational (div 2 3)
+                        0)
+  (test-reduce rational (> 2 3)
+                        false)
+  (test-reduce rational (< 2 3)
+                        true)
+  (test-reduce rational (= 2 3)
+                        false)
+  (test-reduce rational (= 1/5 2/10)
+                        true)
 
   (test-exn "too-many-vars"
             #rx"vars unused in left-hand-side.*"
             (lambda () (define-module test
                     (use truth)
-                    (=-> #:var X true false))
+                    (=-> #:var [X Boolean] true false))
                test))
 
   (test-exn "no-rule-for-imported-op"
@@ -95,14 +95,14 @@
   
   (test-not-exn "number-imported"
             (lambda () (define-module test
-                    (use exact-number)
-                    (op foo ExactNumber)
+                    (use rational)
+                    (op foo Rational)
                     (=-> foo 2))
                test))
   (test-exn "number-not-imported"
-            #rx"import the exact-number module.*"
+            #rx"import the rational module.*"
             (lambda () (define-module test
-                    (op foo ExactNumber)
+                    (op foo Rational)
                     (=-> foo 2))
                test)))
 

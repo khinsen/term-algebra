@@ -10,15 +10,15 @@
   (sort toto)
   (sorts foo bar)
   (subsort foo bar)
-  (op zero))
+  (op zero toto))
 
 (modules:define-module test2
   (use test1)
   (sorts baz quux)
   (subsort baz quux)
   (subsort baz bar)
-  (op one))
+  (op one baz))
 
-(with-output-to-file "/Users/hinsen/Desktop/sort-graph.dot"
-  #:exists 'replace
-  (lambda () (display (graphviz (modules:module-sorts test2)))))
+;; (with-output-to-file "/Users/hinsen/Desktop/sort-graph.dot"
+;;   #:exists 'replace
+;;   (lambda () (display (graphviz (modules:module-sorts test2)))))

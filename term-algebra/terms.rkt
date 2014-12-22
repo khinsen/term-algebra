@@ -4,7 +4,8 @@
          (struct-out var)
          (struct-out term)
          (struct-out sort)
-         vars-in-term)
+         vars-in-term
+         term-sort)
 
 ; Struct definitions
 
@@ -19,11 +20,11 @@
                            (op-range op))
                      port))))
 
-(struct var (symbol)
+(struct var (symbol sort)
         #:transparent
         #:property prop:custom-write
         (lambda (var port mode)
-          (write (var-symbol var) port)))
+          (write (list (var-symbol var) (sort-symbol (var-sort var))) port)))
 
 (struct term (op args)
         #:transparent
@@ -50,3 +51,12 @@
                        (seteq)
                        (apply set-union (map vars-in-term args))))]
    [else         (seteq)]))
+
+(define (term-sort gterm)
+  (cond
+   [(term? gterm)   (op-range (term-op gterm))]
+   [(var? gterm)    (var-sort gterm)]
+   [(symbol? gterm) (sort 'Symbol)]
+   [(string? gterm) (sort 'String)]
+   [(number? gterm) (sort 'Rational)]
+   [else (error "unknown term type" gterm)]))

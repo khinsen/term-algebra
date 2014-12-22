@@ -28,13 +28,13 @@
 
   (op (and Boolean Boolean) Boolean)
   (=-> (and true true) true)
-  (=-> #:var X (and false X) false)
-  (=-> #:var X (and X false) false)
+  (=-> #:var [X Boolean] (and false X) false)
+  (=-> #:var [X Boolean] (and X false) false)
 
   (op (or Boolean Boolean) Boolean)
   (=-> (or false false) false)
-  (=-> #:var X (or true X) true)
-  (=-> #:var X (or X true) true))
+  (=-> #:var [X Boolean] (or true X) true)
+  (=-> #:var [X Boolean] (or X true) true))
 
 (define-module use-boolean
   (use boolean))

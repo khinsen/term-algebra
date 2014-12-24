@@ -200,7 +200,8 @@
 (define (term-from-meta sorts ops vars term-term)
 
   (define (make-op-term sorts ops vars op args)
-    (let ([arg-terms (for/list ([arg args]) (term-from-meta sorts ops vars arg))])
+    (let ([arg-terms (for/list ([arg args])
+                       (term-from-meta sorts ops vars arg))])
       (when (not (equal? (length arg-terms) (length (terms:op-domain op))))
           (error "wrong number of arguments for op " op))
       (for ([arg arg-terms]

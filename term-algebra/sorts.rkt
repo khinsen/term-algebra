@@ -27,9 +27,9 @@
    [(equal? sort1 sort2)
     (error "sorts are equal: " (cons sort1 sort2))]
    [(not (has-vertex? graph sort1))
-    (error "sort undefined: " sort1)]
+    (error "undefined sort: " sort1)]
    [(not (has-vertex? graph sort2))
-    (error "sort undefined: " sort2)]
+    (error "undefined sort: " sort2)]
    [(has-edge? graph sort1 sort2)
     (error "subsort relation already defined: " (cons sort1 sort2))]
    [(is-subsort? sort2 sort1 graph)

@@ -78,7 +78,48 @@
                     (sort Bar)
                     (op (foo Boolean) Bar))
                test))
-  
+
+  (test-exn "sort-redefinition"
+            #rx"sort already defined.*"
+            (lambda () (define-module test
+                    (sort Bar)
+                    (sort Bar))
+               test))
+
+  (test-exn "undefined-sort-in-subsort"
+            #rx"undefined sort.*"
+            (lambda () (define-module test
+                    (sort Bar)
+                    (subsort Foo Bar))
+               test))
+  (test-exn "undefined-sort-in-subsort"
+            #rx"undefined sort.*"
+            (lambda () (define-module test
+                    (sort Bar)
+                    (subsort Bar Foo))
+               test))
+  (test-exn "equal-sorts-in-subsort"
+            #rx"sorts are equal.*"
+            (lambda () (define-module test
+                    (sorts Foo Bar)
+                    (subsort Foo Foo))
+               test))
+  (test-exn "cyclic-subsorts"
+            #rx"cyclic subsort dependence.*"
+            (lambda () (define-module test
+                    (sorts Foo Bar Baz)
+                    (subsort Foo Bar)
+                    (subsort Bar Baz)
+                    (subsort Baz Foo))
+               test))
+  (test-exn "subsort-redefinition"
+            #rx"subsort relation already defined.*"
+            (lambda () (define-module test
+                    (sorts Foo Bar)
+                    (subsort Foo Bar)
+                    (subsort Foo Bar))
+               test))
+
   (test-not-exn "string-imported"
             (lambda () (define-module test
                     (use string)
@@ -119,7 +160,15 @@
                     (sort Rational)
                     (op foo Rational)
                     (=-> foo 2))
-               test)))
+               test))
+  
+  (test-exn "wrong-sort-in-term"
+            #rx"sort String not compatible with Boolean"
+            (lambda () (define-module test
+                    (use truth)
+                    (use string)
+                    (op (not Boolean) Boolean))
+              (term test (not "abc")))))
 
 
 (module* main #f

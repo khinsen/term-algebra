@@ -16,8 +16,14 @@
 (define true (terms:term (modules:op-from truth 'true) '()))
 (define false (terms:term (modules:op-from truth 'false) '()))
 
+(define any
+  (let ([sorts (foldl sorts:add-sort (sorts:empty-sort-graph)
+                      (list sorts:any-sort))])
+    (modules:make-special-module 'any sorts (hash) (set) (set))))
+
 (modules:define-module equality
   (use truth)
+  (use any)
   (op (== Any Any) Boolean))
 
 (modules:make-special-rule equality '==

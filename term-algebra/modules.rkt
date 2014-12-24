@@ -158,7 +158,7 @@
 
 (define (sort-from module sort-symbol)
   (let ([sort (terms:sort sort-symbol)])
-    (if (sorts:has-sort? (module-sorts module) sort)
+    (if (sorts:has-sort? sort (module-sorts module))
         sort
         (error (format "no sort ~s in module ~s" sort-symbol module)))))
 
@@ -324,7 +324,14 @@
                      (list? arg-sorts)
                      (andmap symbol? arg-sorts)
                      (symbol? range-sort))
-         (terms:op name (map terms:sort arg-sorts) (terms:sort range-sort) '())]
+         (let ([range-sort (terms:sort range-sort)]
+               [arg-sorts (map terms:sort arg-sorts)])
+           (unless (sorts:has-sort? range-sort sorts)
+             (error "undefined sort: " range-sort))
+           (for ([arg-sort arg-sorts])
+             (unless (sorts:has-sort? arg-sort sorts)
+               (error "undefined sort: " arg-sort)))
+           (terms:op name arg-sorts range-sort '()))]
         [_ (error "not an op term: " op-term)]))
     
     (add-op ops (op-from-meta op-term) #f))

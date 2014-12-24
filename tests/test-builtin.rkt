@@ -67,6 +67,18 @@
                     (=-> true false))
                test))
 
+  (test-exn "undefined-range-sort"
+            #rx"undefined sort.*"
+            (lambda () (define-module test
+                    (op foo Boolean))
+               test))
+  (test-exn "undefined-arg-sort"
+            #rx"undefined sort.*"
+            (lambda () (define-module test
+                    (sort Bar)
+                    (op (foo Boolean) Bar))
+               test))
+  
   (test-not-exn "string-imported"
             (lambda () (define-module test
                     (use string)
@@ -76,6 +88,7 @@
   (test-exn "string-not-imported"
             #rx"import the string module.*"
             (lambda () (define-module test
+                    (sort String)
                     (op foo String)
                     (=-> foo "foo"))
                test))
@@ -89,6 +102,7 @@
   (test-exn "symbol-not-imported"
             #rx"import the symbol module.*"
             (lambda () (define-module test
+                    (sort Symbol)
                     (op foo Symbol)
                     (=-> foo 'foo))
                test))
@@ -102,6 +116,7 @@
   (test-exn "number-not-imported"
             #rx"import the rational module.*"
             (lambda () (define-module test
+                    (sort Rational)
                     (op foo Rational)
                     (=-> foo 2))
                test)))

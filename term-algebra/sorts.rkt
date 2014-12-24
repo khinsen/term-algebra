@@ -4,7 +4,8 @@
          add-sort add-subsort merge-sort-graph
          is-subsort? has-sort?
          check-subsort-graph
-         is-sort?)
+         is-sort?
+         any-sort)
 
 (require (prefix-in terms: term-algebra/terms)
          graph)
@@ -46,7 +47,7 @@
 (define (is-subsort? sort1 sort2 graph)
   (fewest-vertices-path graph sort1 sort2))
 
-(define (has-sort? graph sort)
+(define (has-sort? sort graph)
   (has-vertex? graph sort))
 
 (define (check-subsort-graph graph)

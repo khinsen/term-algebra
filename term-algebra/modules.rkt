@@ -417,7 +417,7 @@
                                         (list (quote symbol))))
     (pattern s:str #:with value #'s)
     (pattern ((~literal quote) symbol:id) #:with value #'(quote symbol))
-    (pattern (op:id args:term ...)
+    (pattern (op:id args:term ...+)
              #:with value #'(terms:term op-term
                                         (list (quote op) args.value ...)))
     (pattern x:number #:when (exact? (syntax-e #'x))
@@ -441,7 +441,7 @@
                                                                     (list))
                                                         (quote range-sort))))
              #:with rules #'(list))
-    (pattern (op (op-name:id arg-sort:id ...) range-sort:id)
+    (pattern (op (op-name:id arg-sort:id ...+) range-sort:id)
              #:with ops #'(list (terms:term op-op
                                             (list (quote op-name)
                                                   (terms:term op-domain

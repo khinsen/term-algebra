@@ -67,59 +67,6 @@
                     (=-> true false))
                test))
 
-  (test-exn "undefined-range-sort"
-            #rx"undefined sort.*"
-            (lambda () (define-module test
-                    (op foo Boolean))
-               test))
-  (test-exn "undefined-arg-sort"
-            #rx"undefined sort.*"
-            (lambda () (define-module test
-                    (sort Bar)
-                    (op (foo Boolean) Bar))
-               test))
-
-  (test-exn "sort-redefinition"
-            #rx"sort already defined.*"
-            (lambda () (define-module test
-                    (sort Bar)
-                    (sort Bar))
-               test))
-
-  (test-exn "undefined-sort-in-subsort"
-            #rx"undefined sort.*"
-            (lambda () (define-module test
-                    (sort Bar)
-                    (subsort Foo Bar))
-               test))
-  (test-exn "undefined-sort-in-subsort"
-            #rx"undefined sort.*"
-            (lambda () (define-module test
-                    (sort Bar)
-                    (subsort Bar Foo))
-               test))
-  (test-exn "equal-sorts-in-subsort"
-            #rx"sorts are equal.*"
-            (lambda () (define-module test
-                    (sorts Foo Bar)
-                    (subsort Foo Foo))
-               test))
-  (test-exn "cyclic-subsorts"
-            #rx"cyclic subsort dependence.*"
-            (lambda () (define-module test
-                    (sorts Foo Bar Baz)
-                    (subsort Foo Bar)
-                    (subsort Bar Baz)
-                    (subsort Baz Foo))
-               test))
-  (test-exn "subsort-redefinition"
-            #rx"subsort relation already defined.*"
-            (lambda () (define-module test
-                    (sorts Foo Bar)
-                    (subsort Foo Bar)
-                    (subsort Foo Bar))
-               test))
-
   (test-not-exn "string-imported"
             (lambda () (define-module test
                     (use string)

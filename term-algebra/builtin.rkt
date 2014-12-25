@@ -47,33 +47,33 @@
          [bool-sort (modules:sort-from truth 'Boolean)]
          [sorts (foldl sorts:add-sort (sorts:empty-sort-graph)
                        (list bool-sort rat-sort))]
-         [ops (hash '+ (terms:op '+ (list rat-sort rat-sort) rat-sort
+         [ops (hash '+ (terms:op '+ (list rat-sort rat-sort) rat-sort (set)
                                  (lambda (x y) (+ x y)))
-                    '- (terms:op '- (list rat-sort rat-sort) rat-sort
+                    '- (terms:op '- (list rat-sort rat-sort) rat-sort (set)
                                  (lambda (x y) (- x y)))
-                    '* (terms:op '* (list rat-sort rat-sort) rat-sort
+                    '* (terms:op '* (list rat-sort rat-sort) rat-sort (set)
                                  (lambda (x y) (* x y)))
-                    '/ (terms:op '/ (list rat-sort rat-sort) rat-sort
+                    '/ (terms:op '/ (list rat-sort rat-sort) rat-sort (set)
                                  (lambda (x y) (/ x y)))
-                    'div (terms:op 'div (list rat-sort rat-sort) rat-sort
+                    'div (terms:op 'div (list rat-sort rat-sort) rat-sort (set)
                                    (lambda (x y) (quotient x y)))
-                    '> (terms:op '> (list rat-sort rat-sort) bool-sort
+                    '> (terms:op '> (list rat-sort rat-sort) bool-sort (set)
                                  (lambda (x y) (if (> x y)
                                               true
                                               false)))
-                    '< (terms:op '< (list rat-sort rat-sort) bool-sort
+                    '< (terms:op '< (list rat-sort rat-sort) bool-sort (set)
                                  (lambda (x y) (if (< x y)
                                               true
                                               false)))
-                    '>= (terms:op '>= (list rat-sort rat-sort) bool-sort
+                    '>= (terms:op '>= (list rat-sort rat-sort) bool-sort (set)
                                   (lambda (x y) (if (>= x y)
                                                true
                                                false)))
-                    '<= (terms:op '<= (list rat-sort rat-sort) bool-sort
+                    '<= (terms:op '<= (list rat-sort rat-sort) bool-sort (set)
                                   (lambda (x y) (if (<= x y)
                                                true
                                                false)))
-                    '= (terms:op '= (list rat-sort rat-sort) bool-sort
+                    '= (terms:op '= (list rat-sort rat-sort) bool-sort (set)
                                  (lambda (x y) (if (= x y)
                                               true
                                               false)))

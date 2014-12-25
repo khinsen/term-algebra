@@ -3,7 +3,8 @@
 (provide sort-tests)
 
 (require rackunit
-         (only-in term-algebra/modules define-module))
+         (only-in term-algebra/modules define-module term)
+         (prefix-in builtin: term-algebra/builtin))
 
 (define-test-suite sort-tests
 
@@ -62,7 +63,26 @@
             (lambda () (define-module test
                     (sort a)
                     (op (foo b) a))
-               test)))
+               test))
+  
+  (test-exn "wrong-number-of-fixed-args"
+            #rx"wrong number of arguments.*"
+            (lambda () (define-module test
+                    (use builtin:truth)
+                    (op (foo Boolean) Boolean))
+               (term test foo)))
+  (test-exn "wrong-number-of-fixed-args"
+            #rx"wrong number of arguments.*"
+            (lambda () (define-module test
+                    (use builtin:truth)
+                    (op (foo Boolean) Boolean))
+               (term test (foo true false))))
+  (test-exn "wrong-number-of-variable-args"
+            #rx"too few arguments.*"
+            (lambda () (define-module test
+                    (use builtin:truth)
+                    (op (foo Boolean Boolean ...) Boolean))
+               (term test (foo)))))
 
 (module* main #f
   (require rackunit/text-ui)

@@ -6,18 +6,16 @@
          (only-in term-algebra/rewrite reduce)
          graph)
 
-(modules:define-module test1
-  (sort toto)
-  (sorts foo bar)
-  (subsort foo bar)
-  (op zero toto))
+(modules:define-module test
+  (sort Foo)
+  (op bar Foo)
+  (op (baz Foo ...) Foo))
 
-(modules:define-module test2
-  (use test1)
-  (sorts baz quux)
-  (subsort baz quux)
-  (subsort baz bar)
-  (op one baz))
+(modules:term test bar)
+(modules:term test (baz))
+(modules:term test (baz bar))
+(modules:term test (baz bar bar))
+(modules:term test (baz bar (baz bar) bar))
 
 ;; (with-output-to-file "/Users/hinsen/Desktop/sort-graph.dot"
 ;;   #:exists 'replace

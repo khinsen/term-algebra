@@ -63,26 +63,28 @@
                      RuleList Rule VarList
                      Term))
 
-(define op-module (terms:op 'module '(Symbol ops meta) 'Module '()))
+(define op-module (terms:op 'module '(Symbol ops meta) 'Module (set) '()))
 
-(define op-imports (terms:op 'imports '(module ...) 'ImportList '()))
-(define op-use (terms:op 'use '(name) 'Import '()))
-(define op-extend (terms:op 'extend '(name) 'Import '()))
+(define op-imports (terms:op 'imports '(module ...) 'ImportList (set) '()))
+(define op-use (terms:op 'use '(name) 'Import (set) '()))
+(define op-extend (terms:op 'extend '(name) 'Import (set) '()))
 
-(define op-sorts (terms:op 'sorts '(op ...) 'SortList '()))
-(define op-subsorts (terms:op 'subsorts '(op ...) 'SubsortList '()))
-(define op-subsort (terms:op 'subsort '(op ...) 'Subsort '()))
+(define op-sorts (terms:op 'sorts '(op ...) 'SortList (set) '()))
+(define op-subsorts (terms:op 'subsorts '(op ...) 'SubsortList (set) '()))
+(define op-subsort (terms:op 'subsort '(op ...) 'Subsort (set) '()))
 
-(define op-ops (terms:op 'ops '(op ...) 'OpList '()))
-(define op-op (terms:op 'op '(name ...) 'Op '()))
-(define op-domain (terms:op 'domain '(sort ...) 'Domain '()))
+(define op-ops (terms:op 'ops '(op ...) 'OpList (set) '()))
+(define op-op (terms:op 'op '(name ...) 'Op (set) '()))
+(define op-domain (terms:op 'domain '(sort ...) 'Domain (set) '()))
+(define op-var-length-domain (terms:op 'var-length-domain '(sort ...)
+                                       'Domain (set) '()))
 
-(define op-rules (terms:op 'rules '(rule ...) 'RuleList '()))
-(define op-eqrule (terms:op '=-> '(left right) 'Rule '()))
-(define op-ceqrule (terms:op '=->? '(left condition right) 'Rule '()))
-(define op-vars (terms:op 'vars '(...) 'VarList '()))
-(define op-var (terms:op 'var '(name sort) 'Var '()))
-(define op-term (terms:op 'term '(symbol ...) 'Term'()))
+(define op-rules (terms:op 'rules '(rule ...) 'RuleList (set) '()))
+(define op-eqrule (terms:op '=-> '(left right) 'Rule (set) '()))
+(define op-ceqrule (terms:op '=->? '(left condition right) 'Rule (set) '()))
+(define op-vars (terms:op 'vars '(...) 'VarList (set) '()))
+(define op-var (terms:op 'var '(name sort) 'Var (set) '()))
+(define op-term (terms:op 'term '(symbol ...) 'Term (set) '()))
 
 
 (define meta
@@ -97,6 +99,7 @@
                       'ops op-ops
                       'op op-op
                       'domain op-domain
+                      'var-length-domain op-var-length-domain
                       'rules op-rules
                       '=-> op-eqrule
                       '=->? op-ceqrule
@@ -200,16 +203,39 @@
 (define (term-from-meta sorts ops vars term-term)
 
   (define (make-op-term sorts ops vars op args)
-    (let ([arg-terms (for/list ([arg args])
-                       (term-from-meta sorts ops vars arg))])
+    
+    (define (make-fix-arg-op-term sorts ops vars op arg-terms)
       (when (not (equal? (length arg-terms) (length (terms:op-domain op))))
-          (error "wrong number of arguments for op " op))
+        (error "wrong number of arguments for op " op))
       (for ([arg arg-terms]
             [sort (terms:op-domain op)])
         (let ([tsort (terms:term-sort arg)])
           (when (not (sorts:is-sort? tsort sort sorts))
             (error (format "sort ~s not compatible with ~s" tsort sort)))))
-      (terms:term op arg-terms)))
+      (terms:term op arg-terms))
+    
+    (define (make-var-arg-op-term sorts ops vars op arg-terms)
+      (let* ([n-fix-args (- (length (terms:op-domain op)) 1)]
+             [n-var-args (- (length arg-terms) n-fix-args)])
+        (when (negative? n-var-args)
+          (error "too few arguments for op " op))
+        (let-values ([(fix-sorts var-sort)
+                      (split-at-right (terms:op-domain op) 1)])
+          (for ([arg arg-terms]
+                [sort (append fix-sorts
+                              (for/list ([n (range n-var-args)])
+                                (first var-sort)))])
+            (let ([tsort (terms:term-sort arg)])
+              (when (not (sorts:is-sort? tsort sort sorts))
+                (error (format "sort ~s not compatible with ~s" tsort sort))))))
+        (terms:term op arg-terms)))
+    
+    (let ([arg-terms (for/list ([arg args])
+                       (term-from-meta sorts ops vars arg))])
+      (if (set-member? (terms:op-properties op)
+                       'variable-length-domain)
+          (make-var-arg-op-term sorts ops vars op arg-terms)
+          (make-fix-arg-op-term sorts ops vars op arg-terms))))
   
   (define (make-var var args)
     (if (empty? args)
@@ -319,20 +345,32 @@
   (define (define-op sorts ops op-term)
 
     (define (op-from-meta op-term)
+
+      (define (op-from-meta* name arg-sorts range-sort properties)
+        (let ([range-sort (terms:sort range-sort)]
+              [arg-sorts (map terms:sort arg-sorts)])
+          (unless (sorts:has-sort? range-sort sorts)
+            (error "undefined sort: " range-sort))
+          (for ([arg-sort arg-sorts])
+            (unless (sorts:has-sort? arg-sort sorts)
+              (error "undefined sort: " arg-sort)))
+          (terms:op name arg-sorts range-sort properties '())))
+
       (match op-term
         [(mterm op-op (list name (mterm op-domain arg-sorts) range-sort))
          #:when (and (symbol? name)
                      (list? arg-sorts)
                      (andmap symbol? arg-sorts)
                      (symbol? range-sort))
-         (let ([range-sort (terms:sort range-sort)]
-               [arg-sorts (map terms:sort arg-sorts)])
-           (unless (sorts:has-sort? range-sort sorts)
-             (error "undefined sort: " range-sort))
-           (for ([arg-sort arg-sorts])
-             (unless (sorts:has-sort? arg-sort sorts)
-               (error "undefined sort: " arg-sort)))
-           (terms:op name arg-sorts range-sort '()))]
+         (op-from-meta* name arg-sorts range-sort (set))]
+        [(mterm op-op (list name (mterm op-var-length-domain arg-sorts)
+                            range-sort))
+         #:when (and (symbol? name)
+                     (list? arg-sorts)
+                     (andmap symbol? arg-sorts)
+                     (symbol? range-sort))
+         (op-from-meta* name arg-sorts range-sort
+                        (set 'variable-length-domain))]
         [_ (error "not an op term: " op-term)]))
     
     (add-op ops (op-from-meta op-term) #f))
@@ -417,7 +455,7 @@
                                         (list (quote symbol))))
     (pattern s:str #:with value #'s)
     (pattern ((~literal quote) symbol:id) #:with value #'(quote symbol))
-    (pattern (op:id args:term ...+)
+    (pattern (op:id args:term ...)
              #:with value #'(terms:term op-term
                                         (list (quote op) args.value ...)))
     (pattern x:number #:when (exact? (syntax-e #'x))
@@ -440,6 +478,16 @@
                                                         (terms:term op-domain
                                                                     (list))
                                                         (quote range-sort))))
+             #:with rules #'(list))
+    (pattern (op (op-name:id arg-sort:id ...+ (~datum ...)) range-sort:id)
+             #:with ops #'(list
+                           (terms:term op-op
+                                       (list (quote op-name)
+                                             (terms:term op-var-length-domain
+                                                         (list (quote
+                                                                arg-sort)
+                                                               ...))
+                                             (quote range-sort))))
              #:with rules #'(list))
     (pattern (op (op-name:id arg-sort:id ...+) range-sort:id)
              #:with ops #'(list (terms:term op-op

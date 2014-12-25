@@ -9,7 +9,7 @@
 
 ; Struct definitions
 
-(struct op (symbol domain range [rules #:mutable])
+(struct op (symbol domain range properties [rules #:mutable])
         #:transparent
         #:property prop:custom-write
         (lambda (op port mode)

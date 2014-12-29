@@ -8,76 +8,55 @@
 
 (define meta modules:meta)
 
-(modules:define-module truth
-  (sort Boolean)
+(modules:define-builtin-module truth
+  (sorts Boolean)
   (op true Boolean)
   (op false Boolean))
 
 (define true (terms:term (modules:op-from truth 'true) '()))
 (define false (terms:term (modules:op-from truth 'false) '()))
 
-(define any
-  (let ([sorts (foldl sorts:add-sort (sorts:empty-sort-graph)
-                      (list sorts:any-sort))])
-    (modules:make-special-module 'any sorts (hash) (set) (set))))
+(modules:define-builtin-module any
+  (sorts Any))
 
-(modules:define-module equality
+(modules:define-builtin-module equality
   (use truth)
   (use any)
-  (op (== Any Any) Boolean))
+  (op (== Any Any) Boolean
+      (lambda (term1 term2)
+        (if (equal? term1 term2)
+            true
+            false))))
 
-(modules:make-special-rule equality '==
-   (lambda (term1 term2)
-     (if (equal? term1 term2)
-         true
-         false)))
+(modules:define-builtin-module string
+  (sorts String)
+  (special-ops string))
 
-(define string
-  (let ([sorts (foldl sorts:add-sort (sorts:empty-sort-graph)
-                      (list (terms:sort'String)))])
-    (modules:make-special-module 'string sorts (hash) (set) (set 'string))))
+(modules:define-builtin-module symbol
+  (sorts Symbol)
+  (special-ops symbol))
 
-(define symbol
-  (let ([sorts (foldl sorts:add-sort (sorts:empty-sort-graph)
-                      (list (terms:sort'Symbol)))])
-    (modules:make-special-module 'symbol sorts (hash) (set) (set 'symbol))))
-
-(define rational
-  (let* ([rat-sort (terms:sort'Rational)]
-         [bool-sort (modules:sort-from truth 'Boolean)]
-         [sorts (foldl sorts:add-sort (sorts:empty-sort-graph)
-                       (list bool-sort rat-sort))]
-         [ops (hash '+ (terms:op '+ (list rat-sort rat-sort) rat-sort (set)
-                                 (lambda (x y) (+ x y)))
-                    '- (terms:op '- (list rat-sort rat-sort) rat-sort (set)
-                                 (lambda (x y) (- x y)))
-                    '* (terms:op '* (list rat-sort rat-sort) rat-sort (set)
-                                 (lambda (x y) (* x y)))
-                    '/ (terms:op '/ (list rat-sort rat-sort) rat-sort (set)
-                                 (lambda (x y) (/ x y)))
-                    'div (terms:op 'div (list rat-sort rat-sort) rat-sort (set)
-                                   (lambda (x y) (quotient x y)))
-                    '> (terms:op '> (list rat-sort rat-sort) bool-sort (set)
-                                 (lambda (x y) (if (> x y)
-                                              true
-                                              false)))
-                    '< (terms:op '< (list rat-sort rat-sort) bool-sort (set)
-                                 (lambda (x y) (if (< x y)
-                                              true
-                                              false)))
-                    '>= (terms:op '>= (list rat-sort rat-sort) bool-sort (set)
-                                  (lambda (x y) (if (>= x y)
-                                               true
-                                               false)))
-                    '<= (terms:op '<= (list rat-sort rat-sort) bool-sort (set)
-                                  (lambda (x y) (if (<= x y)
-                                               true
-                                               false)))
-                    '= (terms:op '= (list rat-sort rat-sort) bool-sort (set)
-                                 (lambda (x y) (if (= x y)
-                                              true
-                                              false)))
-                    'true (modules:op-from truth 'true)
-                    'false (modules:op-from truth 'false))])
-    (modules:make-special-module 'rational
-                                 sorts ops (set) (set 'rational-number))))
+(modules:define-builtin-module rational
+  (use truth)
+  (sorts Rational)
+  (special-ops rational-number)
+  (op (+ Rational Rational) Rational
+      (lambda (x y) (+ x y)))
+  (op (- Rational Rational) Rational
+      (lambda (x y) (- x y)))
+  (op (* Rational Rational) Rational
+      (lambda (x y) (* x y)))
+  (op (/ Rational Rational) Rational
+      (lambda (x y) (/ x y)))
+  (op (div Rational Rational) Rational
+      (lambda (x y) (quotient x y)))
+  (op (> Rational Rational) Boolean
+      (lambda (x y) (if (> x y) true false)))
+  (op (>= Rational Rational) Boolean
+      (lambda (x y) (if (>= x y) true false)))
+  (op (< Rational Rational) Boolean
+      (lambda (x y) (if (< x y) true false)))
+  (op (<= Rational Rational) Boolean
+      (lambda (x y) (if (<= x y) true false)))
+  (op (= Rational Rational) Boolean
+      (lambda (x y) (if (= x y) true false))))

@@ -1,6 +1,7 @@
 #lang racket
 
-(provide define-module define-meta-module
+(provide define-builtin-module
+         define-module define-meta-module
          term meta-term
          sort-from op-from make-special-rule make-special-module
          meta)
@@ -53,6 +54,104 @@
          [mod (module module-name sorts ops #f meta-hash)])
     (register-module mod)
     mod))
+
+;
+; Macro for defining builtin modules
+;
+(define-syntax (define-builtin-module stx)
+
+  (define-syntax-class import-builtin
+    #:description "import for builtin modules"
+    #:attributes (module use)
+    (pattern ((~datum use) module:id)
+             #:with use #'#t)
+    (pattern ((~datum extend) module:id)
+             #:with use #'#f))
+  
+  (define-syntax-class op-builtin
+    #:description "operator/rule for builtin modules"
+    #:attributes (ops)
+
+    (pattern ((~datum op) op-name:id range-sort:id
+              (~optional rules:expr #:defaults ([rules #'(list)])))
+             #:with ops 
+             #'(list (terms:op (quote op-name)
+                               '()
+                               (terms:sort (quote range-sort))
+                               (set)
+                               rules)))
+    (pattern ((~datum op)
+              (op-name:id arg-sort:id ...+ (~datum ...))
+              range-sort:id
+              (~optional rules:expr #:defaults ([rules #'(list)])))
+             #:with ops
+             #'(list (terms:op (quote op-name)
+                               (map terms:sort
+                                    (list (quote arg-sort) ...))
+                               (terms:sort (quote range-sort))
+                               (set 'variable-length-domain)
+                               rules)))
+    (pattern ((~datum op) (op-name:id arg-sort:id ...+) range-sort:id
+              (~optional rules:expr #:defaults ([rules #'(list)])))
+             #:with ops
+             #'(list (terms:op (quote op-name)
+                               (map terms:sort
+                                    (list (quote arg-sort) ...))
+                               (terms:sort (quote range-sort))
+                               (set)
+                               rules))))
+
+  (syntax-parse stx
+    [(_ module-name:id
+        import-decl:import-builtin ...
+        (~optional
+         ((~datum sorts) sort:id ...))
+        (~optional
+         ((~datum subsorts) (sort1:id sort2:id) ...))
+        (~optional
+         ((~datum special-ops) s-op:id ...))
+        op-decl:op-builtin ...)
+     (with-syntax ([sort-import-list (if (attribute import-decl.module)
+                                         #'(list (module-sorts import-decl.module) ...)
+                                         #'(list))]
+                   [op-import-list (if (attribute import-decl.module)
+                                       #'(map (lambda (a b) (cons a b))
+                                          (list (module-ops import-decl.module) ...)
+                                          (list import-decl.use ...))
+                                       #'(list))]
+                   [sort-list (if (attribute sort)
+                                  #'(list (terms:sort (quote sort)) ...)
+                                  #'(list))]                   [subsort-list (if (attribute sort1)
+                                     #'(list (cons (terms:sort (quote sort1))
+                                                   (terms:sort (quote sort2)))
+                                             ...)
+                                     #'(list))]
+                   [special-op-set (if (attribute s-op)
+                                        #'(set (quote s-op) ...)
+                                        #'(set))]
+                   [op-list (if (attribute op-decl.ops)
+                                #'(append op-decl.ops ...)
+                                #'(list))])
+       #'(define module-name
+           (let* ([sorts (sorts:empty-sort-graph)]
+                  [sorts (foldl sorts:merge-sort-graph sorts sort-import-list)]
+                  [sorts (foldl sorts:add-sort sorts sort-list)]
+                  [sorts (for/fold ([sorts sorts])
+                                   ([sort-pair subsort-list])
+                           (sorts:add-subsort (car sort-pair) (cdr sort-pair)
+                                              sorts))]
+                  [ops (ops-in-module (hash) (set) special-op-set)]
+                  [ops (for/fold ([ops ops]) 
+                                 ([mod op-import-list])
+                         (import-ops (car mod) (cdr mod) ops))]
+                  [ops (for/fold ([ops ops]) 
+                                 ([op op-list])
+                         (add-op ops op #f))]
+                  [meta-hash (hash-of-string
+                              (symbol->string (quote module-name)))]
+                  [mod (module (quote module-name) sorts ops #f meta-hash)])
+             (register-module mod)
+             mod)))]))
 
 ;
 ; The meta-representation of modules as terms
@@ -167,6 +266,19 @@
 
 (define (op-from module op-symbol)
   (get-op (module-ops module) op-symbol))
+
+(define (import-ops new-ops mark-imported? ops)
+  (let ([with-special (merge-special ops new-ops)])
+    (if mark-imported?
+        (for/fold ([ops with-special])
+                  ([op (all-ops new-ops)])
+          (add-op ops op mark-imported?))
+        (let ([with-imported (for/fold ([ops with-special])
+                                       ([op (all-imported-ops new-ops)])
+                               (add-op ops op #t))])
+          (for/fold ([ops with-imported])
+                    ([op (copy-ops (all-defined-ops new-ops))])
+            (add-op ops op mark-imported?))))))
 
 (define (make-special-rule module op-symbol proc)
   (let ([op (op-from module op-symbol)])
@@ -315,20 +427,9 @@
   (define (do-import-ops import-term ops)
     (match import-term
       [(mterm op-use (list import-hash))
-       (let* ([new-ops (module-ops (lookup-module-hash import-hash))]
-              [with-special (merge-special ops new-ops)])
-         (for/fold ([ops with-special])
-                   ([op (all-ops new-ops)])
-           (add-op ops op #t)))]
+       (import-ops (module-ops (lookup-module-hash import-hash)) #t ops)]
       [(mterm op-extend (list import-hash))
-       (let* ([new-ops (module-ops (lookup-module-hash import-hash))]
-              [with-special (merge-special ops new-ops)]
-              [with-imported (for/fold ([ops with-special])
-                                       ([op (all-imported-ops new-ops)])
-                               (add-op ops op #t))])
-         (for/fold ([ops with-imported])
-                   ([op (copy-ops (all-defined-ops new-ops))])
-           (add-op ops op #f)))]
+       (import-ops (module-ops (lookup-module-hash import-hash)) #f ops)]
       [_ (error "unknown import syntax " import-term)]))
 
   (define (define-sort sort-symbol sorts)

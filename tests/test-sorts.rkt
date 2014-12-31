@@ -3,7 +3,7 @@
 (provide sort-tests)
 
 (require rackunit
-         (only-in term-algebra/modules define-module term)
+         (only-in term-algebra/syntax define-module term)
          (prefix-in builtin: term-algebra/builtin))
 
 (define-test-suite sort-tests

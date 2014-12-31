@@ -4,7 +4,7 @@
 
 (require rackunit
          (only-in term-algebra/rewrite reduce)
-         (only-in term-algebra/modules term define-module)
+         (only-in term-algebra/syntax term define-module)
          term-algebra/builtin)
 
 (define-syntax-rule (test-reduce module initial-term reduced-term)

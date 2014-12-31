@@ -3,7 +3,7 @@
 (provide boolean-tests)
 
 (require rackunit
-         term-algebra/modules
+         term-algebra/syntax
          term-algebra/rewrite
          (only-in term-algebra/builtin truth))
 

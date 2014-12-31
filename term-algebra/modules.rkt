@@ -134,6 +134,41 @@
 (define (has-special? ops symbol)
   (set-member? (ops-in-module-special-ops ops) symbol))
 
+; Make a valid term in the context of a module
+
+(define (make-term op args sorts ops vars)
+
+  (define (make-fix-arg-op-term op args sorts ops vars)
+    (when (not (equal? (length args) (length (terms:op-domain op))))
+      (error "wrong number of arguments for op " op))
+    (for ([arg args]
+          [sort (terms:op-domain op)])
+      (let ([tsort (terms:term-sort arg)])
+        (when (not (sorts:is-sort? tsort sort sorts))
+          (error (format "sort ~s not compatible with ~s" tsort sort)))))
+    (terms:term op args))
+
+  (define (make-var-arg-op-term op args sorts ops vars)
+    (let* ([n-fix-args (- (length (terms:op-domain op)) 1)]
+           [n-var-args (- (length args) n-fix-args)])
+      (when (negative? n-var-args)
+        (error "too few arguments for op " op))
+      (let-values ([(fix-sorts var-sort)
+                    (split-at-right (terms:op-domain op) 1)])
+        (for ([arg args]
+              [sort (append fix-sorts
+                            (for/list ([n (range n-var-args)])
+                              (first var-sort)))])
+          (let ([tsort (terms:term-sort arg)])
+            (when (not (sorts:is-sort? tsort sort sorts))
+              (error (format "sort ~s not compatible with ~s" tsort sort))))))
+      (terms:term op args)))
+
+  (if (set-member? (terms:op-properties op)
+                   'variable-length-domain)
+      (make-var-arg-op-term op args sorts ops vars)
+      (make-fix-arg-op-term op args sorts ops vars)))
+
 ;
 ; Macro for defining builtin modules
 ;
@@ -238,36 +273,35 @@
 (define-builtin-module metalevel-term
 
   ; can't write
+  ;   (use builtin:rational)
+  ;   (use builtin:string)
   ;   (use builtin:symbol)
   ; here because builtin.rkt depends on modules.rkt.
-  (sorts Symbol
+
+  (sorts Rational String Symbol
          Term)
 
-  (special-ops symbol)
+  (subsorts [Rational Term] [String Term] [Symbol Term])
+
+  (special-ops rational-number string symbol)
 
   (op (term Symbol Term ...) Term))
 
 (define-builtin-module metalevel-module
 
   (use metalevel-term)
-  ; can't write
-  ;   (use builtin:string)
-  ; here because builtin.rkt depends on modules.rkt.
 
-  (sorts String
-         Module
+  (sorts Module
          ImportList Import
          SortList SubsortList Subsort
          OpList Op Domain
          RuleList Rule VarList Var)
 
-  (special-ops string)
-  
   (op (module Symbol ImportList SortList SubsortList OpList RuleList) Module)
   
   (op (imports Import ...) ImportList)
-  (op (use Symbol) Import)
-  (op (extend Symbol) Import)
+  (op (use String) Import)
+  (op (extend String) Import)
   
   (op (sorts Symbol ...) SortList)
   
@@ -310,13 +344,22 @@
 (define op-var (op-from metalevel-module 'var))
 (define op-term (op-from metalevel-module 'term))
 
+(define no-vars (hash))
+
+(define (make-mterm op args)
+  (make-term op args
+             (module-sorts metalevel-module)
+             (module-ops metalevel-module)
+             no-vars))
+
 (define (meta-module module-name imports sorts subsorts ops rules)
-  (terms:term op-module (list module-name
-                              (terms:term op-imports imports)
-                              (terms:term op-sorts sorts)
-                              (terms:term op-subsorts subsorts)
-                              (terms:term op-ops ops)
-                              (terms:term op-rules rules))))
+  (make-mterm op-module
+              (list module-name
+                    (make-mterm op-imports imports)
+                    (make-mterm op-sorts sorts)
+                    (make-mterm op-subsorts subsorts)
+                    (make-mterm op-ops ops)
+                    (make-mterm op-rules rules))))
 
 ;
 ; Make a "compiled" module from a meta-module
@@ -339,39 +382,9 @@
 (define (term-from-meta sorts ops vars term-term)
 
   (define (make-op-term sorts ops vars op args)
-    
-    (define (make-fix-arg-op-term sorts ops vars op arg-terms)
-      (when (not (equal? (length arg-terms) (length (terms:op-domain op))))
-        (error "wrong number of arguments for op " op))
-      (for ([arg arg-terms]
-            [sort (terms:op-domain op)])
-        (let ([tsort (terms:term-sort arg)])
-          (when (not (sorts:is-sort? tsort sort sorts))
-            (error (format "sort ~s not compatible with ~s" tsort sort)))))
-      (terms:term op arg-terms))
-    
-    (define (make-var-arg-op-term sorts ops vars op arg-terms)
-      (let* ([n-fix-args (- (length (terms:op-domain op)) 1)]
-             [n-var-args (- (length arg-terms) n-fix-args)])
-        (when (negative? n-var-args)
-          (error "too few arguments for op " op))
-        (let-values ([(fix-sorts var-sort)
-                      (split-at-right (terms:op-domain op) 1)])
-          (for ([arg arg-terms]
-                [sort (append fix-sorts
-                              (for/list ([n (range n-var-args)])
-                                (first var-sort)))])
-            (let ([tsort (terms:term-sort arg)])
-              (when (not (sorts:is-sort? tsort sort sorts))
-                (error (format "sort ~s not compatible with ~s" tsort sort))))))
-        (terms:term op arg-terms)))
-    
     (let ([arg-terms (for/list ([arg args])
                        (term-from-meta sorts ops vars arg))])
-      (if (set-member? (terms:op-properties op)
-                       'variable-length-domain)
-          (make-var-arg-op-term sorts ops vars op arg-terms)
-          (make-fix-arg-op-term sorts ops vars op arg-terms))))
+      (make-term op arg-terms sorts ops vars)))
   
   (define (make-var var args)
     (if (empty? args)
@@ -576,12 +589,12 @@
   (define-syntax-class term
     #:description "term"
     (pattern symbol:id
-             #:with value #'(terms:term op-term
+             #:with value #'(make-mterm op-term
                                         (list (quote symbol))))
     (pattern s:str #:with value #'s)
     (pattern ((~literal quote) symbol:id) #:with value #'(quote symbol))
     (pattern (op:id args:term ...)
-             #:with value #'(terms:term op-term
+             #:with value #'(make-mterm op-term
                                         (list (quote op) args.value ...)))
     (pattern x:number #:when (exact? (syntax-e #'x))
              #:with value #'x))
@@ -590,7 +603,7 @@
     #:description "variable in rule"
     #:attributes (var)
     (pattern [var-name:id var-sort:id]
-             #:with var #'(terms:term op-var (list (quote var-name)
+             #:with var #'(make-mterm op-var (list (quote var-name)
                                                    (quote var-sort)))))
 
   (define-syntax-class operator
@@ -599,25 +612,25 @@
     #:datum-literals (op =->)
 
     (pattern (op op-name:id range-sort:id)
-             #:with ops #'(list (terms:term op-op (list (quote op-name)
-                                                        (terms:term op-domain
+             #:with ops #'(list (make-mterm op-op (list (quote op-name)
+                                                        (make-mterm op-domain
                                                                     (list))
                                                         (quote range-sort))))
              #:with rules #'(list))
     (pattern (op (op-name:id arg-sort:id ...+ (~datum ...)) range-sort:id)
              #:with ops #'(list
-                           (terms:term op-op
+                           (make-mterm op-op
                                        (list (quote op-name)
-                                             (terms:term op-var-length-domain
+                                             (make-mterm op-var-length-domain
                                                          (list (quote
                                                                 arg-sort)
                                                                ...))
                                              (quote range-sort))))
              #:with rules #'(list))
     (pattern (op (op-name:id arg-sort:id ...+) range-sort:id)
-             #:with ops #'(list (terms:term op-op
+             #:with ops #'(list (make-mterm op-op
                                             (list (quote op-name)
-                                                  (terms:term op-domain
+                                                  (make-mterm op-domain
                                                               (list (quote
                                                                      arg-sort)
                                                                     ...))
@@ -626,26 +639,26 @@
 
     (pattern (=-> left:term right:term)
              #:with ops #'(list)
-             #:with rules #'(list (terms:term op-eqrule
-                                              (list (terms:term op-vars '())
+             #:with rules #'(list (make-mterm op-eqrule
+                                              (list (make-mterm op-vars '())
                                                     left.value right.value))))
     (pattern (=-> #:vars (var:variable ...) left:term right:term)
              #:with ops #'(list)
-             #:with rules #'(list (terms:term op-eqrule
-                                              (list (terms:term op-vars
+             #:with rules #'(list (make-mterm op-eqrule
+                                              (list (make-mterm op-vars
                                                                 (list var.var
                                                                       ...))
                                                     left.value right.value))))
     (pattern (=-> #:var var:variable left:term right:term)
              #:with ops #'(list)
-             #:with rules #'(list (terms:term op-eqrule
-                                              (list (terms:term op-vars
+             #:with rules #'(list (make-mterm op-eqrule
+                                              (list (make-mterm op-vars
                                                                 (list var.var))
                                                     left.value right.value))))
     (pattern (=-> left:term  #:if cond:term right:term)
              #:with ops #'(list)
-             #:with rules #'(list (terms:term op-ceqrule
-                                              (list (terms:term op-vars '())
+             #:with rules #'(list (make-mterm op-ceqrule
+                                              (list (make-mterm op-vars '())
                                                     left.value
                                                     cond.value
                                                     right.value))))
@@ -654,8 +667,8 @@
                   #:if cond:term
                   right:term)
              #:with ops #'(list)
-             #:with rules #'(list (terms:term op-ceqrule
-                                              (list (terms:term op-vars
+             #:with rules #'(list (make-mterm op-ceqrule
+                                              (list (make-mterm op-vars
                                                                 (list var.var
                                                                       ...))
                                                     left.value
@@ -666,8 +679,8 @@
                   #:if cond:term
                   right:term)
              #:with ops #'(list)
-             #:with rules #'(list (terms:term op-ceqrule
-                                              (list (terms:term op-vars
+             #:with rules #'(list (make-mterm op-ceqrule
+                                              (list (make-mterm op-vars
                                                                 (list var.var))
                                                     left.value
                                                     cond.value
@@ -677,10 +690,10 @@
     #:description "import"
     #:datum-literals (use extend)
     (pattern (use module:id)
-             #:with value #'(terms:term
+             #:with value #'(make-mterm
                              op-use (list (module-meta-hash module))))
     (pattern (extend module:id)
-             #:with value #'(terms:term
+             #:with value #'(make-mterm
                              op-extend (list (module-meta-hash module)))))
   
   (define-syntax-class sort
@@ -694,12 +707,12 @@
              #:with subsorts #'(list))
     (pattern ((~datum subsort) s-id1:id s-id2:id)
              #:with sorts #'(list)
-             #:with subsorts #'(list (terms:term op-subsort
+             #:with subsorts #'(list (make-mterm op-subsort
                                                  (list (quote s-id1)
                                                        (quote s-id2)))))
     (pattern ((~datum subsorts) [s-id1:id s-id2:id] ...)
              #:with sorts #'(list)
-             #:with subsorts #'(list (terms:term op-subsort
+             #:with subsorts #'(list (make-mterm op-subsort
                                                  (list (quote s-id1)
                                                        (quote s-id2))) ...))))
 

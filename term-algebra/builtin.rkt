@@ -1,12 +1,14 @@
 #lang racket
 
-(provide meta truth equality string symbol rational)
+(provide truth equality string symbol rational
+         meta-term meta-module)
 
 (require (prefix-in terms: term-algebra/terms)
          (prefix-in sorts: term-algebra/sorts)
          (prefix-in modules: term-algebra/modules))
 
-(define meta modules:meta)
+(define meta-term modules:metalevel-term)
+(define meta-module modules:metalevel-module)
 
 (modules:define-builtin-module truth
   (sorts Boolean)

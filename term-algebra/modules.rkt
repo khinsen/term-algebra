@@ -4,7 +4,7 @@
          define-module define-meta-module
          term meta-term
          sort-from op-from make-special-rule make-special-module
-         meta)
+         metalevel-term metalevel-module)
 
 (require (prefix-in terms: term-algebra/terms)
          (prefix-in sorts: term-algebra/sorts)
@@ -54,6 +54,85 @@
          [mod (module module-name sorts ops #f meta-hash)])
     (register-module mod)
     mod))
+
+; Manage the module-ops data structure that combines
+; a hash map for the operators with a set flagging the
+; imported operators.
+(define (empty-ops)
+  (ops-in-module (hash) (set) (set)))
+
+(define (add-op ops op imported?)
+  (let* ([all-ops (ops-in-module-ops ops)]
+         [imported (ops-in-module-imported-ops ops)]
+         [special (ops-in-module-special-ops ops)]
+         [op-symbol (terms:op-symbol op)])
+    (when (hash-has-key? all-ops op-symbol)
+        (error "op already defined: " op-symbol))
+    (ops-in-module (hash-set all-ops op-symbol op)
+                   (if imported?
+                       (set-add imported op-symbol)
+                       imported)
+                   special)))
+
+(define (get-op ops symbol)
+  (hash-ref (ops-in-module-ops ops) symbol #f))
+
+(define (all-ops ops)
+  (hash-values (ops-in-module-ops ops)))
+
+(define (all-imported-ops ops)
+  (filter (lambda (op) (set-member? (ops-in-module-imported-ops ops) 
+                               (terms:op-symbol op)))
+          (hash-values (ops-in-module-ops ops))))
+
+(define (all-defined-ops ops)
+  (filter (lambda (op) (not (set-member? (ops-in-module-imported-ops ops) 
+                                    (terms:op-symbol op))))
+          (hash-values (ops-in-module-ops ops))))
+
+(define (op-is-imported? ops symbol)
+  (and (hash-has-key? (ops-in-module-ops ops) symbol)
+       (set-member? (ops-in-module-imported-ops ops) symbol)))
+
+(define (sort-from module sort-symbol)
+  (let ([sort (terms:sort sort-symbol)])
+    (if (sorts:has-sort? sort (module-sorts module))
+        sort
+        (error (format "no sort ~s in module ~s" sort-symbol module)))))
+
+(define (op-from module op-symbol)
+  (get-op (module-ops module) op-symbol))
+
+(define (import-ops new-ops mark-imported? ops)
+  (let ([with-special (merge-special ops new-ops)])
+    (if mark-imported?
+        (for/fold ([ops with-special])
+                  ([op (all-ops new-ops)])
+          (add-op ops op mark-imported?))
+        (let ([with-imported (for/fold ([ops with-special])
+                                       ([op (all-imported-ops new-ops)])
+                               (add-op ops op #t))])
+          (for/fold ([ops with-imported])
+                    ([op (copy-ops (all-defined-ops new-ops))])
+            (add-op ops op mark-imported?))))))
+
+(define (make-special-rule module op-symbol proc)
+  (let ([op (op-from module op-symbol)])
+    (if (empty? (terms:op-rules op))
+        (terms:set-op-rules! op proc)
+        (error "non-empty rule list for operator " op))))
+
+(define (merge-special ops added-ops)
+  (let* ([defined-ops (ops-in-module-ops ops)]
+         [imported (ops-in-module-imported-ops ops)]
+         [special (ops-in-module-special-ops ops)]
+         [added-special (ops-in-module-special-ops added-ops)])
+    (ops-in-module defined-ops
+                   imported
+                   (set-union special added-special))))
+
+(define (has-special? ops symbol)
+  (set-member? (ops-in-module-special-ops ops) symbol))
 
 ;
 ; Macro for defining builtin modules
@@ -154,58 +233,82 @@
              mod)))]))
 
 ;
-; The meta-representation of modules as terms
+; The meta-representation of terms and modules as terms
 ;
-(define meta-sorts '(Module ImportList Import
-                     SortList Sort SubsortList Subsort
-                     OpList Op Domain
-                     RuleList Rule VarList
-                     Term))
+(define-builtin-module metalevel-term
 
-(define op-module (terms:op 'module '(Symbol ops meta) 'Module (set) '()))
+  ; can't write
+  ;   (use builtin:symbol)
+  ; here because builtin.rkt depends on modules.rkt.
+  (sorts Symbol
+         Term)
 
-(define op-imports (terms:op 'imports '(module ...) 'ImportList (set) '()))
-(define op-use (terms:op 'use '(name) 'Import (set) '()))
-(define op-extend (terms:op 'extend '(name) 'Import (set) '()))
+  (special-ops symbol)
 
-(define op-sorts (terms:op 'sorts '(op ...) 'SortList (set) '()))
-(define op-subsorts (terms:op 'subsorts '(op ...) 'SubsortList (set) '()))
-(define op-subsort (terms:op 'subsort '(op ...) 'Subsort (set) '()))
+  (op (term Symbol Term ...) Term))
 
-(define op-ops (terms:op 'ops '(op ...) 'OpList (set) '()))
-(define op-op (terms:op 'op '(name ...) 'Op (set) '()))
-(define op-domain (terms:op 'domain '(sort ...) 'Domain (set) '()))
-(define op-var-length-domain (terms:op 'var-length-domain '(sort ...)
-                                       'Domain (set) '()))
+(define-builtin-module metalevel-module
 
-(define op-rules (terms:op 'rules '(rule ...) 'RuleList (set) '()))
-(define op-eqrule (terms:op '=-> '(left right) 'Rule (set) '()))
-(define op-ceqrule (terms:op '=->? '(left condition right) 'Rule (set) '()))
-(define op-vars (terms:op 'vars '(...) 'VarList (set) '()))
-(define op-var (terms:op 'var '(name sort) 'Var (set) '()))
-(define op-term (terms:op 'term '(symbol ...) 'Term (set) '()))
+  (use metalevel-term)
+  ; can't write
+  ;   (use builtin:string)
+  ; here because builtin.rkt depends on modules.rkt.
+
+  (sorts String
+         Module
+         ImportList Import
+         SortList SubsortList Subsort
+         OpList Op Domain
+         RuleList Rule VarList Var)
+
+  (special-ops string)
+  
+  (op (module Symbol ImportList SortList SubsortList OpList RuleList) Module)
+  
+  (op (imports Import ...) ImportList)
+  (op (use Symbol) Import)
+  (op (extend Symbol) Import)
+  
+  (op (sorts Symbol ...) SortList)
+  
+  (op (subsorts Subsort ...) SubsortList)
+  (op (subsort Symbol Symbol) Subsort)
+  
+  (op (ops Op ...) OpList)
+  (op (op Symbol Domain Symbol) Op)
+  (op (domain Symbol ...) Domain)
+  (op (var-length-domain Symbol ...) Domain)
+  
+  (op (rules Rule ...) RuleList)
+  (op (=-> VarList Term Term) Rule)
+  (op (=->? VarList Term Term Term) Rule)
+  (op (vars Var ...) VarList)
+  (op (var Symbol Symbol) Var))
 
 
-(define meta
-  (let ([sorts (foldl sorts:add-sort (sorts:empty-sort-graph) meta-sorts)]
-        [ops (hash 'module op-module
-                      'imports op-imports
-                      'use op-use
-                      'extend op-extend
-                      'sorts op-sorts
-                      'subsorts op-subsorts
-                      'subsort op-subsort
-                      'ops op-ops
-                      'op op-op
-                      'domain op-domain
-                      'var-length-domain op-var-length-domain
-                      'rules op-rules
-                      '=-> op-eqrule
-                      '=->? op-ceqrule
-                      'vars op-vars
-                      'var op-var
-                      'term op-term)])
-    (make-special-module 'meta sorts ops (set) (set 'string 'symbol))))
+(define op-module (op-from metalevel-module 'module))
+
+(define op-xxx (op-from metalevel-module 'xxx))
+(define op-imports (op-from metalevel-module 'imports))
+(define op-use (op-from metalevel-module 'use))
+(define op-extend (op-from metalevel-module 'extend))
+  
+(define op-sorts (op-from metalevel-module 'sorts))
+  
+(define op-subsorts (op-from metalevel-module 'subsorts))
+(define op-subsort (op-from metalevel-module 'subsort))
+  
+(define op-ops (op-from metalevel-module 'ops))
+(define op-op (op-from metalevel-module 'op))
+(define op-domain (op-from metalevel-module 'domain))
+(define op-var-length-domain (op-from metalevel-module 'var-length-domain))
+  
+(define op-rules (op-from metalevel-module 'rules))
+(define op-eqrule (op-from metalevel-module '=->))
+(define op-ceqrule (op-from metalevel-module '=->?))
+(define op-vars (op-from metalevel-module 'vars))
+(define op-var (op-from metalevel-module 'var))
+(define op-term (op-from metalevel-module 'term))
 
 (define (meta-module module-name imports sorts subsorts ops rules)
   (terms:term op-module (list module-name
@@ -218,85 +321,6 @@
 ;
 ; Make a "compiled" module from a meta-module
 ;
-
-; Manage the module-ops data structure that combines
-; a hash map for the operators with a set flagging the
-; imported operators.
-(define (empty-ops)
-  (ops-in-module (hash) (set) (set)))
-
-(define (add-op ops op imported?)
-  (let* ([all-ops (ops-in-module-ops ops)]
-         [imported (ops-in-module-imported-ops ops)]
-         [special (ops-in-module-special-ops ops)]
-         [op-symbol (terms:op-symbol op)])
-    (when (hash-has-key? all-ops op-symbol)
-        (error "op already defined: " op-symbol))
-    (ops-in-module (hash-set all-ops op-symbol op)
-                   (if imported?
-                       (set-add imported op-symbol)
-                       imported)
-                   special)))
-
-(define (get-op ops symbol)
-  (hash-ref (ops-in-module-ops ops) symbol #f))
-
-(define (all-ops ops)
-  (hash-values (ops-in-module-ops ops)))
-
-(define (all-imported-ops ops)
-  (filter (lambda (op) (set-member? (ops-in-module-imported-ops ops) 
-                               (terms:op-symbol op)))
-          (hash-values (ops-in-module-ops ops))))
-
-(define (all-defined-ops ops)
-  (filter (lambda (op) (not (set-member? (ops-in-module-imported-ops ops) 
-                                    (terms:op-symbol op))))
-          (hash-values (ops-in-module-ops ops))))
-
-(define (op-is-imported? ops symbol)
-  (and (hash-has-key? (ops-in-module-ops ops) symbol)
-       (set-member? (ops-in-module-imported-ops ops) symbol)))
-
-(define (sort-from module sort-symbol)
-  (let ([sort (terms:sort sort-symbol)])
-    (if (sorts:has-sort? sort (module-sorts module))
-        sort
-        (error (format "no sort ~s in module ~s" sort-symbol module)))))
-
-(define (op-from module op-symbol)
-  (get-op (module-ops module) op-symbol))
-
-(define (import-ops new-ops mark-imported? ops)
-  (let ([with-special (merge-special ops new-ops)])
-    (if mark-imported?
-        (for/fold ([ops with-special])
-                  ([op (all-ops new-ops)])
-          (add-op ops op mark-imported?))
-        (let ([with-imported (for/fold ([ops with-special])
-                                       ([op (all-imported-ops new-ops)])
-                               (add-op ops op #t))])
-          (for/fold ([ops with-imported])
-                    ([op (copy-ops (all-defined-ops new-ops))])
-            (add-op ops op mark-imported?))))))
-
-(define (make-special-rule module op-symbol proc)
-  (let ([op (op-from module op-symbol)])
-    (if (empty? (terms:op-rules op))
-        (terms:set-op-rules! op proc)
-        (error "non-empty rule list for operator " op))))
-
-(define (merge-special ops added-ops)
-  (let* ([defined-ops (ops-in-module-ops ops)]
-         [imported (ops-in-module-imported-ops ops)]
-         [special (ops-in-module-special-ops ops)]
-         [added-special (ops-in-module-special-ops added-ops)])
-    (ops-in-module defined-ops
-                   imported
-                   (set-union special added-special))))
-
-(define (has-special? ops symbol)
-  (set-member? (ops-in-module-special-ops ops) symbol))
 
 ; Two match expanders for simplifying the parser for meta-modules.
 (define-match-expander mterm

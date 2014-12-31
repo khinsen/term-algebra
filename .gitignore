@@ -2,3 +2,4 @@
 *.scrbl~
 compiled/
 doc/
+test.rkt

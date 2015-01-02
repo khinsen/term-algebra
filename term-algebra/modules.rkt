@@ -96,7 +96,7 @@
        (set-member? (ops-in-module-imported-ops ops) symbol)))
 
 (define (sort-from module sort-symbol)
-  (let ([sort (terms:sort sort-symbol)])
+  (let ([sort sort-symbol])
     (if (sorts:has-sort? sort (module-sorts module))
         sort
         (error (format "no sort ~s in module ~s" sort-symbol module)))))
@@ -192,7 +192,7 @@
              #:with ops 
              #'(list (terms:op (quote op-name)
                                '()
-                               (terms:sort (quote range-sort))
+                               (quote range-sort)
                                (set)
                                rules)))
     (pattern ((~datum op)
@@ -201,18 +201,16 @@
               (~optional rules:expr #:defaults ([rules #'(list)])))
              #:with ops
              #'(list (terms:op (quote op-name)
-                               (map terms:sort
-                                    (list (quote arg-sort) ...))
-                               (terms:sort (quote range-sort))
+                               (list (quote arg-sort) ...)
+                               (quote range-sort)
                                (set 'variable-length-domain)
                                rules)))
     (pattern ((~datum op) (op-name:id arg-sort:id ...+) range-sort:id
               (~optional rules:expr #:defaults ([rules #'(list)])))
              #:with ops
              #'(list (terms:op (quote op-name)
-                               (map terms:sort
-                                    (list (quote arg-sort) ...))
-                               (terms:sort (quote range-sort))
+                               (list (quote arg-sort) ...)
+                               (quote range-sort)
                                (set)
                                rules))))
 
@@ -235,10 +233,11 @@
                                           (list import-decl.use ...))
                                        #'(list))]
                    [sort-list (if (attribute sort)
-                                  #'(list (terms:sort (quote sort)) ...)
-                                  #'(list))]                   [subsort-list (if (attribute sort1)
-                                     #'(list (cons (terms:sort (quote sort1))
-                                                   (terms:sort (quote sort2)))
+                                  #'(list (quote sort) ...)
+                                  #'(list))]
+                   [subsort-list (if (attribute sort1)
+                                     #'(list (cons (quote sort1)
+                                                   (quote sort2))
                                              ...)
                                      #'(list))]
                    [special-op-set (if (attribute s-op)
@@ -471,13 +470,13 @@
 
   (define (define-sort sort-symbol sorts)
     (if (symbol? sort-symbol)
-        (sorts:add-sort (terms:sort sort-symbol) sorts)
+        (sorts:add-sort sort-symbol sorts)
         (error "not a symbol: " sort-symbol)))
 
   (define (define-subsort subsort-term sorts)
     (match subsort-term
       [(mterm op-subsort (list sort1 sort2))
-       (sorts:add-subsort (terms:sort sort1) (terms:sort sort2) sorts)]
+       (sorts:add-subsort sort1 sort2 sorts)]
       [_ (error "not a subsort term: " subsort-term)]))
 
   (define (define-op sorts ops op-term)
@@ -485,8 +484,8 @@
     (define (op-from-meta op-term)
 
       (define (op-from-meta* name arg-sorts range-sort properties)
-        (let ([range-sort (terms:sort range-sort)]
-              [arg-sorts (map terms:sort arg-sorts)])
+        (let ([range-sort range-sort]
+              [arg-sorts arg-sorts])
           (unless (sorts:has-sort? range-sort sorts)
             (error "undefined sort: " range-sort))
           (for ([arg-sort arg-sorts])
@@ -521,7 +520,7 @@
          (if (hash-has-key? vars name-symbol)
              (error "var already defined: " name-symbol)
              (hash-set vars name-symbol (terms:var name-symbol
-                                                   (terms:sort sort-symbol))))]
+                                                   sort-symbol)))]
         [_ (error "not a var terms: " var-term)]))
   
     (define (add-rule* sorts ops vars left right condition)

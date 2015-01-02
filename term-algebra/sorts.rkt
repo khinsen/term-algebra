@@ -14,7 +14,7 @@
 ; A special sort that is compatible with everything
 ; but may not be used explicitly in a sort graph.
 ;
-(define any-sort (terms:sort 'Any))
+(define any-sort 'Any)
 
 ;
 ; Management of the sort graph

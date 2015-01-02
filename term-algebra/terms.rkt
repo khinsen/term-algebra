@@ -3,7 +3,6 @@
 (provide (struct-out op)
          (struct-out var)
          (struct-out term)
-         (struct-out sort)
          vars-in-term
          term-sort)
 
@@ -24,7 +23,7 @@
         #:transparent
         #:property prop:custom-write
         (lambda (var port mode)
-          (write (list (var-symbol var) (sort-symbol (var-sort var))) port)))
+          (write (list (var-symbol var) (var-sort var)) port)))
 
 (struct term (op args)
         #:transparent
@@ -34,12 +33,6 @@
             (if (null? (op-domain op))
                 (write (op-symbol op) port)
                 (write (cons (op-symbol op) (term-args term)) port)))))
-
-(struct sort (symbol)
-        #:transparent
-        #:property prop:custom-write
-        (lambda (sort port mode)
-          (write (sort-symbol sort) port)))
 
 ; Basic operations
 
@@ -56,7 +49,7 @@
   (cond
    [(term? gterm)   (op-range (term-op gterm))]
    [(var? gterm)    (var-sort gterm)]
-   [(symbol? gterm) (sort 'Symbol)]
-   [(string? gterm) (sort 'String)]
-   [(number? gterm) (sort 'Rational)]
+   [(symbol? gterm) 'Symbol]
+   [(string? gterm) 'String]
+   [(number? gterm) 'Rational]
    [else (error "unknown term type" gterm)]))

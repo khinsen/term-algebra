@@ -36,6 +36,19 @@
                     (subsort a a))
                test))
 
+  (test-exn "any-in-subsort"
+            #rx"special sort Any forbidden in subsort relations"
+            (lambda () (define-module test
+                    (sort a)
+                    (subsort a Any))
+               test))
+  (test-exn "any-in-subsort"
+            #rx"special sort Any forbidden in subsort relations"
+            (lambda () (define-module test
+                    (sort a)
+                    (subsort Any a))
+               test))
+
   (test-exn "double subsort definition"
             #rx"subsort relation already defined.*"
             (lambda () (define-module test

@@ -11,6 +11,12 @@
          graph)
 
 ;
+; A special sort that is compatible with everything
+; but may not be used explicitly in a sort graph.
+;
+(define any-sort (terms:sort 'Any))
+
+;
 ; Management of the sort graph
 ;
 (define (empty-sort-graph)
@@ -26,6 +32,9 @@
   (cond
    [(equal? sort1 sort2)
     (error "sorts are equal: " (cons sort1 sort2))]
+   [(or (equal? sort1 any-sort)
+        (equal? sort2 any-sort))
+    (error "special sort Any forbidden in subsort relations")]
    [(not (has-vertex? graph sort1))
     (error "undefined sort: " sort1)]
    [(not (has-vertex? graph sort2))
@@ -57,9 +66,6 @@
 ;
 ; Higher-level sort operations
 ;
-
-(define any-sort (terms:sort 'Any))
-
 (define (is-sort? sort target-sort graph)
   (or (equal? sort target-sort)
       (equal? target-sort any-sort)

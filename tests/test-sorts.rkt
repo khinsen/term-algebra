@@ -4,7 +4,17 @@
 
 (require rackunit
          (only-in term-algebra/syntax define-module term)
+         (only-in term-algebra/modules sort-from module-sorts)
+         (prefix-in sorts: term-algebra/sorts)
          (prefix-in builtin: term-algebra/builtin))
+
+(define-module sort-test-1
+  (sorts A B C X Y Z)
+  (subsorts [A C] [B C] [X Y] [Y Z]))
+
+(define-module sort-test-2
+  (extend sort-test-1)
+  (subsort A X))
 
 (define-test-suite sort-tests
 
@@ -77,6 +87,33 @@
                     (sort a)
                     (op (foo b) a))
                test))
+
+  (test-case "kinds-1"
+    (check-equal? (sorts:kind 'A (module-sorts sort-test-1))
+                  (set 'A 'B 'C))
+    (check-equal? (sorts:kind 'B (module-sorts sort-test-1))
+                  (set 'A 'B 'C))
+    (check-equal? (sorts:kind 'C (module-sorts sort-test-1))
+                  (set 'A 'B 'C))
+    (check-equal? (sorts:kind 'X (module-sorts sort-test-1))
+                  (set 'X 'Y 'Z))
+    (check-equal? (sorts:kind 'Y (module-sorts sort-test-1))
+                  (set 'X 'Y 'Z))
+    (check-equal? (sorts:kind 'Z (module-sorts sort-test-1))
+                  (set 'X 'Y 'Z)))
+  (test-case "kinds-2"
+    (check-equal? (sorts:kind 'A (module-sorts sort-test-2))
+                  (set 'A 'B 'C 'X 'Y 'Z))
+    (check-equal? (sorts:kind 'B (module-sorts sort-test-2))
+                  (set 'A 'B 'C 'X 'Y 'Z))
+    (check-equal? (sorts:kind 'C (module-sorts sort-test-2))
+                  (set 'A 'B 'C 'X 'Y 'Z))
+    (check-equal? (sorts:kind 'X (module-sorts sort-test-2))
+                  (set 'A 'B 'C 'X 'Y 'Z))
+    (check-equal? (sorts:kind 'Y (module-sorts sort-test-2))
+                  (set 'A 'B 'C 'X 'Y 'Z))
+    (check-equal? (sorts:kind 'Z (module-sorts sort-test-2))
+                  (set 'A 'B 'C 'X 'Y 'Z)))
   
   (test-exn "wrong-number-of-fixed-args"
             #rx"wrong number of arguments.*"

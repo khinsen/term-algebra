@@ -11,7 +11,7 @@
 
 (define-module test
   (sorts A B C X Y Z)
-  (subsorts [A C] [B C] [X Y] [Y Z]))
+  (subsorts [A C] [B C] [X Y] [X Z]))
 
 (define test-sorts (module-sorts test))
 (define A-kind (sorts:kind 'A test-sorts))
@@ -34,7 +34,6 @@
     (check-equal? X-kind (set 'X 'Y 'Z)))
   
   (test-case "operator-definition"
-
     (check-equal? (hash-count (hash-ref (operators:add-op
                                          'foo (list 'Z) 'A (set)
                                          test-sorts test-ops)
@@ -53,7 +52,17 @@
                                         'foo)
                               (list A-kind))))
                   3))
-  
+
+  (test-exn "preregularity"
+      #rx"Operator .*bar.* is not preregular.*"
+      (lambda ()
+        (operators:add-op
+         'bar (list 'C 'B) 'Z (set)
+         test-sorts
+         (operators:add-op
+          'bar (list 'A 'C) 'Y (set)
+          test-sorts test-ops))))
+
   (test-exn "wrong-range-kind"
       #rx"Operator .*foo.* must have the kind of sort.*"
       (lambda () 

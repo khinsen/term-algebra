@@ -4,15 +4,11 @@
          add-op
          (struct-out operator))
 
-(require (prefix-in sorts: term-algebra/sorts))
+(require (prefix-in sorts: term-algebra/sorts)
+         racket/generator)
 
 (struct operator (symbol signatures properties)
         #:transparent)
-
-; Page 66: To avoid ambiguous expressions we require that if the sorts
-; in the arities of two operators with the same syntactic form are
-; pairwise in the same connected components, then the sorts in the
-; coarities must likewise be in the same connected component.
 
 ;
 ; Management of op-sets
@@ -27,6 +23,24 @@
 
 (define (empty-op-set)
   (hash))
+
+(define (cartesian-product seqs)
+  (in-generator
+   (if (empty? seqs)
+       (yield empty)
+       (for* ([s (first seqs)]
+              [ss (cartesian-product (rest seqs))])
+         (yield (cons s ss))))))
+
+(define (preregular? op sorts domain)
+  (let ([ranges
+         (for*/list ([arg-sorts (cartesian-product
+                                 (map (λ (s) (sorts:subsorts s sorts)) domain))]
+                     [sig (operator-signatures op)]
+                     #:when (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
+                                    arg-sorts (car sig)))
+           (cdr sig))])
+    (andmap (λ (r) (sorts:is-sort? (first ranges) r sorts)) (rest ranges))))
 
 (define (add-op symbol domain range properties sorts op-set)
   (let* ([domain-kinds (map (λ (s) (sorts:kind s sorts)) domain)]
@@ -52,6 +66,8 @@
                                           (cons (cons domain range) after))
                            properties))
                (operator symbol (list (cons domain range)) properties))])
+      (unless (preregular? extended-op sorts domain)
+        (error (format "Operator ~s is not preregular after addition of signature ~s -> ~s" symbol domain range)))
       (hash-set op-set
                 symbol (hash-set ops-for-symbol
                                  domain-kinds extended-op)))))

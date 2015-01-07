@@ -114,6 +114,26 @@
                   (set 'A 'B 'C 'X 'Y 'Z))
     (check-equal? (sorts:kind 'Z (module-sorts sort-test-2))
                   (set 'A 'B 'C 'X 'Y 'Z)))
+
+  (test-case "subsorts"
+    (check-equal? (sorts:subsorts 'A (module-sorts sort-test-1))
+                  (set 'A))
+    (check-equal? (sorts:subsorts 'B (module-sorts sort-test-1))
+                  (set 'B))
+    (check-equal? (sorts:subsorts 'C (module-sorts sort-test-1))
+                  (set 'A 'B 'C))
+    (check-equal? (sorts:subsorts 'X (module-sorts sort-test-1))
+                  (set 'X))
+    (check-equal? (sorts:subsorts 'Y (module-sorts sort-test-1))
+                  (set 'X 'Y))
+    (check-equal? (sorts:subsorts 'Z (module-sorts sort-test-1))
+                  (set 'X 'Y 'Z))
+    (check-equal? (sorts:subsorts 'X (module-sorts sort-test-2))
+                  (set 'A 'X))
+    (check-equal? (sorts:subsorts 'Y (module-sorts sort-test-2))
+                  (set 'A 'X 'Y))
+    (check-equal? (sorts:subsorts 'Z (module-sorts sort-test-2))
+                  (set 'A 'X 'Y 'Z)))
   
   (test-exn "wrong-number-of-fixed-args"
             #rx"wrong number of arguments.*"

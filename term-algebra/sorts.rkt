@@ -6,7 +6,8 @@
          is-subsort? has-sort?
          check-subsort-graph
          is-sort?
-         kind)
+         kind
+         subsorts)
 
 (require (prefix-in terms: term-algebra/terms)
          graph)
@@ -43,8 +44,6 @@
           (add-vertex! dag sort)
           (hash-set! cc sort (set sort)))))
   graph)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (add-subsort sort1 sort2 graph)
   
@@ -102,3 +101,10 @@
 
 (define (kind sort graph)
   (hash-ref (sort-graph-cc graph) sort))
+
+(define (subsorts sort graph)
+  ; This is probably very inefficient!
+  (let ([tc (transitive-closure (sort-graph-dag graph))])
+    (for/set ([s (kind sort graph)]
+              #:when (hash-ref tc (list s sort)))
+      s)))

@@ -4,7 +4,7 @@
 
 (require rackunit
          (only-in term-algebra/modules define-builtin-module
-                                       sort-from module-sorts)
+                                       sort-from module-sorts module-ops)
          (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators))
 
@@ -13,21 +13,14 @@
 
 (define-builtin-module test
   (sorts A B C X Y Z)
-  (subsorts [A C] [B C] [X Y] [X Z]))
+  (subsorts [A C] [B C] [X Y] [X Z])
+  (op (foo A) X)
+  (op (foo C) Z))
 
 (define test-sorts (module-sorts test))
+(define test-ops (module-ops test))
 (define A-kind (sorts:kind 'A test-sorts))
 (define X-kind (sorts:kind 'X test-sorts))
-
-(define test-ops
-  (let* ([ops (operators:empty-op-set test-sorts)]
-         [ops (operators:add-op
-               'foo (list 'A) 'X (set)
-               ops)]
-         [ops (operators:add-op
-               'foo (list 'C) 'Z (set)
-               ops)])
-    ops))
 
 (define-test-suite operator-tests
   
@@ -35,31 +28,6 @@
     (check-equal? A-kind (set 'A 'B 'C))
     (check-equal? X-kind (set 'X 'Y 'Z)))
   
-  (test-case "operator-definition"
-    (check-equal? (hash-count
-                   (hash-ref
-                    (op-set-ops (operators:add-op
-                                 'foo (list 'Z) 'A (set)
-                                 test-ops))
-                    'foo))
-                  2)
-    (check-equal? (hash-count
-                   (hash-ref
-                    (op-set-ops (operators:add-op
-                                 'foo (list 'B) 'Z (set)
-                                 test-ops))
-                    'foo))
-                  1)
-    (check-equal? (length
-                   (operator-signatures
-                    (hash-ref (hash-ref
-                               (op-set-ops (operators:add-op
-                                            'foo (list 'B) 'Z (set)
-                                            test-ops))
-                               'foo)
-                              (list A-kind))))
-                  3))
-
   (test-case "operator-lookup"
     (check-equal? (operators:lookup-op 'foo (list 'A) test-ops)
                   'X)
@@ -70,28 +38,61 @@
     (check-equal? (operators:lookup-op 'foo (list 'X) test-ops)
                   #f))
   
+  (test-case "operator-definition"
+    
+    (let ()
+      (define-builtin-module test2
+        (extend test)
+        (op (foo Z) A))
+      (let* ([op-hash (op-set-ops (module-ops test2))]
+             [foo-op (hash-ref op-hash 'foo)])
+        (check-equal? 
+         (hash-count foo-op) ; Number of different kinds
+         2)
+        (check-equal?
+         (length (operator-signatures (hash-ref foo-op (list A-kind))))
+         2)
+        (check-equal?
+         (length (operator-signatures (hash-ref foo-op (list X-kind))))
+         1)))
+
+    (let ()
+      (define-builtin-module test2
+        (extend test)
+        (op (foo B) Z))
+      (let* ([op-hash (op-set-ops (module-ops test2))]
+             [foo-op (hash-ref op-hash 'foo)])
+        (check-equal? 
+         (hash-count foo-op)  ; Number of different kinds
+         1)
+        (check-equal?
+         (length (operator-signatures (hash-ref foo-op (list A-kind))))
+         3))))
+
   (test-exn "preregularity"
       #rx"Operator .*bar.* is not preregular.*"
-      (lambda ()
-        (operators:add-op
-         'bar (list 'C 'B) 'Z (set)
-         (operators:add-op
-          'bar (list 'A 'C) 'Y (set)
-          test-ops))))
+    (lambda ()
+      (define-builtin-module error
+        (extend test)
+        (op (bar C B) Z)
+        (op (bar A C) Y))
+      (void)))
 
   (test-exn "wrong-range-kind"
       #rx"Operator .*foo.* must have the kind of sort.*"
-      (lambda () 
-        (operators:add-op
-         'foo (list 'B) 'A (set)
-         test-ops)))
+    (lambda ()
+      (define-builtin-module error
+        (extend test)
+        (op (foo B) A))
+      (void)))
 
   (test-exn "mixed-var-args"
       #rx"Operator .*foo.* must have properties .*"
       (lambda () 
-        (operators:add-op
-         'foo (list 'B) 'Z (set 'variable-length-domain)
-         test-ops))))
+        (define-builtin-module error
+          (extend test)
+          (op (foo B ...) Z))
+        (void))))
 
 (module* main #f
   (require rackunit/text-ui)

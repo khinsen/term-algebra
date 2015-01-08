@@ -1,8 +1,8 @@
 #lang racket
 
 (provide empty-op-set
-         add-op
-         lookup-op)
+         add-op merge-op-set
+         has-op? lookup-op op-definitions)
 
 (require (prefix-in sorts: term-algebra/sorts)
          racket/generator)
@@ -23,11 +23,11 @@
 ; An op-set consists of a reference to a sort graph and a hash mapping
 ; symbols to overloaded operators.
 ;
-(struct op-set (sorts ops)
+(struct op-set (sorts ops special-ops)
         #:transparent)
 
 (define (empty-op-set sorts)
-  (op-set sorts (hash)))
+  (op-set sorts (hash) (set)))
 
 (define (cartesian-product seqs)
   (in-generator
@@ -77,7 +77,40 @@
       (op-set (op-set-sorts ops)
               (hash-set (op-set-ops ops)
                         symbol (hash-set ops-for-symbol
-                                         domain-kinds extended-op))))))
+                                         domain-kinds extended-op))
+              (op-set-special-ops ops)))))
+
+(define (add-special-op special-op ops)
+  (unless (member special-op '(string symbol rational-number))
+    (error "Illegial special op " special-op))
+  (op-set (op-set-sorts ops)
+          (op-set-ops ops)
+          (set-add (op-set-special-ops ops) special-op)))
+
+(define (op-definitions ops)
+  (in-generator
+   (hash-for-each (op-set-ops ops)
+     (λ (symbol kind-hash)
+       (hash-for-each kind-hash
+         (λ (domain-kinds op)
+           (for ([sig (operator-signatures op)])
+             (yield (list (operator-symbol op)
+                          (car sig)
+                          (cdr sig)
+                          (operator-properties op))))))))))
+
+(define (merge-op-set to-merge mark-imported? ops)
+  (let ([merged-ops
+         (for/fold ([ops ops])
+                   ([spec (op-definitions to-merge)])
+           (apply add-op (append spec (list ops))))])
+    (op-set (op-set-sorts merged-ops)
+            (op-set-ops merged-ops)
+            (set-union (op-set-special-ops merged-ops)
+                       (op-set-special-ops to-merge)))))
+
+(define (has-op? symbol ops)
+  (not (not (hash-ref (op-set-ops ops) symbol #f))))
 
 (define (lookup-op symbol arg-sorts ops)
   ; ignore variable-length domains for now

@@ -4,6 +4,7 @@
          "test-sorts.rkt"
          "test-operators.rkt"
          ;; "test-modules.rkt"
+         "test-terms.rkt"
          ;; "test-builtin.rkt"
          ;; "test-boolean.rkt"
          ;; "test-peano-numbers.rkt"
@@ -16,6 +17,7 @@
     (list sort-tests
           operator-tests
           ;; module-tests
+          term-tests
           ;; builtin-tests
           ;; boolean-tests
           ;; peano-number-tests

@@ -1,38 +1,31 @@
 #lang racket
 
-(provide (struct-out op)
+(provide (struct-out term)
          (struct-out var)
-         (struct-out term)
          vars-in-term
-         term-sort)
+         sort-of
+         make-term)
+
+(require (prefix-in sorts: term-algebra/sorts)
+         (prefix-in operators: term-algebra/operators)
+         (prefix-in modules: term-algebra/modules))
 
 ; Struct definitions
 
-(struct op (symbol domain range properties [rules #:mutable])
-        #:transparent
-        #:property prop:custom-write
-        (lambda (op port mode)
-          (if (null? (op-domain op))
-              (write (list 'op (op-symbol op) (op-range op)) port)
-              (write (list 'op (op-symbol op) 
-                           (cons (op-symbol op) (op-domain op))
-                           (op-range op))
-                     port))))
-
-(struct var (symbol sort)
-        #:transparent
-        #:property prop:custom-write
-        (lambda (var port mode)
-          (write (list (var-symbol var) (var-sort var)) port)))
-
-(struct term (op args)
+(struct term (op args sort module)
         #:transparent
         #:property prop:custom-write
         (lambda (term port mode)
           (let ([op (term-op term)])
-            (if (null? (op-domain op))
-                (write (op-symbol op) port)
-                (write (cons (op-symbol op) (term-args term)) port)))))
+            (if (null? (term-args term))
+                (write op port)
+                (write (cons op (term-args term)) port)))))
+
+(struct var (symbol sort module)
+        #:transparent
+        #:property prop:custom-write
+        (lambda (var port mode)
+          (write (list (var-symbol var) (var-sort var)) port)))
 
 ; Basic operations
 
@@ -45,11 +38,24 @@
                        (apply set-union (map vars-in-term args))))]
    [else         (seteq)]))
 
-(define (term-sort gterm)
+(define (sort-of gterm)
   (cond
-   [(term? gterm)   (op-range (term-op gterm))]
+   [(term? gterm)   (term-sort gterm)]
    [(var? gterm)    (var-sort gterm)]
    [(symbol? gterm) 'Symbol]
    [(string? gterm) 'String]
    [(number? gterm) 'Rational]
    [else (error "unknown term type" gterm)]))
+
+(define (make-term op args module)
+  (unless (andmap (λ (t) (equal? (term-module t) module)) args)
+    (error "Argument terms defined in a different module"))
+  (unless (operators:has-op? op (modules:module-ops module))
+    (error "Undefined operator " op))
+  (let ([sort
+         (operators:lookup-op op
+                              (map sort-of args)
+                              (modules:module-ops module))])
+    (unless sort
+      (error "Wrong number or sort of arguments: " (cons op args)))
+    (term op args sort module)))

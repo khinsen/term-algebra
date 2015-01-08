@@ -9,8 +9,7 @@
          kind
          subsorts)
 
-(require (prefix-in terms: term-algebra/terms)
-         graph)
+(require graph)
 
 ;
 ; A special sort that is compatible with everything

@@ -2,27 +2,32 @@
 
 (provide empty-op-set
          add-op
-         (struct-out operator))
+         lookup-op)
 
 (require (prefix-in sorts: term-algebra/sorts)
          racket/generator)
 
+;
+; An overloaded operator has a single symbol and a single set of
+; properties plus a list of signatures.  Each signature entry is a
+; pair of a domain (a list of sorts) and a range (a single
+; sort). Signatures are sorted by increasing range sort, such that
+; operator lookup can proceed linearly.
+;
 (struct operator (symbol signatures properties)
         #:transparent)
 
 ;
 ; Management of op-sets
 ;
-; An op-set is stored as a hash mapping symbols to overloaded
-; operators. An overloaded operator (struct operator) has a single
-; symbol and a single set of properties plus a list of signatures.
-; Each signature entry is a pair of a domain (a list of sorts)
-; and a range (a single sort). Signatures are sorted by increasing
-; range sort, such that operator lookup can proceed linearly.
+; An op-set consists of a reference to a sort graph and a hash mapping
+; symbols to overloaded operators.
 ;
+(struct op-set (sorts ops)
+        #:transparent)
 
-(define (empty-op-set)
-  (hash))
+(define (empty-op-set sorts)
+  (op-set sorts (hash)))
 
 (define (cartesian-product seqs)
   (in-generator
@@ -42,10 +47,11 @@
            (cdr sig))])
     (andmap (λ (r) (sorts:is-sort? (first ranges) r sorts)) (rest ranges))))
 
-(define (add-op symbol domain range properties sorts op-set)
-  (let* ([domain-kinds (map (λ (s) (sorts:kind s sorts)) domain)]
+(define (add-op symbol domain range properties ops)
+  (let* ([sorts (op-set-sorts ops)]
+         [domain-kinds (map (λ (s) (sorts:kind s sorts)) domain)]
          [range-kind (sorts:kind range sorts)]
-         [ops-for-symbol (hash-ref op-set symbol (hash))]
+         [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
          [op (hash-ref ops-for-symbol domain-kinds #f)])
     (let ([extended-op
            (if op
@@ -68,6 +74,20 @@
                (operator symbol (list (cons domain range)) properties))])
       (unless (preregular? extended-op sorts domain)
         (error (format "Operator ~s is not preregular after addition of signature ~s -> ~s" symbol domain range)))
-      (hash-set op-set
-                symbol (hash-set ops-for-symbol
-                                 domain-kinds extended-op)))))
+      (op-set (op-set-sorts ops)
+              (hash-set (op-set-ops ops)
+                        symbol (hash-set ops-for-symbol
+                                         domain-kinds extended-op))))))
+
+(define (lookup-op symbol arg-sorts ops)
+  ; ignore variable-length domains for now
+  (let* ([sorts (op-set-sorts ops)]
+         [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
+         [domain-kinds (map (λ (s) (sorts:kind s sorts)) arg-sorts)]
+         [op (hash-ref ops-for-symbol domain-kinds #f)])
+    (if op
+        (for/first ([sig (operator-signatures op)]
+                    #:when (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
+                                   arg-sorts (car sig)))
+          (cdr sig))
+        #f)))

@@ -3,9 +3,10 @@
 (provide (struct-out module)
          define-builtin-module
          sort-from op-from
-         make-special-rule make-special-module
+         make-special-rule
          module-from-meta term-from-meta meta-module make-mterm
-         metalevel-term metalevel-module)
+         metalevel-term metalevel-module
+         )
 
 (require (prefix-in terms: term-algebra/terms)
          (prefix-in sorts: term-algebra/sorts)
@@ -45,14 +46,6 @@
                         (hash-of-meta-module meta-terms)
                         (hash-of-string (symbol->string module-name)))]
          [mod (module module-name sorts ops meta-terms meta-hash)])
-    (register-module mod)
-    mod))
-
-(define (make-special-module module-name sorts
-                             defined-ops imported-ops special-ops)
-  (let* ([meta-hash (hash-of-string (symbol->string module-name))]
-         [ops (ops-in-module defined-ops imported-ops special-ops)]
-         [mod (module module-name sorts ops #f meta-hash)])
     (register-module mod)
     mod))
 

@@ -3,16 +3,15 @@
 (provide operator-tests)
 
 (require rackunit
-         (only-in term-algebra/syntax define-module term)
-         (only-in term-algebra/modules sort-from module-sorts)
+         (only-in term-algebra/modules define-builtin-module
+                                       sort-from module-sorts)
          (prefix-in sorts: term-algebra/sorts)
-         (prefix-in operators: term-algebra/operators)
-         (prefix-in builtin: term-algebra/builtin))
+         (prefix-in operators: term-algebra/operators))
 
 (require/expose term-algebra/operators
                 [operator-signatures op-set-ops])
 
-(define-module test
+(define-builtin-module test
   (sorts A B C X Y Z)
   (subsorts [A C] [B C] [X Y] [X Z]))
 

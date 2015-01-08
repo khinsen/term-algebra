@@ -3,89 +3,71 @@
 (provide sort-tests)
 
 (require rackunit
-         (only-in term-algebra/syntax define-module term)
-         (only-in term-algebra/modules sort-from module-sorts)
-         (prefix-in sorts: term-algebra/sorts)
-         (prefix-in builtin: term-algebra/builtin))
+         (only-in term-algebra/modules define-builtin-module
+                                       sort-from module-sorts)
+         (prefix-in sorts: term-algebra/sorts))
 
-(define-module sort-test-1
+(define-builtin-module sort-test-1
   (sorts A B C X Y Z)
   (subsorts [A C] [B C] [X Y] [Y Z]))
 
-(define-module sort-test-2
+(define-builtin-module sort-test-2
   (extend sort-test-1)
-  (subsort A X))
+  (subsorts [A X]))
 
 (define-test-suite sort-tests
 
   (test-exn "sort redefinition"
             #rx"sort already defined.*"
-            (lambda () (define-module test
-                    (sort a)
-                    (sort b)
-                    (sorts b c))
+            (lambda () (define-builtin-module test
+                    (sorts a b b c))
                test))
 
   (test-exn "missing sort definition for subsort"
             #rx"undefined sort.*"
-            (lambda () (define-module test
-                    (sort a)
-                    (subsort a b))
+            (lambda () (define-builtin-module test
+                    (sorts a)
+                    (subsorts [a b]))
                test))
   (test-exn "missing sort definition for subsort"
             #rx"undefined sort.*"
-            (lambda () (define-module test
-                    (sort b)
-                    (subsort a b))
+            (lambda () (define-builtin-module test
+                    (sorts b)
+                    (subsorts [a b]))
                test))
   
   (test-exn "equal-sorts-in-subsort"
             #rx"sorts are equal.*"
-            (lambda () (define-module test
+            (lambda () (define-builtin-module test
                     (sorts a b)
-                    (subsort a a))
+                    (subsorts [a a]))
                test))
 
   (test-exn "any-in-subsort"
             #rx"special sort Any forbidden in subsort relations"
-            (lambda () (define-module test
-                    (sort a)
-                    (subsort a Any))
+            (lambda () (define-builtin-module test
+                    (sorts a)
+                    (subsorts [a Any]))
                test))
   (test-exn "any-in-subsort"
             #rx"special sort Any forbidden in subsort relations"
-            (lambda () (define-module test
-                    (sort a)
-                    (subsort Any a))
+            (lambda () (define-builtin-module test
+                    (sorts a)
+                    (subsorts [Any a]))
                test))
 
   (test-exn "double subsort definition"
             #rx"subsort relation already defined.*"
-            (lambda () (define-module test
+            (lambda () (define-builtin-module test
                     (sorts a b)
-                    (subsort a b)
-                    (subsort a b))
+                    (subsorts [a b] [a b]))
                test))
 
   (test-exn "cyclic subsort definition"
             #rx"cyclic subsort dependence.*"
-            (lambda () (define-module test
+            (lambda () (define-builtin-module test
                     (sorts a b c)
-                    (subsort a b)
-                    (subsort b c)
-                    (subsort c a))
-               test))
-  
-  (test-exn "undefined-range-sort"
-            #rx"undefined sort.*"
-            (lambda () (define-module test
-                    (op foo a))
-               test))
-  (test-exn "undefined-arg-sort"
-            #rx"undefined sort.*"
-            (lambda () (define-module test
-                    (sort a)
-                    (op (foo b) a))
+                    (subsorts [a b] [b c] [c a]))
                test))
 
   (test-case "kinds-1"
@@ -133,26 +115,7 @@
     (check-equal? (sorts:subsorts 'Y (module-sorts sort-test-2))
                   (set 'A 'X 'Y))
     (check-equal? (sorts:subsorts 'Z (module-sorts sort-test-2))
-                  (set 'A 'X 'Y 'Z)))
-  
-  (test-exn "wrong-number-of-fixed-args"
-            #rx"wrong number of arguments.*"
-            (lambda () (define-module test
-                    (use builtin:truth)
-                    (op (foo Boolean) Boolean))
-               (term test foo)))
-  (test-exn "wrong-number-of-fixed-args"
-            #rx"wrong number of arguments.*"
-            (lambda () (define-module test
-                    (use builtin:truth)
-                    (op (foo Boolean) Boolean))
-               (term test (foo true false))))
-  (test-exn "wrong-number-of-variable-args"
-            #rx"too few arguments.*"
-            (lambda () (define-module test
-                    (use builtin:truth)
-                    (op (foo Boolean Boolean ...) Boolean))
-               (term test (foo)))))
+                  (set 'A 'X 'Y 'Z))))
 
 (module* main #f
   (require rackunit/text-ui)

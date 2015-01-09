@@ -4,8 +4,12 @@
 
 (require rackunit
          (only-in term-algebra/modules define-builtin-module
-                                       sort-from module-sorts)
-         (prefix-in sorts: term-algebra/sorts))
+                                       sort-from module-signature)
+         (prefix-in sorts: term-algebra/sorts)
+         (prefix-in signatures: term-algebra/signatures))
+
+(define (module-sorts module)
+  (signatures:signature-sorts (module-signature module)))
 
 (define-builtin-module sort-test-1
   (sorts A B C X Y Z)
@@ -14,6 +18,7 @@
 (define-builtin-module sort-test-2
   (extend sort-test-1)
   (subsorts [A X]))
+
 
 (define-test-suite sort-tests
 

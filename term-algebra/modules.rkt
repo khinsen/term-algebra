@@ -10,6 +10,7 @@
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
+         (prefix-in signatures: term-algebra/signatures)
          ;; (prefix-in terms: term-algebra/terms)
          (for-syntax syntax/parse)
          (only-in file/sha1 sha1))
@@ -17,7 +18,7 @@
 ;
 ; The data structure for the internal module representation
 ;
-(struct module (name sorts ops rules meta meta-hash)
+(struct module (name signature rules meta meta-hash)
         #:transparent)
 
 ;
@@ -43,7 +44,8 @@
   (let* ([meta-hash (if meta-terms
                         (hash-of-meta-module meta-terms)
                         (hash-of-string (symbol->string module-name)))]
-         [mod (module module-name sorts ops meta-terms meta-hash)])
+         [sig (signatures:signature sorts ops)]
+         [mod (module module-name sig meta-terms meta-hash)])
     (register-module mod)
     mod))
 
@@ -87,12 +89,14 @@
 ;;        (set-member? (ops-in-module-imported-ops ops) symbol)))
 
 (define (sort-from module sort-symbol)
-  (if (sorts:has-sort? sort-symbol (module-sorts module))
+  (if (sorts:has-sort? sort-symbol
+                       (signatures:signature-sorts (module-signature module)))
       sort-symbol
       (error (format "no sort ~s in module ~s" sort-symbol module))))
 
 (define (op-from module op-symbol)
-  (if (operators:has-op? op-symbol (module-ops module))
+  (if (operators:has-op? op-symbol
+                         (signatures:signature-ops (module-signature module)))
       op-symbol
       (error (format "no op ~s in module ~s" op-symbol module))))
 
@@ -195,11 +199,15 @@
          ((~datum special-ops) s-op:id ...))
         op-decl:op-builtin ...)
      (with-syntax ([sort-import-list (if (attribute import-decl.module)
-                                         #'(list (module-sorts import-decl.module) ...)
+                                         #'(list (signatures:signature-sorts
+                                                  (module-signature
+                                                   import-decl.module)) ...)
                                          #'(list))]
                    [op-import-list (if (attribute import-decl.module)
                                        #'(map (lambda (a b) (cons a b))
-                                          (list (module-ops import-decl.module) ...)
+                                              (list (signatures:signature-ops
+                                                     (module-signature
+                                                      import-decl.module)) ...)
                                           (list import-decl.use ...))
                                        #'(list))]
                    [sort-list (if (attribute sort)
@@ -235,7 +243,8 @@
                            (operators:add-op symbol domain range properties ops)))]
                   [meta-hash (hash-of-string
                               (symbol->string (quote module-name)))]
-                  [mod (module (quote module-name) sorts ops empty
+                  [mod (module (quote module-name)
+                               (signatures:signature sorts ops) empty
                                #f meta-hash)])
              (register-module mod)
              mod)))]))

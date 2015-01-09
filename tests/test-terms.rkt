@@ -3,12 +3,12 @@
 (provide term-tests)
 
 (require rackunit
-         (only-in term-algebra/modules define-builtin-module
-                                       sort-from module-sorts module-ops)
          (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
-         (prefix-in modules: term-algebra/modules)
-         (prefix-in terms: term-algebra/terms))
+         (prefix-in signatures: term-algebra/signatures)
+         (prefix-in terms: term-algebra/terms)
+         (only-in term-algebra/modules
+                   define-builtin-module module-signature))
 
 (define-builtin-module test
   (sorts A B C X Y Z)
@@ -23,11 +23,12 @@
   (op (bar A ...) Z)
   (op (bar X Y) Z))
 
-(define anA (terms:make-term 'anA empty test))
-(define aB (terms:make-term 'aB empty test))
-(define aC (terms:make-term 'aC empty test))
-(define anX (terms:make-term 'anX empty test))
-(define anY (terms:make-term 'anY empty test))
+(define test-sig (module-signature test))
+(define anA (terms:make-term 'anA empty test-sig))
+(define aB (terms:make-term 'aB empty test-sig))
+(define aC (terms:make-term 'aC empty test-sig))
+(define anX (terms:make-term 'anX empty test-sig))
+(define anY (terms:make-term 'anY empty test-sig))
 
 (define-test-suite term-tests
   
@@ -40,42 +41,46 @@
                   'C))
   
   (test-case "unary-terms"
-    (check-equal? (terms:term-sort (terms:make-term 'foo (list anA) test))
+    (check-equal? (terms:term-sort (terms:make-term 'foo (list anA) test-sig))
                   'X)
-    (check-equal? (terms:term-sort (terms:make-term 'foo (list aB) test))
+    (check-equal? (terms:term-sort (terms:make-term 'foo (list aB) test-sig))
                   'Z)
-    (check-equal? (terms:term-sort (terms:make-term 'foo (list aC) test))
+    (check-equal? (terms:term-sort (terms:make-term 'foo (list aC) test-sig))
                   'Z))
 
   (test-case "binary-terms"
-    (check-equal? (terms:term-sort (terms:make-term 'bar (list anX anY) test))
+    (check-equal? (terms:term-sort 
+                   (terms:make-term 'bar (list anX anY) test-sig))
                   'Z)
-    (check-equal? (terms:term-sort (terms:make-term 'bar (list anX anX) test))
+    (check-equal? (terms:term-sort 
+                   (terms:make-term 'bar (list anX anX) test-sig))
                   'Z))
 
   (test-case "n-nary-terms"
-    (check-equal? (terms:term-sort (terms:make-term 'bar (list anA) test))
+    (check-equal? (terms:term-sort
+                   (terms:make-term 'bar (list anA) test-sig))
                   'Z)
-    (check-equal? (terms:term-sort (terms:make-term 'bar (list anA anA) test))
+    (check-equal? (terms:term-sort
+                   (terms:make-term 'bar (list anA anA) test-sig))
                   'Z)
-    (check-equal? (terms:term-sort (terms:make-term 'bar (list anA anA anA)
-                                                    test))
+    (check-equal? (terms:term-sort
+                   (terms:make-term 'bar (list anA anA anA) test-sig))
                   'Z))
 
   (test-exn "unknown-operator"
       #rx"Undefined operator.*"
     (lambda ()
-      (terms:make-term 'baz (list anA) test)))
+      (terms:make-term 'baz (list anA) test-sig)))
 
   (test-exn "wrong-number-of-args"
       #rx"Wrong number or sort of arguments.*"
     (lambda ()
-      (terms:make-term 'foo empty test)))
+      (terms:make-term 'foo empty test-sig)))
 
   (test-exn "wrong-arg-sorts"
       #rx"Wrong number or sort of arguments.*"
     (lambda ()
-      (terms:make-term 'foo (list anX) test))))
+      (terms:make-term 'foo (list anX) test-sig))))
 
 (module* main #f
   (require rackunit/text-ui)

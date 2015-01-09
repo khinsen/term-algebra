@@ -8,11 +8,11 @@
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
-         (prefix-in modules: term-algebra/modules))
+         (prefix-in signatures: term-algebra/signatures))
 
 ; Struct definitions
 
-(struct term (op args sort module)
+(struct term (op args sort signature)
         #:transparent
         #:property prop:custom-write
         (lambda (term port mode)
@@ -21,7 +21,7 @@
                 (write op port)
                 (write (cons op (term-args term)) port)))))
 
-(struct var (symbol sort module)
+(struct var (symbol sort sigature)
         #:transparent
         #:property prop:custom-write
         (lambda (var port mode)
@@ -47,15 +47,15 @@
    [(number? gterm) 'Rational]
    [else (error "unknown term type" gterm)]))
 
-(define (make-term op args module)
-  (unless (andmap (λ (t) (equal? (term-module t) module)) args)
+(define (make-term op args signature)
+  (unless (andmap (λ (t) (equal? (term-signature t) signature)) args)
     (error "Argument terms defined in a different module"))
-  (unless (operators:has-op? op (modules:module-ops module))
+  (unless (operators:has-op? op (signatures:signature-ops signature))
     (error "Undefined operator " op))
   (let ([sort
          (operators:lookup-op op
                               (map sort-of args)
-                              (modules:module-ops module))])
+                              (signatures:signature-ops signature))])
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op args)))
-    (term op args sort module)))
+    (term op args sort signature)))

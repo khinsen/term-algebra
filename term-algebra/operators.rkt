@@ -47,9 +47,28 @@
            (cdr sig))])
     (andmap (λ (r) (sorts:is-sort? (first ranges) r sorts)) (rest ranges))))
 
+(define (check-for-conflicts domain-kinds prior-domain-kinds)
+
+  (define (conflict? vdk fdk)
+    (or (empty? fdk)
+        (equal? vdk (first fdk))))
+
+  (define-values [fixed variable] (partition list? prior-domain-kinds))
+  (when (if (list? domain-kinds)
+            ; fixed arity, check for conflicts with var-arities
+            (ormap (λ (dk) (conflict? dk domain-kinds)) variable)
+            ; var-arity, check for conflicts with fixed arities
+            (ormap (λ (dk) (conflict? domain-kinds dk)) fixed))
+    (error "Conflicting fixed and variable arity definitions.")))
+
 (define (add-op symbol domain range properties ops)
+  (define var-arity (set-member? properties 'var-arity))
+  (when (and var-arity (not (equal? (length domain) 1)))
+    (error "Wrong number of domain sorts for variable arity operator " symbol))
   (let* ([sorts (op-set-sorts ops)]
-         [domain-kinds (map (λ (s) (sorts:kind s sorts)) domain)]
+         [domain-kinds (if var-arity
+                           (sorts:kind (first domain) sorts)
+                           (map (λ (s) (sorts:kind s sorts)) domain))]
          [range-kind (sorts:kind range sorts)]
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
          [op (hash-ref ops-for-symbol domain-kinds #f)])
@@ -71,7 +90,9 @@
                  (operator symbol (append before
                                           (cons (cons domain range) after))
                            properties))
-               (operator symbol (list (cons domain range)) properties))])
+               (begin
+                 (check-for-conflicts domain-kinds (hash-keys ops-for-symbol))
+                 (operator symbol (list (cons domain range)) properties)))])
       (unless (preregular? extended-op sorts domain)
         (error (format "Operator ~s is not preregular after addition of signature ~s -> ~s" symbol domain range)))
       (op-set (op-set-sorts ops)
@@ -113,14 +134,34 @@
   (not (not (hash-ref (op-set-ops ops) symbol #f))))
 
 (define (lookup-op symbol arg-sorts ops)
-  ; ignore variable-length domains for now
+
+  (define (lookup-fixed arg-sorts op-fixed sorts)
+    (if op-fixed
+        (for/first ([sig (operator-signatures op-fixed)]
+                    #:when (and (equal? (length arg-sorts)
+                                        (length (car sig)))
+                                (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
+                                        arg-sorts (car sig))))
+          (cdr sig))
+        #f))
+
+  (define (lookup-var arg-sorts op-var sorts)
+    (if op-var
+        (for/first ([sig (operator-signatures op-var)]
+                    #:when (andmap (λ (s) (sorts:is-sort?
+                                           s (first (car sig)) sorts))
+                                   arg-sorts))
+          (cdr sig))
+        #f))
+
   (let* ([sorts (op-set-sorts ops)]
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
          [domain-kinds (map (λ (s) (sorts:kind s sorts)) arg-sorts)]
-         [op (hash-ref ops-for-symbol domain-kinds #f)])
-    (if op
-        (for/first ([sig (operator-signatures op)]
-                    #:when (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
-                                   arg-sorts (car sig)))
-          (cdr sig))
-        #f)))
+         [op-fixed (hash-ref ops-for-symbol domain-kinds #f)])
+    (let ([range (lookup-fixed arg-sorts op-fixed sorts)])
+      (or range
+          (if (equal? (set-count (list->set domain-kinds)) 1)
+              (let* ([domain-kind (first domain-kinds)]
+                     [op-var (hash-ref ops-for-symbol domain-kind #f)])
+                (lookup-var arg-sorts op-var sorts))
+              #f)))))

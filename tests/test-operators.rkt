@@ -69,6 +69,23 @@
          (length (operator-signatures (hash-ref foo-op (list A-kind))))
          3))))
 
+  (test-case "variable-arity"
+    (let ()
+      (define-builtin-module test2
+        (extend test)
+        (op (foo Z ...) A))
+      (let* ([op-hash (op-set-ops (module-ops test2))]
+             [foo-op (hash-ref op-hash 'foo)])
+        (check-equal? 
+         (hash-count foo-op) ; Number of different signatures
+         2)
+        (check-equal?
+         (length (operator-signatures (hash-ref foo-op (list A-kind))))
+         2)
+        (check-equal?
+         (length (operator-signatures (hash-ref foo-op X-kind)))
+         1))))
+
   (test-exn "preregularity"
       #rx"Operator .*bar.* is not preregular.*"
     (lambda ()
@@ -87,7 +104,7 @@
       (void)))
 
   (test-exn "mixed-var-args"
-      #rx"Operator .*foo.* must have properties .*"
+      #rx"Conflicting fixed and variable arity definitions.*"
       (lambda () 
         (define-builtin-module error
           (extend test)

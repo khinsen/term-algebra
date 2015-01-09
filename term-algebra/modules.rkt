@@ -136,7 +136,7 @@
 ;;       (terms:term op args)))
 
 ;;   (if (set-member? (terms:op-properties op)
-;;                    'variable-length-domain)
+;;                    'var-arity)
 ;;       (make-var-arg-op-term op args sorts ops vars)
 ;;       (make-fix-arg-op-term op args sorts ops vars)))
 
@@ -173,7 +173,7 @@
              #'(list (list (quote op-name)
                            (list (quote arg-sort) ...)
                            (quote range-sort)
-                           (set 'variable-length-domain)
+                           (set 'var-arity)
                            rules)))
     (pattern ((~datum op) (op-name:id arg-sort:id ...+) range-sort:id
               (~optional rules:expr #:defaults ([rules #'(list)])))
@@ -252,13 +252,14 @@
   ; here because builtin.rkt depends on modules.rkt.
 
   (sorts Rational String Symbol
-         Term)
+         Term ArgList)
 
   (subsorts [Rational Term] [String Term] [Symbol Term])
 
   (special-ops rational-number string symbol)
 
-  (op (term Symbol Term ...) Term))
+  (op (term Symbol ArgList) Term)
+  (op (args Term ...) ArgList))
 
 (define-builtin-module metalevel-module
 
@@ -480,7 +481,7 @@
 ;;                      (andmap symbol? arg-sorts)
 ;;                      (symbol? range-sort))
 ;;          (op-from-meta* name arg-sorts range-sort
-;;                         (set 'variable-length-domain))]
+;;                         (set 'var-arity))]
 ;;         [_ (error "not an op term: " op-term)]))
     
 ;;     (add-op ops (op-from-meta op-term) #f))

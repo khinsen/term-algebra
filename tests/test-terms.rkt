@@ -17,13 +17,17 @@
   (op aB B)
   (op aC C)
   (op anX X)
+  (op anY Y)
   (op (foo A) X)
-  (op (foo C) Z))
+  (op (foo C) Z)
+  (op (bar A ...) Z)
+  (op (bar X Y) Z))
 
 (define anA (terms:make-term 'anA empty test))
 (define aB (terms:make-term 'aB empty test))
 (define aC (terms:make-term 'aC empty test))
 (define anX (terms:make-term 'anX empty test))
+(define anY (terms:make-term 'anY empty test))
 
 (define-test-suite term-tests
   
@@ -42,11 +46,26 @@
                   'Z)
     (check-equal? (terms:term-sort (terms:make-term 'foo (list aC) test))
                   'Z))
-  
+
+  (test-case "binary-terms"
+    (check-equal? (terms:term-sort (terms:make-term 'bar (list anX anY) test))
+                  'Z)
+    (check-equal? (terms:term-sort (terms:make-term 'bar (list anX anX) test))
+                  'Z))
+
+  (test-case "n-nary-terms"
+    (check-equal? (terms:term-sort (terms:make-term 'bar (list anA) test))
+                  'Z)
+    (check-equal? (terms:term-sort (terms:make-term 'bar (list anA anA) test))
+                  'Z)
+    (check-equal? (terms:term-sort (terms:make-term 'bar (list anA anA anA)
+                                                    test))
+                  'Z))
+
   (test-exn "unknown-operator"
       #rx"Undefined operator.*"
     (lambda ()
-      (terms:make-term 'bar (list anA) test)))
+      (terms:make-term 'baz (list anA) test)))
 
   (test-exn "wrong-number-of-args"
       #rx"Wrong number or sort of arguments.*"

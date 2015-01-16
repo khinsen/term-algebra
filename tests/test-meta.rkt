@@ -1,0 +1,53 @@
+#lang racket
+
+(provide meta-tests)
+
+(require rackunit
+         (only-in term-algebra/syntax define-module term)
+         (prefix-in builtin: term-algebra/builtin))
+
+(define-module test
+  (use builtin:equality)
+  (sorts A B)
+  (subsort A B)
+  (op anA A)
+  (op aB B)
+  (op (foo B) B))
+
+(define-test-suite meta-tests
+
+  (test-exn "variable-not-in-pattern-1"
+      #rx"Term.*contains variables that are not in the rule pattern"
+    (lambda ()
+      (define-module test2
+        (extend test)
+        (=-> #:vars ([X A] [Y B]) (foo X) Y))
+      (void)))
+  
+  (test-exn "variable-not-in-pattern-2"
+      #rx"Condition.*contains variables that are not in the rule pattern"
+    (lambda ()
+      (define-module test2
+        (extend test)
+        (=-> #:vars ([X A] [Y B]) (foo X) #:if (== X Y) X))
+      (void)))
+  
+  (test-exn "condition-not-boolean"
+      #rx"Condition.*not of sort Boolean"
+    (lambda ()
+      (define-module test2
+        (extend test)
+        (=-> #:var [X A] (foo X) #:if X X))
+      (void)))
+  
+  (test-exn "undefined-operator-in-rule"
+      #rx"Undefined operator.*"
+    (lambda ()
+      (define-module test2
+        (extend test)
+        (=-> #:var [X A] (bar X) (foo X)))
+      (void))))
+
+(module* main #f
+  (require rackunit/text-ui)
+  (run-tests meta-tests))

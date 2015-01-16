@@ -3,8 +3,8 @@
 (require rackunit
          "test-sorts.rkt"
          "test-operators.rkt"
-         ;; "test-modules.rkt"
          "test-terms.rkt"
+         "test-meta.rkt"
          ;; "test-builtin.rkt"
          ;; "test-boolean.rkt"
          ;; "test-peano-numbers.rkt"
@@ -16,8 +16,8 @@
   (make-test-suite "All term algebra tests"
     (list sort-tests
           operator-tests
-          ;; module-tests
           term-tests
+          meta-tests
           ;; builtin-tests
           ;; boolean-tests
           ;; peano-number-tests

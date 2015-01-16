@@ -17,6 +17,8 @@
 (define (tterm op args)
   (terms:make-term op args meta-term-ops))
 
+(define no-condition (mterm 'no-condition empty))
+
 (begin-for-syntax
 
   (define-syntax-class term
@@ -76,23 +78,24 @@
              #:with ops #'(list)
              #:with rules
              #'(list (mterm '=->
-                            (list (mterm 'vars empty) left.value right.value))))
+                            (list (mterm 'vars empty)
+                                  left.value no-condition right.value))))
     (pattern (=-> #:vars (var:variable ...) left:term right:term)
              #:with ops #'(list)
              #:with rules
              #'(list (mterm '=->
                             (list (mterm 'vars (list var.var ...))
-                                  left.value right.value))))
+                                  left.value no-condition right.value))))
     (pattern (=-> #:var var:variable left:term right:term)
              #:with ops #'(list)
              #:with rules
              #'(list (mterm '=->
                             (list (mterm 'vars (list var.var))
-                                  left.value right.value))))
+                                  left.value no-condition right.value))))
     (pattern (=-> left:term  #:if cond:term right:term)
              #:with ops #'(list)
              #:with rules
-             #'(list (mterm '=->?
+             #'(list (mterm '=->
                             (list (mterm 'vars empty)
                                   left.value cond.value right.value))))
     (pattern (=-> #:vars (var:variable ...)
@@ -101,7 +104,7 @@
                   right:term)
              #:with ops #'(list)
              #:with rules
-             #'(list (mterm '=->?
+             #'(list (mterm '=->
                             (list (mterm 'vars (list var.var ...))
                                   left.value cond.value right.value))))
     (pattern (=-> #:var var:variable
@@ -110,7 +113,7 @@
                   right:term)
              #:with ops #'(list)
              #:with rules
-             #'(list (mterm '=->?
+             #'(list (mterm '=->
                             (list (mterm 'vars (list var.var))
                                   left.value cond.value right.value)))))
   

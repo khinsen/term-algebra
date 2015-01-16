@@ -4,7 +4,7 @@
          (struct-out var)
          vars-in-term
          sort-of
-         make-term make-special-term)
+         make-term make-pattern make-special-term)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators))
@@ -21,22 +21,25 @@
                 (write (cons op (term-args term)) port)
                 (write op port)))))
 
-(struct var (symbol sort sigature)
+(struct var (symbol sort)
         #:transparent
         #:property prop:custom-write
         (lambda (var port mode)
-          (write (list (var-symbol var) (var-sort var)) port)))
+          (begin
+            (write (var-symbol var) port)
+            (write-string ":" port)
+            (write (var-sort var) port))))
 
 ; Basic operations
 
 (define (vars-in-term term)
   (cond
-   [(var? term)  (seteq term)]
+   [(var? term)  (set term)]
    [(term? term) (let ([args (term-args term)])
                    (if (empty? args)
-                       (seteq)
+                       (set)
                        (apply set-union (map vars-in-term args))))]
-   [else         (seteq)]))
+   [else         (set)]))
 
 (define (sort-of gterm)
   (cond
@@ -59,6 +62,15 @@
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op args)))
     (term op args sort op-set)))
+
+(define (make-pattern op args op-set vars)
+  (if (and (empty? args)
+           (hash-has-key? vars op))
+      (let ([sort (hash-ref vars op)])
+        (unless (sorts:has-sort? sort (operators:op-set-sorts op-set))
+          (error "Undefined sort " sort))
+        (var op sort))
+      (make-term op args op-set)))
 
 (define (make-special-term value op-set)
   (cond

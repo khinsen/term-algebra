@@ -63,6 +63,11 @@
     (error "Conflicting fixed and variable arity definitions.")))
 
 (define (add-op symbol domain range properties ops)
+  (unless (sorts:has-sort? range (op-set-sorts ops))
+    (error "Undefined sort " range))
+  (for ([sort domain])
+    (unless (sorts:has-sort? sort (op-set-sorts ops))
+      (error "Undefined sort " sort)))
   (define var-arity (set-member? properties 'var-arity))
   (when (and var-arity (not (equal? (length domain) 1)))
     (error "Wrong number of domain sorts for variable arity operator " symbol))

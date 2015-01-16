@@ -75,6 +75,10 @@
       #rx"Wrong number or sort of arguments.*"
     (lambda ()
       (terms:make-term 'foo empty test-ops)))
+  (test-exn "wrong-number-of-args"
+      #rx"Wrong number or sort of arguments.*"
+    (lambda ()
+      (terms:make-term 'foo (list anA anA) test-ops)))
 
   (test-exn "wrong-arg-sorts"
       #rx"Wrong number or sort of arguments.*"

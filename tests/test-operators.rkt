@@ -109,22 +109,37 @@
          (length (operator-signatures (hash-ref foo-op X-kind)))
          1))))
 
+  (test-exn "undefined-range-sort"
+      #rx"Undefined sort.*"
+      (lambda ()
+        (define-builtin-module test
+          (op foo a))
+        (void)))
+
+  (test-exn "undefined-arg-sort"
+      #rx"Undefined sort.*"
+      (lambda ()
+        (define-builtin-module test
+          (sorts a)
+          (op (foo b) a))
+        (void)))
+
   (test-exn "preregularity"
       #rx"Operator .*bar.* is not preregular.*"
-    (lambda ()
-      (define-builtin-module error
-        (extend test)
-        (op (bar C B) Z)
-        (op (bar A C) Y))
-      (void)))
+      (lambda ()
+        (define-builtin-module error
+          (extend test)
+          (op (bar C B) Z)
+          (op (bar A C) Y))
+        (void)))
 
   (test-exn "wrong-range-kind"
       #rx"Operator .*foo.* must have the kind of sort.*"
-    (lambda ()
-      (define-builtin-module error
-        (extend test)
-        (op (foo B) A))
-      (void)))
+      (lambda ()
+        (define-builtin-module error
+          (extend test)
+          (op (foo B) A))
+        (void)))
 
   (test-exn "mixed-var-args"
       #rx"Conflicting fixed and variable arity definitions.*"

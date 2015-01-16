@@ -66,6 +66,7 @@
   (define var-arity (set-member? properties 'var-arity))
   (when (and var-arity (not (equal? (length domain) 1)))
     (error "Wrong number of domain sorts for variable arity operator " symbol))
+  (define any-in-domain (member 'Any domain))
   (let* ([ops (if var-arity
                   ; Every var-arity operator can also be used as a
                   ; nullary operator.
@@ -74,9 +75,11 @@
                           ops)
                   ops)]
          [sorts (op-set-sorts ops)]
-         [domain-kinds (if var-arity
-                           (sorts:kind (first domain) sorts)
-                           (map (λ (s) (sorts:kind s sorts)) domain))]
+         [domain-kinds (cond
+                        [(and any-in-domain var-arity) 'Any]
+                        [any-in-domain (map (λ (s) 'Any) domain)]
+                        [var-arity (sorts:kind (first domain) sorts)]
+                        [else (map (λ (s) (sorts:kind s sorts)) domain)])]
          [range-kind (sorts:kind range sorts)]
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
          [op (hash-ref ops-for-symbol domain-kinds #f)])
@@ -154,23 +157,34 @@
 (define (lookup-op symbol arg-sorts ops)
 
   (define (lookup-fixed arg-sorts op-fixed sorts)
-    (if op-fixed
-        (for/first ([sig (operator-signatures op-fixed)]
-                    #:when (and (equal? (length arg-sorts)
-                                        (length (car sig)))
-                                (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
-                                        arg-sorts (car sig))))
-          (cdr sig))
-        #f))
+    (and op-fixed
+         (for/first ([sig (operator-signatures op-fixed)]
+                     #:when (and (equal? (length arg-sorts)
+                                         (length (car sig)))
+                                 (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
+                                         arg-sorts (car sig))))
+           (cdr sig))))
 
   (define (lookup-var arg-sorts op-var sorts)
-    (if op-var
-        (for/first ([sig (operator-signatures op-var)]
-                    #:when (andmap (λ (s) (sorts:is-sort?
-                                           s (first (car sig)) sorts))
-                                   arg-sorts))
-          (cdr sig))
-        #f))
+    (and op-var
+         (for/first ([sig (operator-signatures op-var)]
+                     #:when (andmap (λ (s) (sorts:is-sort?
+                                            s (first (car sig)) sorts))
+                                    arg-sorts))
+           (cdr sig))))
+
+  (define (lookup-any arg-sorts op-any sorts)
+    (and op-any
+         (for/first ([sig (operator-signatures op-any)]
+                     #:when (andmap (λ (s) (sorts:is-sort?
+                                            s (first (car sig)) sorts))
+                                    arg-sorts))
+           (cdr sig))))
+
+  (define (lookup-var-any op-any)
+    ; A var-arity operator with domain sort Any matches everything.
+    (and op-any
+         (cdr (first (operator-signatures op-any)))))
 
   (let* ([sorts (op-set-sorts ops)]
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
@@ -182,4 +196,11 @@
               #f
               (let* ([domain-kind (first domain-kinds)]
                      [op-var (hash-ref ops-for-symbol domain-kind #f)])
-                (lookup-var arg-sorts op-var sorts)))))))
+                (or (lookup-var arg-sorts
+                                op-var
+                                sorts)
+                    (lookup-any arg-sorts
+                                (hash-ref ops-for-symbol
+                                          (map (λ (s) 'Any) arg-sorts) #f)
+                                sorts)
+                    (lookup-var-any (hash-ref ops-for-symbol 'Any #f)))))))))

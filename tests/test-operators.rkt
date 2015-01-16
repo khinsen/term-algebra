@@ -25,6 +25,14 @@
 (define A-kind (sorts:kind 'A test-sorts))
 (define X-kind (sorts:kind 'X test-sorts))
 
+(define-builtin-module test-any
+  (sorts Any X Y)
+  (op (foo Any) X)
+  (op (foo X Any) Y)
+  (op (bar Any ...) X))
+
+(define test-any-ops (module-ops test-any))
+
 (define-test-suite operator-tests
   
   (test-case "test-sorts"
@@ -40,7 +48,19 @@
                   'Z)
     (check-equal? (operators:lookup-op 'foo (list 'X) test-ops)
                   #f))
-  
+
+  (test-case "operator-lookup-any"
+    (check-equal? (operators:lookup-op 'foo (list 'X) test-any-ops)
+                  'X)
+    (check-equal? (operators:lookup-op 'foo (list 'X 'X) test-any-ops)
+                  'Y)
+    (check-equal? (operators:lookup-op 'bar empty test-any-ops)
+                  'X)
+    (check-equal? (operators:lookup-op 'bar (list 'X) test-any-ops)
+                  'X)
+    (check-equal? (operators:lookup-op 'bar (list 'X 'X) test-any-ops)
+                  'X))
+
   (test-case "operator-definition"
     
     (let ()

@@ -4,26 +4,18 @@
          term meta-term)
 
 (require (prefix-in modules: term-algebra/modules)
-         (prefix-in builtin: term-algebra/builtin)
+         (prefix-in terms: term-algebra/terms)
+         (prefix-in meta: term-algebra/meta)
          (for-syntax syntax/parse))
 
-(define op-module (modules:op-from builtin:meta-module 'module))
+(define meta-term-ops (modules:module-ops meta:meta-term))
+(define meta-module-ops (modules:module-ops meta:meta-module))
 
-(define op-use (modules:op-from builtin:meta-module 'use))
-(define op-extend (modules:op-from builtin:meta-module 'extend))
-  
-(define op-subsort (modules:op-from builtin:meta-module 'subsort))
-  
-(define op-op (modules:op-from builtin:meta-module 'op))
-(define op-domain (modules:op-from builtin:meta-module 'domain))
-(define op-var-length-domain (modules:op-from builtin:meta-module
-                                              'var-length-domain))
-  
-(define op-eqrule (modules:op-from builtin:meta-module '=->))
-(define op-ceqrule (modules:op-from builtin:meta-module '=->?))
-(define op-vars (modules:op-from builtin:meta-module 'vars))
-(define op-var (modules:op-from builtin:meta-module 'var))
-(define op-term (modules:op-from builtin:meta-module 'term))
+(define (mterm op args)
+  (terms:make-term op args meta-module-ops))
+
+(define (tterm op args)
+  (terms:make-term op args meta-term-ops))
 
 (begin-for-syntax
 
@@ -31,15 +23,15 @@
     #:description "term"
     (pattern symbol:id
              #:with value
-             #'(modules:make-mterm op-term
-                                   (list (quote symbol))))
+             #'(tterm 'term (list (quote symbol)
+                                  (mterm 'args (list)))))
     (pattern s:str #:with value #'s)
     (pattern ((~literal quote) symbol:id)
              #:with value #'(quote symbol))
-    (pattern (op:id args:term ...)
+    (pattern (symbol:id arg-terms:term ...)
              #:with value
-             #'(modules:make-mterm op-term
-                                   (list (quote op) args.value ...)))
+             #'(tterm 'term (list (quote symbol)
+                                  (mterm 'args (list arg-terms.value ...)))))
     (pattern x:number #:when (exact? (syntax-e #'x))
              #:with value #'x))
 
@@ -48,8 +40,7 @@
     #:attributes (var)
     (pattern [var-name:id var-sort:id]
              #:with var
-             #'(modules:make-mterm op-var (list (quote var-name)
-                                                (quote var-sort)))))
+             #'(mterm 'var (list (quote var-name) (quote var-sort)))))
 
   (define-syntax-class operator
     #:description "operator/rule"
@@ -58,97 +49,80 @@
 
     (pattern (op op-name:id range-sort:id)
              #:with ops
-             #'(list (modules:make-mterm op-op
-                       (list (quote op-name)
-                             (modules:make-mterm op-domain
-                                                 (list))
-                             (quote range-sort))))
+             #'(list (mterm 'op
+                            (list (quote op-name)
+                                  (mterm 'fixed-arity-domain (list))
+                                  (quote range-sort))))
              #:with rules #'(list))
     (pattern (op (op-name:id arg-sort:id ...+ (~datum ...)) range-sort:id)
              #:with ops
-             #'(list (modules:make-mterm op-op
-                       (list (quote op-name)
-                             (modules:make-mterm op-var-length-domain
-                                                 (list (quote
-                                                        arg-sort)
-                                                       ...))
-                             (quote range-sort))))
+             #'(list (mterm 'op
+                            (list (quote op-name)
+                                  (mterm 'var-arity-domain
+                                         (list (quote arg-sort) ...))
+                                  (quote range-sort))))
              #:with rules #'(list))
     (pattern (op (op-name:id arg-sort:id ...+) range-sort:id)
              #:with ops
-             #'(list (modules:make-mterm op-op
-                       (list (quote op-name)
-                             (modules:make-mterm op-domain
-                                                 (list (quote
-                                                        arg-sort)
-                                                       ...))
-                             (quote range-sort))))
+             #'(list (mterm 'op
+                            (list (quote op-name)
+                                  (mterm 'fixed-arity-domain
+                                         (list (quote arg-sort)
+                                               ...))
+                                  (quote range-sort))))
              #:with rules #'(list))
 
     (pattern (=-> left:term right:term)
              #:with ops #'(list)
              #:with rules
-             #'(list (modules:make-mterm op-eqrule
-                       (list (modules:make-mterm op-vars '())
-                             left.value right.value))))
+             #'(list (mterm '=->
+                            (list (mterm 'vars empty) left.value right.value))))
     (pattern (=-> #:vars (var:variable ...) left:term right:term)
              #:with ops #'(list)
              #:with rules
-             #'(list (modules:make-mterm op-eqrule
-                       (list (modules:make-mterm op-vars
-                                                 (list var.var
-                                                       ...))
-                             left.value right.value))))
+             #'(list (mterm '=->
+                            (list (mterm 'vars (list var.var ...))
+                                  left.value right.value))))
     (pattern (=-> #:var var:variable left:term right:term)
              #:with ops #'(list)
              #:with rules
-             #'(list (modules:make-mterm op-eqrule
-                       (list (modules:make-mterm op-vars
-                                                 (list var.var))
-                             left.value right.value))))
+             #'(list (mterm '=->
+                            (list (mterm 'vars (list var.var))
+                                  left.value right.value))))
     (pattern (=-> left:term  #:if cond:term right:term)
              #:with ops #'(list)
              #:with rules
-             #'(list (modules:make-mterm op-ceqrule
-                       (list (modules:make-mterm op-vars '())
-                             left.value
-                             cond.value
-                             right.value))))
+             #'(list (mterm '=->?
+                            (list (mterm 'vars empty)
+                                  left.value cond.value right.value))))
     (pattern (=-> #:vars (var:variable ...)
                   left:term
                   #:if cond:term
                   right:term)
              #:with ops #'(list)
              #:with rules
-             #'(list (modules:make-mterm op-ceqrule
-                       (list (modules:make-mterm op-vars
-                                                 (list var.var
-                                                       ...))
-                             left.value
-                             cond.value
-                             right.value))))
+             #'(list (mterm '=->?
+                            (list (mterm 'vars (list var.var ...))
+                                  left.value cond.value right.value))))
     (pattern (=-> #:var var:variable
                   left:term 
                   #:if cond:term
                   right:term)
              #:with ops #'(list)
              #:with rules
-             #'(list (modules:make-mterm op-ceqrule
-                       (list (modules:make-mterm op-vars
-                                                 (list var.var))
-                             left.value
-                             cond.value
-                             right.value)))))
+             #'(list (mterm '=->?
+                            (list (mterm 'vars (list var.var))
+                                  left.value cond.value right.value)))))
   
   (define-syntax-class import
     #:description "import"
     #:datum-literals (use extend)
     (pattern (use module:id)
-             #:with value #'(modules:make-mterm
-                             op-use (list (modules:module-meta-hash module))))
+             #:with value #'(mterm 'use
+                                   (list (modules:module-hashcode module))))
     (pattern (extend module:id)
-             #:with value #'(modules:make-mterm
-                             op-extend (list (modules:module-meta-hash module)))))
+             #:with value #'(mterm 'extend
+                                   (list (modules:module-hashcode module)))))
   
   (define-syntax-class sort
     #:description "sort"
@@ -162,44 +136,44 @@
     (pattern ((~datum subsort) s-id1:id s-id2:id)
              #:with sorts #'(list)
              #:with subsorts
-             #'(list (modules:make-mterm op-subsort
-                                         (list (quote s-id1)
-                                               (quote s-id2)))))
+             #'(list (mterm 'subsort
+                            (list (quote s-id1) (quote s-id2)))))
     (pattern ((~datum subsorts) [s-id1:id s-id2:id] ...)
              #:with sorts #'(list)
              #:with subsorts
-             #'(list (modules:make-mterm op-subsort
-                                         (list (quote s-id1)
-                                               (quote s-id2))) ...))))
+             #'(list (mterm 'subsort
+                            (list (quote s-id1) (quote s-id2))) ...))))
+
+(define-syntax (meta-module* stx)
+  (syntax-parse stx
+    [(_ module-name:id
+        import-decl:import ...
+        sort-decl:sort ...
+        op-decl:operator ...)
+     #'(mterm 'module
+              (list (quote module-name)
+                    (mterm 'imports
+                           (list import-decl.value ...))
+                    (mterm 'sorts
+                           (append sort-decl.sorts ...))
+                    (mterm 'subsorts
+                           (append sort-decl.subsorts ...))
+                    (mterm 'ops
+                           (append op-decl.ops ...))
+                    (mterm 'rules
+                           (append op-decl.rules ...))))]))
 
 (define-syntax (define-meta-module stx)
   (syntax-parse stx
-    [(_ module-name:id
-        import-decl:import ...
-        sort-decl:sort ...
-        op-decl:operator ...)
-     #'(define module-name
-         (modules:meta-module (quote module-name)
-                              (list import-decl.value ...)
-                              (append sort-decl.sorts ...)
-                              (append sort-decl.subsorts ...)
-                              (append op-decl.ops ...)
-                              (append op-decl.rules ...)))]))
+    [(_ module-name:id decl ...)
+     #'(define module-name (meta-module* module-name decl ...))]))
 
 (define-syntax (define-module stx)
   (syntax-parse stx
-    [(_ module-name:id
-        import-decl:import ...
-        sort-decl:sort ...
-        op-decl:operator ...)
+    [(_ module-name:id decl ...)
      #'(define module-name
-         (modules:module-from-meta
-          (modules:meta-module (quote module-name)
-                               (list import-decl.value ...)
-                               (append sort-decl.sorts ...)
-                               (append sort-decl.subsorts ...)
-                               (append op-decl.ops ...)
-                               (append op-decl.rules ...))))]))
+         (meta:meta-down meta:meta-module
+                         (meta-module* module-name decl ...)))]))
 
 (define-syntax (meta-term stx)
   (syntax-parse stx
@@ -209,8 +183,4 @@
 (define-syntax (term stx)
   (syntax-parse stx
     [(_ module:expr expr:term)
-     #'(modules:term-from-meta
-        (modules:module-sorts module)
-        (modules:module-ops module)
-        (hash)
-        expr.value)]))
+     #'(meta:meta-down module expr.value)]))

@@ -4,22 +4,22 @@
          (struct-out var)
          vars-in-term
          sort-of
-         make-term)
+         make-term make-special-term)
 
 (require (prefix-in sorts: term-algebra/sorts)
-         (prefix-in operators: term-algebra/operators)
-         (prefix-in signatures: term-algebra/signatures))
+         (prefix-in operators: term-algebra/operators))
 
 ; Struct definitions
 
-(struct term (op args sort signature)
+(struct term (op args sort op-set)
         #:transparent
         #:property prop:custom-write
         (lambda (term port mode)
           (let ([op (term-op term)])
-            (if (null? (term-args term))
-                (write op port)
-                (write (cons op (term-args term)) port)))))
+            (if (or (not (null? (term-args term)))
+                    (operators:has-var-arity? op (term-op-set term)))
+                (write (cons op (term-args term)) port)
+                (write op port)))))
 
 (struct var (symbol sort sigature)
         #:transparent
@@ -47,15 +47,31 @@
    [(number? gterm) 'Rational]
    [else (error "unknown term type" gterm)]))
 
-(define (make-term op args signature)
-  (unless (andmap (λ (t) (equal? (term-signature t) signature)) args)
-    (error "Argument terms defined in a different module"))
-  (unless (operators:has-op? op (signatures:signature-ops signature))
+(define (make-term op args op-set)
+  ;; (unless (andmap (λ (t) (equal? (term-op-set t) op-set)) args)
+  ;;   (error "Argument terms defined in a different module"))
+  (unless (operators:has-op? op op-set)
     (error "Undefined operator " op))
   (let ([sort
          (operators:lookup-op op
                               (map sort-of args)
-                              (signatures:signature-ops signature))])
+                              op-set)])
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op args)))
-    (term op args sort signature)))
+    (term op args sort op-set)))
+
+(define (make-special-term value op-set)
+  (cond
+   [(string? value)
+    (if (operators:has-special-op? 'string op-set)
+        value
+        (error "import builtin:string to use strings"))]
+   [(symbol? value)
+    (if (operators:has-special-op? 'symbol op-set)
+        value
+        (error "import builtin:symbol to use symbols"))]
+   [(number? value)
+    (if (operators:has-special-op? 'rational-number op-set)
+        value
+        (error "import builtin:rational to use rational numbers"))]
+   [else (error "invalid special term " value)]))

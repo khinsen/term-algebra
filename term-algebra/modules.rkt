@@ -3,22 +3,19 @@
 (provide (struct-out module)
          define-builtin-module
          sort-from op-from
-         ;; make-special-rule
-         ;; module-from-meta term-from-meta meta-module make-mterm
-         ;; metalevel-term metalevel-module
-         )
+         lookup-module-hash
+         make-module)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
-         (prefix-in signatures: term-algebra/signatures)
-         ;; (prefix-in terms: term-algebra/terms)
+         (prefix-in terms: term-algebra/terms)
          (for-syntax syntax/parse)
          (only-in file/sha1 sha1))
 
 ;
 ; The data structure for the internal module representation
 ;
-(struct module (name signature rules meta meta-hash)
+(struct module (name ops rules meta hashcode)
         #:transparent)
 
 ;
@@ -35,114 +32,30 @@
 (define *modules* (make-hash))
 
 (define (register-module module)
-  (hash-set! *modules* (module-meta-hash module) (make-weak-box module)))
+  (hash-set! *modules* (module-hashcode module) (make-weak-box module)))
 
 (define (lookup-module-hash hash)
   (weak-box-value (hash-ref *modules* hash)))
 
-(define (make-module module-name sorts ops meta-terms)
-  (let* ([meta-hash (if meta-terms
-                        (hash-of-meta-module meta-terms)
-                        (hash-of-string (symbol->string module-name)))]
-         [sig (signatures:signature sorts ops)]
-         [mod (module module-name sig meta-terms meta-hash)])
+(define (make-module module-name ops rules meta-terms)
+  (let* ([hashcode (if meta-terms
+                       (hash-of-meta-module meta-terms)
+                       (hash-of-string (symbol->string module-name)))]
+         [mod (module module-name ops rules meta-terms hashcode)])
     (register-module mod)
     mod))
 
-;; ; Manage the module-ops data structure that combines
-;; ; a hash map for the operators with a set flagging the
-;; ; imported operators.
-;; (define (empty-ops)
-;;   (ops-in-module (hash) (set) (set)))
-
-;; (define (add-op ops op imported?)
-;;   (let* ([all-ops (ops-in-module-ops ops)]
-;;          [imported (ops-in-module-imported-ops ops)]
-;;          [special (ops-in-module-special-ops ops)]
-;;          [op-symbol (terms:op-symbol op)])
-;;     (when (hash-has-key? all-ops op-symbol)
-;;         (error "op already defined: " op-symbol))
-;;     (ops-in-module (hash-set all-ops op-symbol op)
-;;                    (if imported?
-;;                        (set-add imported op-symbol)
-;;                        imported)
-;;                    special)))
-
-;; (define (get-op ops symbol)
-;;   (hash-ref (ops-in-module-ops ops) symbol #f))
-
-;; (define (all-ops ops)
-;;   (hash-values (ops-in-module-ops ops)))
-
-;; (define (all-imported-ops ops)
-;;   (filter (lambda (op) (set-member? (ops-in-module-imported-ops ops) 
-;;                                (terms:op-symbol op)))
-;;           (hash-values (ops-in-module-ops ops))))
-
-;; (define (all-defined-ops ops)
-;;   (filter (lambda (op) (not (set-member? (ops-in-module-imported-ops ops) 
-;;                                     (terms:op-symbol op))))
-;;           (hash-values (ops-in-module-ops ops))))
-
-;; (define (op-is-imported? ops symbol)
-;;   (and (hash-has-key? (ops-in-module-ops ops) symbol)
-;;        (set-member? (ops-in-module-imported-ops ops) symbol)))
-
 (define (sort-from module sort-symbol)
   (if (sorts:has-sort? sort-symbol
-                       (signatures:signature-sorts (module-signature module)))
+                       (operators:op-set-sorts (module-ops module)))
       sort-symbol
       (error (format "no sort ~s in module ~s" sort-symbol module))))
 
 (define (op-from module op-symbol)
   (if (operators:has-op? op-symbol
-                         (signatures:signature-ops (module-signature module)))
+                         (module-ops module))
       op-symbol
       (error (format "no op ~s in module ~s" op-symbol module))))
-
-;; (define (make-special-rule module op-symbol proc)
-;;   (let ([op (op-from module op-symbol)])
-;;     (if (empty? (terms:op-rules op))
-;;         (terms:set-op-rules! op proc)
-;;         (error "non-empty rule list for operator " op))))
-
-;; (define (has-special? ops symbol)
-;;   (set-member? (ops-in-module-special-ops ops) symbol))
-
-; Make a valid term in the context of a module
-
-;; (define (make-term op args sorts ops vars)
-
-;;   (define (make-fix-arg-op-term op args sorts ops vars)
-;;     (when (not (equal? (length args) (length (terms:op-domain op))))
-;;       (error "wrong number of arguments for op " op))
-;;     (for ([arg args]
-;;           [sort (terms:op-domain op)])
-;;       (let ([tsort (terms:term-sort arg)])
-;;         (when (not (sorts:is-sort? tsort sort sorts))
-;;           (error (format "sort ~s not compatible with ~s" tsort sort)))))
-;;     (terms:term op args))
-
-;;   (define (make-var-arg-op-term op args sorts ops vars)
-;;     (let* ([n-fix-args (- (length (terms:op-domain op)) 1)]
-;;            [n-var-args (- (length args) n-fix-args)])
-;;       (when (negative? n-var-args)
-;;         (error "too few arguments for op " op))
-;;       (let-values ([(fix-sorts var-sort)
-;;                     (split-at-right (terms:op-domain op) 1)])
-;;         (for ([arg args]
-;;               [sort (append fix-sorts
-;;                             (for/list ([n (range n-var-args)])
-;;                               (first var-sort)))])
-;;           (let ([tsort (terms:term-sort arg)])
-;;             (when (not (sorts:is-sort? tsort sort sorts))
-;;               (error (format "sort ~s not compatible with ~s" tsort sort))))))
-;;       (terms:term op args)))
-
-;;   (if (set-member? (terms:op-properties op)
-;;                    'var-arity)
-;;       (make-var-arg-op-term op args sorts ops vars)
-;;       (make-fix-arg-op-term op args sorts ops vars)))
 
 ;
 ; Macro for defining builtin modules
@@ -159,34 +72,34 @@
   
   (define-syntax-class op-builtin
     #:description "operator/rule for builtin modules"
-    #:attributes (ops)
+    #:attributes (ops fns)
 
-    (pattern ((~datum op) op-name:id range-sort:id
-              (~optional rules:expr #:defaults ([rules #'(list)])))
+    (pattern ((~datum op) op-name:id range-sort:id)
              #:with ops 
              #'(list (list (quote op-name)
                            '()
                            (quote range-sort)
-                           (set)
-                           rules)))
+                           (set)))
+             #:with fns #'(list))
     (pattern ((~datum op)
               (op-name:id arg-sort:id ...+ (~datum ...))
-              range-sort:id
-              (~optional rules:expr #:defaults ([rules #'(list)])))
+              range-sort:id)
              #:with ops
              #'(list (list (quote op-name)
                            (list (quote arg-sort) ...)
                            (quote range-sort)
-                           (set 'var-arity)
-                           rules)))
-    (pattern ((~datum op) (op-name:id arg-sort:id ...+) range-sort:id
-              (~optional rules:expr #:defaults ([rules #'(list)])))
+                           (set 'var-arity)))
+             #:with fns #'(list))
+    (pattern ((~datum op) (op-name:id arg-sort:id ...+) range-sort:id)
              #:with ops
              #'(list (list (quote op-name)
                            (list (quote arg-sort) ...)
                            (quote range-sort)
-                           (set)
-                           rules))))
+                           (set)))
+             #:with fns #'(list))
+    (pattern ((~datum fn) op-name:id proc:expr)
+             #:with ops #'(list)
+             #:with fns #'(list (list (quote op-name) proc))))
 
   (syntax-parse stx
     [(_ module-name:id
@@ -199,16 +112,15 @@
          ((~datum special-ops) s-op:id ...))
         op-decl:op-builtin ...)
      (with-syntax ([sort-import-list (if (attribute import-decl.module)
-                                         #'(list (signatures:signature-sorts
-                                                  (module-signature
+                                         #'(list (operators:op-set-sorts
+                                                  (module-ops
                                                    import-decl.module)) ...)
                                          #'(list))]
                    [op-import-list (if (attribute import-decl.module)
                                        #'(map (lambda (a b) (cons a b))
-                                              (list (signatures:signature-ops
-                                                     (module-signature
-                                                      import-decl.module)) ...)
-                                          (list import-decl.use ...))
+                                              (list (module-ops
+                                                     import-decl.module) ...)
+                                              (list import-decl.use ...))
                                        #'(list))]
                    [sort-list (if (attribute sort)
                                   #'(list (quote sort) ...)
@@ -219,10 +131,16 @@
                                              ...)
                                      #'(list))]
                    [special-op-set (if (attribute s-op)
-                                        #'(set (quote s-op) ...)
-                                        #'(set))]
+                                       #'(set (quote s-op) ...)
+                                       #'(set))]
                    [op-list (if (attribute op-decl.ops)
                                 #'(append op-decl.ops ...)
+                                #'(list))]
+                   [s-op-list (if (attribute s-op)
+                                  #'(list (quote s-op) ...)
+                                  #'(list))]
+                   [fn-list (if (attribute op-decl.fns)
+                                #'(append op-decl.fns ...)
                                 #'(list))])
        #'(define module-name
            (let* ([sorts (sorts:empty-sort-graph)]
@@ -238,69 +156,18 @@
                          (operators:merge-op-set (car mod) (cdr mod) ops))]
                   [ops (for/fold ([ops ops]) 
                                  ([op-spec op-list])
-                         (match-let ([(list symbol domain range properties rules)
+                         (match-let ([(list symbol domain range properties)
                                       op-spec])
-                           (operators:add-op symbol domain range properties ops)))]
-                  [meta-hash (hash-of-string
-                              (symbol->string (quote module-name)))]
-                  [mod (module (quote module-name)
-                               (signatures:signature sorts ops) empty
-                               #f meta-hash)])
-             (register-module mod)
-             mod)))]))
-
-;
-; The meta-representation of terms and modules as terms
-;
-(define-builtin-module metalevel-term
-
-  ; can't write
-  ;   (use builtin:rational)
-  ;   (use builtin:string)
-  ;   (use builtin:symbol)
-  ; here because builtin.rkt depends on modules.rkt.
-
-  (sorts Rational String Symbol
-         Term ArgList)
-
-  (subsorts [Rational Term] [String Term] [Symbol Term])
-
-  (special-ops rational-number string symbol)
-
-  (op (term Symbol ArgList) Term)
-  (op (args Term ...) ArgList))
-
-(define-builtin-module metalevel-module
-
-  (use metalevel-term)
-
-  (sorts Module
-         ImportList Import
-         SortList SubsortList Subsort
-         OpList Op Domain
-         RuleList Rule VarList Var)
-
-  (op (module Symbol ImportList SortList SubsortList OpList RuleList) Module)
-  
-  (op (imports Import ...) ImportList)
-  (op (use String) Import)
-  (op (extend String) Import)
-  
-  (op (sorts Symbol ...) SortList)
-  
-  (op (subsorts Subsort ...) SubsortList)
-  (op (subsort Symbol Symbol) Subsort)
-  
-  (op (ops Op ...) OpList)
-  (op (op Symbol Domain Symbol) Op)
-  (op (domain Symbol ...) Domain)
-  (op (var-length-domain Symbol ...) Domain)
-  
-  (op (rules Rule ...) RuleList)
-  (op (=-> VarList Term Term) Rule)
-  (op (=->? VarList Term Term Term) Rule)
-  (op (vars Var ...) VarList)
-  (op (var Symbol Symbol) Var))
+                           (operators:add-op symbol domain range
+                                             properties ops)))]
+                  [ops (for/fold ([ops ops]) 
+                                 ([s-op-symbol s-op-list])
+                         (operators:add-special-op s-op-symbol ops))]
+                  [rules (for/fold ([rules (hash)]) 
+                                   ([fn-spec fn-list])
+                           (match-let ([(list symbol proc-expr) fn-spec])
+                             (hash-set rules symbol proc-expr)))])
+             (make-module (quote module-name) ops rules #f))))]))
 
 
 ;; (define op-module (op-from metalevel-module 'module))
@@ -560,5 +427,5 @@
 ;;                            ([rule-term rule-terms])
 ;;                    (add-rule sorts ops rule-term))])
 ;;        (sorts:check-subsort-graph sorts)
-;;        (make-module module-name sorts ops module-term))]
+;;        (make-module module-name ops module-term))]
 ;;     [_ (error "not a meta-module: " module-term)]))

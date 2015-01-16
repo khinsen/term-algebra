@@ -4,12 +4,12 @@
 
 (require rackunit
          (only-in term-algebra/modules define-builtin-module
-                                       sort-from module-signature)
+                                       sort-from module-ops)
          (prefix-in sorts: term-algebra/sorts)
-         (prefix-in signatures: term-algebra/signatures))
+         (prefix-in operators: term-algebra/operators))
 
 (define (module-sorts module)
-  (signatures:signature-sorts (module-signature module)))
+  (operators:op-set-sorts (module-ops module)))
 
 (define-builtin-module sort-test-1
   (sorts A B C X Y Z)

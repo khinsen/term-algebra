@@ -1,8 +1,9 @@
 #lang racket
 
-(provide empty-op-set
-         add-op merge-op-set
-         has-op? lookup-op op-definitions)
+(provide empty-op-set op-set-sorts
+         add-op add-special-op merge-op-set
+         has-op? has-special-op? has-var-arity?
+         lookup-op op-definitions)
 
 (require (prefix-in sorts: term-algebra/sorts)
          racket/generator)
@@ -50,8 +51,8 @@
 (define (check-for-conflicts domain-kinds prior-domain-kinds)
 
   (define (conflict? vdk fdk)
-    (or (empty? fdk)
-        (equal? vdk (first fdk))))
+    (and (not (empty? fdk))
+         (equal? vdk (first fdk))))
 
   (define-values [fixed variable] (partition list? prior-domain-kinds))
   (when (if (list? domain-kinds)
@@ -65,7 +66,14 @@
   (define var-arity (set-member? properties 'var-arity))
   (when (and var-arity (not (equal? (length domain) 1)))
     (error "Wrong number of domain sorts for variable arity operator " symbol))
-  (let* ([sorts (op-set-sorts ops)]
+  (let* ([ops (if var-arity
+                  ; Every var-arity operator can also be used as a
+                  ; nullary operator.
+                  (add-op symbol empty range
+                          (set-remove properties 'var-arity)
+                          ops)
+                  ops)]
+         [sorts (op-set-sorts ops)]
          [domain-kinds (if var-arity
                            (sorts:kind (first domain) sorts)
                            (map (λ (s) (sorts:kind s sorts)) domain))]
@@ -133,6 +141,16 @@
 (define (has-op? symbol ops)
   (not (not (hash-ref (op-set-ops ops) symbol #f))))
 
+(define (has-special-op? symbol ops)
+  (set-member? (op-set-special-ops ops) symbol))
+
+(define (has-var-arity? symbol ops)
+  (let* ([ops-for-symbol (hash-ref (op-set-ops ops) symbol)]
+         [all-ops (hash-values ops-for-symbol)])
+    (for/first ([op all-ops]
+                #:when (set-member? (operator-properties op) 'var-arity))
+      op)))
+
 (define (lookup-op symbol arg-sorts ops)
 
   (define (lookup-fixed arg-sorts op-fixed sorts)
@@ -160,8 +178,8 @@
          [op-fixed (hash-ref ops-for-symbol domain-kinds #f)])
     (let ([range (lookup-fixed arg-sorts op-fixed sorts)])
       (or range
-          (if (equal? (set-count (list->set domain-kinds)) 1)
+          (if (empty? arg-sorts)
+              #f
               (let* ([domain-kind (first domain-kinds)]
                      [op-var (hash-ref ops-for-symbol domain-kind #f)])
-                (lookup-var arg-sorts op-var sorts))
-              #f)))))
+                (lookup-var arg-sorts op-var sorts)))))))

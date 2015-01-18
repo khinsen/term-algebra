@@ -4,7 +4,8 @@
          (struct-out var)
          vars-in-term
          sort-of
-         make-term make-pattern make-special-term)
+         make-term make-pattern make-special-term
+         match-pattern)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators))
@@ -87,3 +88,41 @@
         value
         (error "import builtin:rational to use rational numbers"))]
    [else (error "invalid special term " value)]))
+
+; Pattern matching and substitution
+
+(define (match-pattern pattern term op-set)
+
+  (define (merge-substitutions s-acc s)
+    (if (not s)
+        #f
+        (for/fold ([s-acc s-acc])
+                  ([var (hash-keys s)])
+          #:break (not s-acc)
+          (let ([value (hash-ref s var)])
+            (if (and (hash-has-key? s-acc var)
+                     (not (equal? (hash-ref s-acc var) value)))
+                #f
+                (hash-set s-acc var value))))))
+
+  (define (match-pattern* pattern term sorts)
+    (cond
+     [(var? pattern)
+      (if (sorts:is-sort? (sort-of term) (var-sort pattern) sorts)
+          (hash pattern term)
+          #f)]
+     [(and (term? pattern)
+           (term? term)
+           (equal? (term-op pattern) (term-op term))
+           (equal? (length (term-args pattern)) (length (term-args term))))
+      (for/fold ([subst (hash)])
+                ([p-arg (term-args pattern)]
+                 [t-arg (term-args term)])
+        #:break (not subst)
+        (merge-substitutions subst (match-pattern* p-arg t-arg sorts)))]
+     [(equal? pattern term)
+      term]
+     [else
+      #f]))
+
+  (match-pattern* pattern term (operators:op-set-sorts op-set)))

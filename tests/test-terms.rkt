@@ -28,6 +28,8 @@
 (define aC (terms:make-term 'aC empty test-ops))
 (define anX (terms:make-term 'anX empty test-ops))
 (define anY (terms:make-term 'anY empty test-ops))
+(define AVar (terms:var 'AVar 'A))
+(define XVar (terms:var 'XVar 'X))
 
 (define-test-suite term-tests
   
@@ -83,7 +85,52 @@
   (test-exn "wrong-arg-sorts"
       #rx"Wrong number or sort of arguments.*"
     (lambda ()
-      (terms:make-term 'foo (list anX) test-ops))))
+      (terms:make-term 'foo (list anX) test-ops)))
+
+  (test-case "pattern-matching"
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'foo (list AVar) test-ops)
+                   (terms:make-term 'foo (list anA) test-ops)
+                   test-ops)
+                  (hash AVar anA))
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'foo (list AVar) test-ops)
+                   anA
+                   test-ops)
+                  #f)
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'foo (list AVar) test-ops)
+                   (terms:make-term 'foo (list aC) test-ops)
+                   test-ops)
+                  #f))
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'bar (list XVar anX) test-ops)
+                   (terms:make-term 'bar (list anX  anX) test-ops)
+                   test-ops)
+                  (hash XVar anX))
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'bar (list XVar anX) test-ops)
+                   (terms:make-term 'bar (list anX  anY) test-ops)
+                   test-ops)
+                  #f)
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'bar (list XVar anX) test-ops)
+                   (terms:make-term 'bar
+                                    (list (terms:make-term 'foo (list anA)
+                                                           test-ops)
+                                               anX)
+                                    test-ops)
+                   test-ops)
+                  (hash XVar (terms:make-term 'foo (list anA) test-ops)))
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'bar (list XVar XVar) test-ops)
+                   (terms:make-term 'bar
+                                    (list (terms:make-term 'foo (list anA)
+                                                           test-ops)
+                                               anX)
+                                    test-ops)
+                   test-ops)
+                  #f))
 
 (module* main #f
   (require rackunit/text-ui)

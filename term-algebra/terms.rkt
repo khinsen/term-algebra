@@ -5,7 +5,7 @@
          vars-in-term
          sort-of
          make-term make-pattern make-special-term
-         match-pattern)
+         match-pattern substitute)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators))
@@ -126,3 +126,18 @@
       #f]))
 
   (match-pattern* pattern term (operators:op-set-sorts op-set)))
+
+(define (substitute pattern substitution)
+  (cond
+   [(var? pattern)
+    (hash-ref substitution pattern)]
+   [(term? pattern)
+    (let* ([op-symbol (term-op pattern)]
+           [ops (term-op-set pattern)]
+           [sort (operators:lookup-op op-symbol
+                                      (map sort-of (term-args pattern)) ops)])
+      (term op-symbol
+            (map (λ (arg) (substitute arg substitution)) (term-args pattern))
+            sort
+            ops))]
+   [else pattern]))

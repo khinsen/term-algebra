@@ -102,7 +102,7 @@
                    (terms:make-term 'foo (list AVar) test-ops)
                    (terms:make-term 'foo (list aC) test-ops)
                    test-ops)
-                  #f))
+                  #f)
     (check-equal? (terms:match-pattern
                    (terms:make-term 'bar (list XVar anX) test-ops)
                    (terms:make-term 'bar (list anX  anX) test-ops)
@@ -118,7 +118,7 @@
                    (terms:make-term 'bar
                                     (list (terms:make-term 'foo (list anA)
                                                            test-ops)
-                                               anX)
+                                          anX)
                                     test-ops)
                    test-ops)
                   (hash XVar (terms:make-term 'foo (list anA) test-ops)))
@@ -127,10 +127,31 @@
                    (terms:make-term 'bar
                                     (list (terms:make-term 'foo (list anA)
                                                            test-ops)
-                                               anX)
+                                          anX)
                                     test-ops)
                    test-ops)
                   #f))
+  
+  (test-case "pattern-substitution"
+    (check-equal?
+     (terms:substitute (terms:make-term 'foo (list AVar) test-ops)
+                       (hash AVar anA))
+     (terms:make-term 'foo (list anA) test-ops))
+    (check-equal?
+     (terms:substitute
+      (terms:make-term 'bar (list (terms:make-term 'foo (list AVar) test-ops)
+                                  anX)
+                       test-ops)
+      (hash AVar anA))
+     (terms:make-term 'bar (list (terms:make-term 'foo (list anA) test-ops)
+                                  anX)
+                      test-ops))
+    (check-equal?
+     (terms:substitute (terms:make-term 'bar (list XVar XVar) test-ops)
+                       (hash XVar (terms:make-term 'foo (list anA) test-ops)))
+     (terms:make-term 'bar (list (terms:make-term 'foo (list anA) test-ops)
+                                 (terms:make-term 'foo (list anA) test-ops))
+                      test-ops))))
 
 (module* main #f
   (require rackunit/text-ui)

@@ -121,7 +121,7 @@
         #:break (not subst)
         (merge-substitutions subst (match-pattern* p-arg t-arg sorts)))]
      [(equal? pattern term)
-      term]
+      (hash)]
      [else
       #f]))
 

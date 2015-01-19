@@ -6,10 +6,13 @@
          (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
          (prefix-in terms: term-algebra/terms)
+         (prefix-in builtin: term-algebra/builtin)
          (only-in term-algebra/modules
                    define-builtin-module module-ops))
 
 (define-builtin-module test
+  (use builtin:string)
+  (use builtin:symbol)
   (sorts A B C X Y Z)
   (subsorts [A C] [B C] [X Y] [X Z])
   (op anA A)
@@ -88,6 +91,21 @@
       (terms:make-term 'foo (list anX) test-ops)))
 
   (test-case "pattern-matching"
+    (check-equal? (terms:match-pattern 'foo 'foo test-ops)
+                  (hash))
+    (check-equal? (terms:match-pattern "foo" "foo" test-ops)
+                  (hash))
+    (check-equal? (terms:match-pattern 'foo "foo" test-ops)
+                  #f)
+    (check-equal? (terms:match-pattern AVar anA test-ops)
+                  (hash AVar anA))
+    (check-equal? (terms:match-pattern AVar 'foo test-ops)
+                  #f)
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'foo (list anA) test-ops)
+                   (terms:make-term 'foo (list anA) test-ops)
+                   test-ops)
+                  (hash))
     (check-equal? (terms:match-pattern
                    (terms:make-term 'foo (list AVar) test-ops)
                    (terms:make-term 'foo (list anA) test-ops)

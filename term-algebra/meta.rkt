@@ -150,7 +150,11 @@
                 [rule-condition (pattern-from-meta module vars condition)]
                 [rule-replacement (pattern-from-meta module vars replacement)]
                 [vars-in-pattern (terms:vars-in-term rule-pattern)]
-                [vars-in-replacement (terms:vars-in-term rule-replacement)])
+                [vars-in-replacement (terms:vars-in-term rule-replacement)]
+                [declared-vars (list->set
+                                (hash-map
+                                 vars
+                                 (λ (name sort) (terms:var name sort))))])
            (when rule-condition
              (unless (sorts:is-sort? (terms:sort-of rule-condition) 'Boolean
                                      (operators:op-set-sorts
@@ -163,6 +167,9 @@
            (unless (set-empty?
                     (set-subtract vars-in-replacement vars-in-pattern))
              (error (format "Term ~s contains variables that are not in the rule pattern" rule-replacement)))
+           (let ([unused-vars (set-subtract declared-vars vars-in-pattern)])
+             (unless (set-empty? unused-vars)
+               (error (format "Var list contains variables ~a that are not used in the rule" (set->list unused-vars)))))
            (rules:rule rule-pattern rule-condition rule-replacement))]
         [_ (error "Invalid rule term " rule)])))
 

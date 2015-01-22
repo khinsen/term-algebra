@@ -46,6 +46,14 @@
       (define-module test2
         (extend test)
         (=-> #:var [X A] (bar X) (foo X)))
+      (void)))
+  
+  (test-exn "too-many-vars"
+      #rx"Var list contains variables .* that are not used in the rule"
+    (lambda ()
+      (define-module test
+        (use builtin:truth)
+        (=-> #:var [X Boolean] true false))
       (void))))
 
 (module* main #f

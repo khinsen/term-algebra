@@ -195,14 +195,17 @@
                                        properties ops)))]
             [rules (make-hash)]
             [mod (modules:make-module name ops rules meta-terms)])
+       (for ([import (import-list import-terms)])
+         (hash-for-each
+          (modules:module-rules (car import))
+          (λ (key value)
+            (hash-update! rules key (λ (l) (append l value)) empty))))
        (for ([rule (rule-list mod rule-terms)])
          (let* ([pattern (rules:rule-pattern rule)]
                 [key (if (terms:term? pattern)
                          (terms:term-op pattern)
                          (terms:sort-of pattern))])
-           (hash-set! rules key
-                      (append (hash-ref rules key empty)
-                              (list rule)))))
+           (hash-update! rules key (λ (l) (append l (list rule))) empty)))
        mod)]
     [_ (error "Invalid meta module " meta-terms)]))
 

@@ -12,15 +12,14 @@
 
 ; Struct definitions
 
-(struct term (op args sort op-set)
+(struct term (op args sort)
         #:transparent
         #:property prop:custom-write
         (lambda (term port mode)
           (let ([op (term-op term)])
-            (if (or (not (null? (term-args term)))
-                    (operators:has-var-arity? op (term-op-set term)))
-                (write (cons op (term-args term)) port)
-                (write op port)))))
+            (if (null? (term-args term))
+                (write op port)    
+                (write (cons op (term-args term)) port)))))
 
 (struct var (symbol sort)
         #:transparent
@@ -62,7 +61,7 @@
                               op-set)])
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op args)))
-    (term op args sort op-set)))
+    (term op args sort)))
 
 (define (make-pattern op args op-set vars)
   (if (and (empty? args)
@@ -127,17 +126,16 @@
 
   (match-pattern* pattern term (operators:op-set-sorts op-set)))
 
-(define (substitute pattern substitution)
+(define (substitute pattern substitution op-set)
   (cond
    [(var? pattern)
     (hash-ref substitution pattern)]
    [(term? pattern)
     (let* ([op-symbol (term-op pattern)]
-           [ops (term-op-set pattern)]
-           [sort (operators:lookup-op op-symbol
-                                      (map sort-of (term-args pattern)) ops)])
+           [sort (operators:lookup-op
+                  op-symbol (map sort-of (term-args pattern)) op-set)])
       (term op-symbol
-            (map (λ (arg) (substitute arg substitution)) (term-args pattern))
-            sort
-            ops))]
+            (map (λ (arg) (substitute arg substitution op-set))
+                 (term-args pattern))
+            sort))]
    [else pattern]))

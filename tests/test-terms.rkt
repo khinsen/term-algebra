@@ -153,20 +153,21 @@
   (test-case "pattern-substitution"
     (check-equal?
      (terms:substitute (terms:make-term 'foo (list AVar) test-ops)
-                       (hash AVar anA))
+                       (hash AVar anA) test-ops)
      (terms:make-term 'foo (list anA) test-ops))
     (check-equal?
      (terms:substitute
       (terms:make-term 'bar (list (terms:make-term 'foo (list AVar) test-ops)
                                   anX)
                        test-ops)
-      (hash AVar anA))
+      (hash AVar anA) test-ops)
      (terms:make-term 'bar (list (terms:make-term 'foo (list anA) test-ops)
                                   anX)
                       test-ops))
     (check-equal?
      (terms:substitute (terms:make-term 'bar (list XVar XVar) test-ops)
-                       (hash XVar (terms:make-term 'foo (list anA) test-ops)))
+                       (hash XVar (terms:make-term 'foo (list anA) test-ops))
+                       test-ops)
      (terms:make-term 'bar (list (terms:make-term 'foo (list anA) test-ops)
                                  (terms:make-term 'foo (list anA) test-ops))
                       test-ops))))

@@ -4,7 +4,8 @@
          define-builtin-module
          sort-from op-from
          lookup-module-hash
-         make-module)
+         make-module
+         make-term)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
@@ -56,6 +57,9 @@
                          (module-ops module))
       op-symbol
       (error (format "no op ~s in module ~s" op-symbol module))))
+
+(define (make-term op args module)
+  (terms:make-term op args (module-ops module)))
 
 ;
 ; Macro for defining builtin modules

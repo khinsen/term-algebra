@@ -223,6 +223,6 @@
     [(mterm 'module args)
      #:when (eq? module meta-module)
      (module-from-meta a-term)]
-    [(terms:term _ _ _ _)
+    [(terms:term _ _ _)
      (error "Invalid meta-term " a-term)]
     [_ (terms:make-special-term a-term (modules:module-ops module))]))

@@ -54,6 +54,20 @@
       (define-module test
         (use builtin:truth)
         (=-> #:var [X Boolean] true false))
+      (void)))
+  
+  (test-exn "no-rule-for-imported-op"
+      #rx"cannot add rule to imported operator.*"
+    (lambda ()
+      (define-module test
+        (use builtin:truth)
+        (=-> true false))
+      (void)))
+  (test-not-exn "rule-for-imported-op"
+    (lambda ()
+      (define-module test
+        (extend builtin:truth)
+        (=-> true false))
       (void))))
 
 (module* main #f

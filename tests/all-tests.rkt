@@ -5,7 +5,8 @@
          "test-operators.rkt"
          "test-terms.rkt"
          "test-meta.rkt"
-         ;; "test-builtin.rkt"
+         "test-rewrite.rkt"
+         "test-builtin.rkt"
          ;; "test-boolean.rkt"
          ;; "test-peano-numbers.rkt"
          )
@@ -18,7 +19,8 @@
           operator-tests
           term-tests
           meta-tests
-          ;; builtin-tests
+          rewrite-tests
+          builtin-tests
           ;; boolean-tests
           ;; peano-number-tests
           )))

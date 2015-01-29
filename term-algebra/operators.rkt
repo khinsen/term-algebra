@@ -39,14 +39,18 @@
          (yield (cons s ss))))))
 
 (define (preregular? op sorts domain)
-  (let ([ranges
-         (for*/list ([arg-sorts (cartesian-product
-                                 (map (λ (s) (sorts:subsorts s sorts)) domain))]
-                     [sig (operator-signatures op)]
-                     #:when (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
-                                    arg-sorts (car sig)))
-           (cdr sig))])
-    (andmap (λ (r) (sorts:is-sort? (first ranges) r sorts)) (rest ranges))))
+  ; Iterate over all domains made up of subsorts of the current domain
+  (for*/and ([arg-sorts (cartesian-product
+                         (map (λ (s) (sorts:subsorts s sorts)) domain))])
+    ; Pick the ramges of the operator signatures that match arg-sorts.
+    (let ([ranges
+           (for*/list ([sig (operator-signatures op)]
+                       #:when (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
+                                      arg-sorts (car sig)))
+             (cdr sig))])
+      ; The first of these ranges must be the lowest sort in the list.
+      (andmap (λ (r) (sorts:is-sort? (first ranges) r sorts))
+              (rest ranges)))))
 
 (define (check-for-conflicts domain-kinds prior-domain-kinds)
 

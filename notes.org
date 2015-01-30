@@ -4,3 +4,7 @@
 ** Overloaded var-arity ops
 Every var-arity op can be used as a nullary op. No arguments means no overloading: the nullary op must have a unique range sort.
 The current implementation allows an explicit nullary definition *before* any number of overloaded var-ary ones. It also allows a non-overloaded var-ary definition. Anything else leads to a failed preregularity check.
+** Special sort "Any"
+This causes lots of special cases. Perhaps it should not be exposed (reserved for builtin modules) and handled with less generality and less checking.
+** Domains for division
+What should the range sort of (/ 1 0) be?

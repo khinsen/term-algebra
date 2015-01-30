@@ -152,6 +152,7 @@
                           (operator-properties op))))))))))
 
 (define (merge-op-set to-merge mark-imported? ops)
+  ; mark-imported? is currently ignored
   (let ([merged-ops
          (for/fold ([ops ops])
                    ([spec (op-definitions to-merge)])

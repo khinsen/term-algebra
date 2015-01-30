@@ -55,8 +55,6 @@
    [else (error "unknown term type" gterm)]))
 
 (define (make-term op args op-set)
-  ;; (unless (andmap (λ (t) (equal? (term-op-set t) op-set)) args)
-  ;;   (error "Argument terms defined in a different module"))
   (unless (operators:has-op? op op-set)
     (error "Undefined operator " op))
   (let ([sort

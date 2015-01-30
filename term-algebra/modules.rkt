@@ -94,7 +94,7 @@
                            (quote range-sort)
                            (set 'var-arity)))
              #:with fns #'(list))
-    (pattern ((~datum op) (op-name:id arg-sort:id ...+) range-sort:id)
+    (pattern ((~datum op) (op-name:id arg-sort:id ...) range-sort:id)
              #:with ops
              #'(list (list (quote op-name)
                            (list (quote arg-sort) ...)

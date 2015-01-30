@@ -47,7 +47,11 @@
    [(var? gterm)    (var-sort gterm)]
    [(symbol? gterm) 'Symbol]
    [(string? gterm) 'String]
-   [(number? gterm) 'Rational]
+   [(and (number? gterm) (exact? gterm))
+    (cond
+      [(zero? gterm) 'Zero]
+      [(integer? gterm) (if (positive? gterm) 'NonZeroNatural 'NonZeroInteger)]
+      [else (if (positive? gterm) 'PositiveRational 'NonZeroRational)])]
    [else (error "unknown term type" gterm)]))
 
 (define (make-term op args op-set)

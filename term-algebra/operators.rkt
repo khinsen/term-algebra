@@ -39,14 +39,18 @@
          (yield (cons s ss))))))
 
 (define (preregular? op sorts domain)
+  (define debug (member (operator-symbol op) '()))
+  (when debug (printf "--- preregular? --- ~s\n" domain))
   ; Iterate over all domains made up of subsorts of the current domain
   (for*/and ([arg-sorts (cartesian-product
                          (map (λ (s) (sorts:subsorts s sorts)) domain))])
-    ; Pick the ramges of the operator signatures that match arg-sorts.
+    (when debug (printf "+ Argument sorts ~s\n" arg-sorts))
+    ; Pick the ranges of the operator signatures that match arg-sorts.
     (let ([ranges
            (for*/list ([sig (operator-signatures op)]
                        #:when (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
                                       arg-sorts (car sig)))
+             (when debug (printf "~s -> ~s\n" (car sig) (cdr sig)))
              (cdr sig))])
       ; The first of these ranges must be the lowest sort in the list.
       (andmap (λ (r) (sorts:is-sort? (first ranges) r sorts))
@@ -67,6 +71,9 @@
     (error "Conflicting fixed and variable arity definitions.")))
 
 (define (add-op symbol domain range properties ops)
+  (define debug (member symbol '()))
+  (when debug
+    (printf "--- add-op ~s ~s ---\n" domain range))
   (unless (sorts:has-sort? range (op-set-sorts ops))
     (error "Undefined sort " range))
   (for ([sort domain])
@@ -109,6 +116,8 @@
                    (splitf-at op-signatures
                               (λ (sig) (sorts:is-subsort?
                                         (cdr sig) range sorts))))
+                 (when debug
+                   (printf "~s | ~s | ~s\n" before (cons domain range) after))
                  (operator symbol (append before
                                           (cons (cons domain range) after))
                            properties))

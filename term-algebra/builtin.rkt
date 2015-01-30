@@ -37,26 +37,70 @@
 
 (modules:define-builtin-module rational
   (use truth)
-  (sorts Rational)
+
+  (sorts Natural Zero NonZeroNatural
+         Integer NonZeroInteger
+         Rational NonZeroRational PositiveRational)
+
+  (subsorts [Zero Natural] [NonZeroNatural Natural]
+
+            [NonZeroInteger Integer]
+            [Natural Integer] [NonZeroNatural NonZeroInteger]
+
+            [NonZeroRational Rational] [PositiveRational NonZeroRational]
+            [Integer Rational] [NonZeroInteger NonZeroRational]
+            [NonZeroNatural PositiveRational])
+
   (special-ops rational-number)
-  (op (+ Rational Rational) Rational)
-  (fn + (lambda (x y) (+ x y)))
+
+  (op (+) Zero)
+  (op (+ Natural ...) Natural)
+  (op (+ NonZeroNatural ...) NonZeroNatural)
+  (op (+ Integer ...) Integer)
+  (op (+ NonZeroInteger ...) NonZeroInteger)
+  (op (+ Rational ...) Rational)
+  (op (+ NonZeroRational ...) NonZeroRational)
+  (op (+ PositiveRational ...) PositiveRational)
+  (fn + +)
+
+  (op (- Zero) Zero)
+  (op (- Integer) Integer)
+  (op (- Rational) Rational)
+  (op (- Integer Integer) Integer)
   (op (- Rational Rational) Rational)
-  (fn - (lambda (x y) (- x y)))
-  (op (* Rational Rational) Rational)
-  (fn * (lambda (x y) (* x y)))
+  (fn - -)
+
+  (op (*) Natural)
+  (op (* Natural ...) Natural)
+  (op (* Zero ...) Zero)
+  (op (* NonZeroNatural ...) NonZeroNatural)
+  (op (* Integer ...) Integer)
+  (op (* NonZeroInteger ...) NonZeroInteger)
+  (op (* Rational ...) Rational)
+  (op (* NonZeroRational ...) NonZeroRational)
+  (op (* PositiveRational ...) PositiveRational)
+  (fn * *)
+
+  (op (/ Rational) Rational)
   (op (/ Rational Rational) Rational)
-  (fn / (lambda (x y) (/ x y)))
-  (op (div Rational Rational) Rational)
-  (fn div (lambda (x y) (quotient x y)))
+  (op (/ NonZeroRational NonZeroRational) NonZeroRational)
+  (fn / /)
+
+  (op (div Integer NonZeroInteger) Integer)
+  (fn div quotient)
+
   (op (> Rational Rational) Boolean)
   (fn > (lambda (x y) (if (> x y) true false)))
+
   (op (>= Rational Rational) Boolean)
   (fn >= (lambda (x y) (if (>= x y) true false)))
+
   (op (< Rational Rational) Boolean)
   (fn < (lambda (x y) (if (< x y) true false)))
+
   (op (<= Rational Rational) Boolean)
   (fn <= (lambda (x y) (if (<= x y) true false)))
+
   (op (= Rational Rational) Boolean)
   (fn = (lambda (x y) (if (= x y) true false))))
   

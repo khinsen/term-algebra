@@ -181,9 +181,9 @@
 (define-syntax (meta-term stx)
   (syntax-parse stx
     [(_  expr:term)
-     #'expr.value]))
+     #'(modules:make-vterm meta:meta-term expr.value)]))
 
 (define-syntax (term stx)
   (syntax-parse stx
     [(_ module:expr expr:term)
-     #'(meta:meta-down module expr.value)]))
+     #'(modules:make-vterm module (meta:meta-down module expr.value))]))

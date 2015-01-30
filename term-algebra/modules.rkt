@@ -1,11 +1,12 @@
 #lang racket
 
 (provide (struct-out module)
+         (struct-out vterm)
          define-builtin-module
          sort-from op-from
          lookup-module-hash
          make-module
-         make-term)
+         make-term make-vterm)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
@@ -18,6 +19,30 @@
 ;
 (struct module (name ops rules meta hashcode)
         #:transparent)
+
+;
+; The data structure for a term validated with reference to a module
+;
+(struct vterm (module sort term)
+        #:transparent
+        #:property prop:custom-write
+        (lambda (vterm port mode)
+          (define (write-term term op-set port)
+            (let ([op (terms:term-op term)])
+              (if (and (null? (terms:term-args term))
+                       (not (operators:has-var-arity? op op-set)))
+                  (write op port)
+                  (write (cons op (terms:term-args term)) port))))
+          (let* ([mod (vterm-module vterm)]
+                 [ops (module-ops mod)]
+                 [term (vterm-term vterm)])
+            (write (module-name mod) port)
+            (write-string ":" port)
+            (write (vterm-sort vterm) port)
+            (write-string ":" port)
+            (if (terms:term? term)
+                (write-term term ops port)
+                (write term port)))))
 
 ;
 ; The module registry
@@ -60,6 +85,9 @@
 
 (define (make-term op args module)
   (terms:make-term op args (module-ops module)))
+
+(define (make-vterm module term)
+  (vterm module (terms:sort-of term) term))
 
 ;
 ; Macro for defining builtin modules

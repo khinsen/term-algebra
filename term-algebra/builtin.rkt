@@ -54,12 +54,11 @@
   (special-ops rational-number)
 
   (op (+) Zero)
+  (op (+ Zero ...) Zero)
   (op (+ Natural ...) Natural)
   (op (+ NonZeroNatural ...) NonZeroNatural)
   (op (+ Integer ...) Integer)
-  (op (+ NonZeroInteger ...) NonZeroInteger)
   (op (+ Rational ...) Rational)
-  (op (+ NonZeroRational ...) NonZeroRational)
   (op (+ PositiveRational ...) PositiveRational)
   (fn + +)
 
@@ -82,8 +81,10 @@
   (fn * *)
 
   (op (/ Rational) Rational)
+  (op (/ PositiveRational) PositiveRational)
   (op (/ Rational Rational) Rational)
   (op (/ NonZeroRational NonZeroRational) NonZeroRational)
+  (op (/ PositiveRational PositiveRational) PositiveRational)
   (fn / /)
 
   (op (div Integer NonZeroInteger) Integer)

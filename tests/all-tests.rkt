@@ -7,7 +7,7 @@
          "test-meta.rkt"
          "test-rewrite.rkt"
          "test-builtin.rkt"
-         ;; "test-boolean.rkt"
+         "test-library.rkt"
          ;; "test-peano-numbers.rkt"
          )
 
@@ -21,7 +21,7 @@
           meta-tests
           rewrite-tests
           builtin-tests
-          ;; boolean-tests
+          library-tests
           ;; peano-number-tests
           )))
 

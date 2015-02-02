@@ -3,12 +3,11 @@
 (provide builtin-tests)
 
 (require rackunit
-         (only-in term-algebra/rewrite reduce)
-         (only-in term-algebra/syntax define-module term)
+         term-algebra/api
          term-algebra/builtin)
 
 (define-syntax-rule (check-reduce module initial-term reduced-term)
-  (check-equal? (reduce (term module initial-term) module)
+  (check-equal? (reduce (term module initial-term))
                 (term module reduced-term)))
 
 (define-test-suite builtin-tests
@@ -28,6 +27,8 @@
 
     (check-reduce rational (- 2) -2)
     (check-reduce rational (- 2 3) -1)
+
+    (check-reduce rational (dec 2) 1)
 
     (check-reduce rational (*) 1)
     (check-reduce rational (* 2) 2)

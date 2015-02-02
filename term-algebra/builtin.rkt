@@ -69,6 +69,11 @@
   (op (- Rational Rational) Rational)
   (fn - -)
 
+  (op (dec NonZeroNatural) Natural)
+  (op (dec Integer) Integer)
+  (op (dec Rational) Rational)
+  (fn dec sub1)
+
   (op (*) Natural)
   (op (* Natural ...) Natural)
   (op (* Zero ...) Zero)

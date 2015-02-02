@@ -20,14 +20,14 @@
                   (terms:sort-of a-term))]
          [rules (hash-ref (modules:module-rules module) key empty)]
          [ops (modules:module-ops module)])
-    (if (procedure? rules)
-        ; special operator
-        (with-handlers ([exn:fail? (lambda (v) a-term)])
-          (apply rules (terms:term-args a-term)))
-        ; rule list
-        (or (for/fold ([rewritten-term #f])
-                      ([rule rules])
-              #:break rewritten-term
+    (or (for/fold ([rewritten-term #f])
+                  ([rule rules])
+          #:break rewritten-term
+          (if (procedure? rule)
+              ; special rule (function)
+              (with-handlers ([exn:fail? (lambda (v) #f)])
+                (apply rule (terms:term-args a-term)))
+              ; rewrite rule
               (let* ([pattern (rules:rule-pattern rule)]
                      [condition (rules:rule-condition rule)]
                      [value (rules:rule-replacement rule)]
@@ -39,8 +39,8 @@
                                      true-term)
                              (terms:substitute value s ops))
                         (terms:substitute value s ops))
-                    #f)))
-            a-term))))
+                    #f))))
+        a-term)))
 
 (define (rewrite-leftmost-innermost a-term module)
   (if (terms:term? a-term)

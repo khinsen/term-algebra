@@ -198,5 +198,7 @@
                   [rules (for/fold ([rules (hash)]) 
                                    ([fn-spec fn-list])
                            (match-let ([(list symbol proc-expr) fn-spec])
-                             (hash-set rules symbol proc-expr)))])
+                             (hash-update rules symbol
+                                          (λ (l) (append l (list proc-expr)))
+                                          empty)))])
              (make-module (quote module-name) ops rules #f))))]))

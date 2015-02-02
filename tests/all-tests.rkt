@@ -8,7 +8,7 @@
          "test-rewrite.rkt"
          "test-builtin.rkt"
          "test-library.rkt"
-         ;; "test-peano-numbers.rkt"
+         "test-peano-numbers.rkt"
          )
 
 (provide all-tests)
@@ -22,7 +22,7 @@
           rewrite-tests
           builtin-tests
           library-tests
-          ;; peano-number-tests
+          peano-number-tests
           )))
 
 (module* main #f

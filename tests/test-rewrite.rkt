@@ -3,8 +3,7 @@
 (provide rewrite-tests)
 
 (require rackunit
-         (only-in term-algebra/rewrite reduce)
-         (only-in term-algebra/syntax define-module term)
+         term-algebra/api
          (prefix-in builtin: term-algebra/builtin))
 
 (define-module boolean
@@ -32,29 +31,29 @@
 (define-test-suite rewrite-tests
 
   (test-case "boolean"
-    (check-equal? (reduce (term boolean (not true)) boolean)
+    (check-equal? (reduce (term boolean (not true)))
                   (term boolean false))
-    (check-equal? (reduce (term boolean (not false)) boolean)
+    (check-equal? (reduce (term boolean (not false)))
                   (term boolean true))
-    (check-equal? (reduce (term boolean (and true true)) boolean)
+    (check-equal? (reduce (term boolean (and true true)))
                   (term boolean true))
-    (check-equal? (reduce (term boolean (and true false)) boolean)
+    (check-equal? (reduce (term boolean (and true false)))
                   (term boolean false))
-    (check-equal? (reduce (term boolean (and false true)) boolean)
+    (check-equal? (reduce (term boolean (and false true)))
                   (term boolean false))
-    (check-equal? (reduce (term boolean (and false false)) boolean)
+    (check-equal? (reduce (term boolean (and false false)))
                   (term boolean false))
-    (check-equal? (reduce (term boolean (and false (not false))) boolean)
+    (check-equal? (reduce (term boolean (and false (not false))))
                   (term boolean false))
-    (check-equal? (reduce (term boolean (and (not false) (not false))) boolean)
+    (check-equal? (reduce (term boolean (and (not false) (not false))))
                   (term boolean true)))
   
   (test-case "test"
-    (check-equal? (reduce (term test (foo bar bar)) test)
+    (check-equal? (reduce (term test (foo bar bar)))
                   (term test bar))
-    (check-equal? (reduce (term test (foo bar (foo bar bar))) test)
+    (check-equal? (reduce (term test (foo bar (foo bar bar))))
                   (term test bar))
-    (check-equal? (reduce (term test (foo bar baz)) test)
+    (check-equal? (reduce (term test (foo bar baz)))
                   (term test (foo bar baz)))))
 
 (module* main #f

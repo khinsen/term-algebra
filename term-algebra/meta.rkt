@@ -25,6 +25,7 @@
   (subsorts [Rational Term] [String Term] [Symbol Term])
 
   (op (term Symbol ArgList) Term)
+  (op (var-ref Symbol) Term)
   (op (args Term ...) ArgList)
   (op (args) ArgList))
 
@@ -142,10 +143,12 @@
     (define (pattern-from-meta module vars meta-term)
       (match meta-term
         [(mterm 'term (list op (mterm 'args args)))
-         (terms:make-pattern op
-                             (map (λ (arg)
-                                    (pattern-from-meta module vars arg)) args)
-                             (modules:module-ops module) vars)]
+         (terms:make-term op
+                          (map (λ (arg)
+                                 (pattern-from-meta module vars arg)) args)
+                          (modules:module-ops module))]
+        [(mterm 'var-ref (list var-name))
+         (terms:var var-name (hash-ref vars var-name))]
         [(mterm 'no-condition empty)
          #f]
         [_ (terms:make-special-term meta-term (modules:module-ops module))]))

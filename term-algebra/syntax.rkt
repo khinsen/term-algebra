@@ -19,6 +19,30 @@
 
 (define no-condition (mterm 'no-condition empty))
 
+(define (fix-var-refs rule)
+
+  (define (fix-var-refs* var-symbols term)
+    (if (and (terms:term? term)
+             (equal? (terms:term-op term) 'term))
+        (if (member (first (terms:term-args term)) var-symbols)
+            (tterm 'var-ref (list (first (terms:term-args term))))
+            (tterm 'term
+                   (match-let ([(list op args) (terms:term-args term)])
+                     (list op
+                           (tterm 'args 
+                                  (map (λ (a) (fix-var-refs* var-symbols a))
+                                       (terms:term-args args)))))))
+        term))
+
+  (match-let ([(list vars left condition right) (terms:term-args rule)])
+    (let ([var-symbols (map (λ (vt) (first (terms:term-args vt)))
+                            (terms:term-args vars))])
+      (mterm (terms:term-op rule) (list vars
+                                        (fix-var-refs* var-symbols left)
+                                        (fix-var-refs* var-symbols condition)
+                                        (fix-var-refs* var-symbols right))))))
+
+
 (begin-for-syntax
 
   (define-syntax-class term
@@ -164,7 +188,7 @@
                     (mterm 'ops
                            (append op-decl.ops ...))
                     (mterm 'rules
-                           (append op-decl.rules ...))))]))
+                           (map fix-var-refs (append op-decl.rules ...)))))]))
 
 (define-syntax (define-meta-module stx)
   (syntax-parse stx

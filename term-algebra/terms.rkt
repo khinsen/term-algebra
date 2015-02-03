@@ -4,7 +4,7 @@
          (struct-out var)
          vars-in-term
          sort-of
-         make-term make-pattern make-special-term
+         make-term make-special-term
          match-pattern substitute)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -64,15 +64,6 @@
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op args)))
     (term op args sort)))
-
-(define (make-pattern op args op-set vars)
-  (if (and (empty? args)
-           (hash-has-key? vars op))
-      (let ([sort (hash-ref vars op)])
-        (unless (sorts:has-sort? sort (operators:op-set-sorts op-set))
-          (error "Undefined sort " sort))
-        (var op sort))
-      (make-term op args op-set)))
 
 (define (make-special-term value op-set)
   (cond

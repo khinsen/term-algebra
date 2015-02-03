@@ -83,16 +83,7 @@
   (when (and var-arity (not (equal? (length domain) 1)))
     (error "Wrong number of domain sorts for variable arity operator " symbol))
   (define any-in-domain (member 'Any domain))
-  (let* ([ops (if (and var-arity
-                       (not (lookup-op symbol empty ops)))
-                  ; Every var-arity operator can also be used as a
-                  ; nullary operator. Add this nullary operator if no
-                  ; prior nullary definition exists.
-                  (add-op symbol empty range
-                          (set-remove properties 'var-arity)
-                          ops)
-                  ops)]
-         [sorts (op-set-sorts ops)]
+  (let* ([sorts (op-set-sorts ops)]
          [domain-kinds (cond
                         [(and any-in-domain var-arity) 'Any]
                         [any-in-domain (map (λ (s) 'Any) domain)]

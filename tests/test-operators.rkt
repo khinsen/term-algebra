@@ -55,7 +55,7 @@
     (check-equal? (operators:lookup-op 'foo (list 'X 'X) test-any-ops)
                   'Y)
     (check-equal? (operators:lookup-op 'bar empty test-any-ops)
-                  'X)
+                  #f)
     (check-equal? (operators:lookup-op 'bar (list 'X) test-any-ops)
                   'X)
     (check-equal? (operators:lookup-op 'bar (list 'X 'X) test-any-ops)
@@ -101,7 +101,7 @@
              [foo-op (hash-ref op-hash 'foo)])
         (check-equal? 
          (hash-count foo-op) ; Number of different signatures
-         3)
+         2)
         (check-equal?
          (length (operator-signatures (hash-ref foo-op (list A-kind))))
          2)

@@ -25,7 +25,8 @@
   (subsorts [Rational Term] [String Term] [Symbol Term])
 
   (op (term Symbol ArgList) Term)
-  (op (args Term ...) ArgList))
+  (op (args Term ...) ArgList)
+  (op (args) ArgList))
 
 (modules:define-builtin-module meta-module
 
@@ -40,22 +41,29 @@
   (op (module Symbol ImportList SortList SubsortList OpList RuleList) Module)
 
   (op (imports Import ...) ImportList)
+  (op (imports) ImportList)
   (op (use String) Import)
   (op (extend String) Import)
 
   (op (sorts Symbol ...) SortList)
+  (op (sorts) SortList)
 
   (op (subsorts Subsort ...) SubsortList)
+  (op (subsorts) SubsortList)
   (op (subsort Symbol Symbol) Subsort)
 
   (op (ops Op ...) OpList)
+  (op (ops) OpList)
   (op (op Symbol Domain Symbol) Op)
   (op (fixed-arity-domain Symbol ...) Domain)
+  (op (fixed-arity-domain) Domain)
   (op (var-arity-domain Symbol) Domain)
 
   (op (rules Rule ...) RuleList)
+  (op (rules) RuleList)
   (op (=-> VarList Term Term Term) Rule)
   (op (vars Var ...) VarList)
+  (op (vars) VarList)
   (op (var Symbol Symbol) Var)
   (op no-condition Term))
 

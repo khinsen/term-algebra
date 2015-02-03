@@ -20,7 +20,6 @@
     (check-reduce equality (== (== true true) (== false false)) true))
 
   (test-case "rational"
-    (check-reduce rational (+) 0)
     (check-reduce rational (+ 1) 1)
     (check-reduce rational (+ 2 3) 5)
     (check-reduce rational (+ 2/3 1/3) 1)
@@ -30,7 +29,6 @@
 
     (check-reduce rational (dec 2) 1)
 
-    (check-reduce rational (*) 1)
     (check-reduce rational (* 2) 2)
     (check-reduce rational (* 2 3) 6)
 

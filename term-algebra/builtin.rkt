@@ -53,7 +53,6 @@
 
   (special-ops rational-number)
 
-  (op (+) Zero)
   (op (+ Zero ...) Zero)
   (op (+ Natural ...) Natural)
   (op (+ NonZeroNatural ...) NonZeroNatural)
@@ -74,7 +73,6 @@
   (op (dec Rational) Rational)
   (fn dec sub1)
 
-  (op (*) Natural)
   (op (* Natural ...) Natural)
   (op (* Zero ...) Zero)
   (op (* NonZeroNatural ...) NonZeroNatural)

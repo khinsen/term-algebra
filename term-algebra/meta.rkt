@@ -1,6 +1,6 @@
 #lang racket
 
-(provide meta-term meta-module
+(provide meta-term meta-pattern meta-module
          meta-up meta-down)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -26,12 +26,24 @@
 
   (op (term Symbol ArgList) Term)
   (op (var-ref Symbol) Term)
+
   (op (args Term ...) ArgList)
   (op (args) ArgList))
 
-(modules:define-builtin-module meta-module
+(modules:define-builtin-module meta-pattern
 
   (extend meta-term)
+
+  (sorts Pattern PatternArgList)
+  (subsorts [Term Pattern] [ArgList PatternArgList])
+
+  (op (pattern Symbol PatternArgList) Pattern)
+  (op (args Pattern ...) PatternArgList)
+  (op (head-tail Pattern Pattern) PatternArgList))
+
+(modules:define-builtin-module meta-module
+
+  (extend meta-pattern)
 
   (sorts Module
          ImportList Import
@@ -62,7 +74,7 @@
 
   (op (rules Rule ...) RuleList)
   (op (rules) RuleList)
-  (op (=-> VarList Term Term Term) Rule)
+  (op (=-> VarList Pattern Term Term) Rule)
   (op (vars Var ...) VarList)
   (op (vars) VarList)
   (op (var Symbol Symbol) Var)
@@ -103,8 +115,12 @@
   (terms:make-term op-symbol (map (λ (arg) (meta-down module arg)) args)
                    (modules:module-ops module)))
 
+(define (pattern-from-meta module op-symbol args)
+  (terms:make-pattern op-symbol (map (λ (arg) (meta-down module arg)) args)
+                      (modules:module-ops module)))
+
 (define (module-from-meta meta-terms)
-  
+
   (define (subsort-list subsort-terms)
     (for/list ([ss subsort-terms])
       (match ss
@@ -139,9 +155,14 @@
           [(mterm 'var (list var sort))
            (hash-set vars var sort)]
           [_ (error "Invalid var term " var-term)])))
- 
+
     (define (pattern-from-meta module vars meta-term)
       (match meta-term
+        [(mterm 'pattern (list op (mterm 'args args)))
+         (terms:make-pattern op
+                             (map (λ (arg)
+                                    (pattern-from-meta module vars arg)) args)
+                             (modules:module-ops module))]
         [(mterm 'term (list op (mterm 'args args)))
          (terms:make-term op
                           (map (λ (arg)
@@ -200,7 +221,7 @@
             [sorts (for/fold ([sorts sorts])
                              ([sort-pair (subsort-list subsort-terms)])
                      (sorts:add-subsort (car sort-pair) (cdr sort-pair) sorts))]
-            [ops (for/fold ([ops (operators:empty-op-set sorts)]) 
+            [ops (for/fold ([ops (operators:empty-op-set sorts)])
                            ([import (import-list import-terms)])
                    (operators:merge-op-set (modules:module-ops (car import))
                                            (cdr import)
@@ -231,6 +252,8 @@
   (match a-term
     [(mterm 'term (list op-symbol (mterm 'args args)))
      (term-from-meta module op-symbol args)]
+    [(mterm 'pattern (list op-symbol (mterm 'args args)))
+     (pattern-from-meta module op-symbol args)]
     [(mterm 'module args)
      #:when (eq? module meta-module)
      (module-from-meta a-term)]

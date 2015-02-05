@@ -4,7 +4,7 @@
          (struct-out var)
          vars-in-term
          sort-of
-         make-term make-special-term
+         make-term make-pattern make-special-term
          match-pattern substitute)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -18,7 +18,7 @@
         (lambda (term port mode)
           (let ([op (term-op term)])
             (if (null? (term-args term))
-                (write op port)    
+                (write op port)
                 (write (cons op (term-args term)) port)))))
 
 (struct var (symbol sort)
@@ -64,6 +64,9 @@
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op args)))
     (term op args sort)))
+
+(define (make-pattern op args op-set)
+  (make-term op args op-set))
 
 (define (make-special-term value op-set)
   (cond

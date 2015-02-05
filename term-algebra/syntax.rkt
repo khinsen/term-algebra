@@ -9,10 +9,14 @@
          (for-syntax syntax/parse))
 
 (define meta-term-ops (modules:module-ops meta:meta-term))
+(define meta-pattern-ops (modules:module-ops meta:meta-pattern))
 (define meta-module-ops (modules:module-ops meta:meta-module))
 
 (define (mterm op args)
   (terms:make-term op args meta-module-ops))
+
+(define (pterm op args)
+  (terms:make-term op args meta-pattern-ops))
 
 (define (tterm op args)
   (terms:make-term op args meta-term-ops))
@@ -23,15 +27,17 @@
 
   (define (fix-var-refs* var-symbols term)
     (if (and (terms:term? term)
-             (equal? (terms:term-op term) 'term))
-        (if (member (first (terms:term-args term)) var-symbols)
-            (tterm 'var-ref (list (first (terms:term-args term))))
-            (tterm 'term
-                   (match-let ([(list op args) (terms:term-args term)])
-                     (list op
-                           (tterm 'args 
-                                  (map (λ (a) (fix-var-refs* var-symbols a))
-                                       (terms:term-args args)))))))
+             (member (terms:term-op term) '(term pattern)))
+        (let ([t-args (terms:term-args term)])
+          (if (and (member (first t-args) var-symbols)
+                   (equal? (second t-args) (tterm 'args empty)))
+              (mterm 'var-ref (list (first t-args)))
+              (mterm (terms:term-op term)
+               (match-let ([(list op args) t-args])
+                 (list op
+                       (mterm 'args
+                              (map (λ (a) (fix-var-refs* var-symbols a))
+                                   (terms:term-args args))))))))
         term))
 
   (match-let ([(list vars left condition right) (terms:term-args rule)])
@@ -50,16 +56,25 @@
     (pattern symbol:id
              #:with value
              #'(tterm 'term (list (quote symbol)
-                                  (mterm 'args (list)))))
+                                  (tterm 'args (list)))))
     (pattern s:str #:with value #'s)
     (pattern ((~literal quote) symbol:id)
              #:with value #'(quote symbol))
     (pattern (symbol:id arg-terms:term ...)
              #:with value
              #'(tterm 'term (list (quote symbol)
-                                  (mterm 'args (list arg-terms.value ...)))))
+                                  (tterm 'args (list arg-terms.value ...)))))
     (pattern x:number #:when (exact? (syntax-e #'x))
              #:with value #'x))
+
+  (define-syntax-class term-pattern
+    #:description "term pattern"
+    (pattern (symbol:id arg-terms:term-pattern ...)
+             #:with value
+             #'(pterm 'pattern (list (quote symbol)
+                                     (pterm 'args (list arg-terms.value ...)))))
+    (pattern t:term
+             #:with value #'t.value))
 
   (define-syntax-class variable
     #:description "variable in rule"
@@ -98,32 +113,32 @@
                                   (quote range-sort))))
              #:with rules #'(list))
 
-    (pattern (=-> left:term right:term)
+    (pattern (=-> left:term-pattern right:term)
              #:with ops #'(list)
              #:with rules
              #'(list (mterm '=->
                             (list (mterm 'vars empty)
                                   left.value no-condition right.value))))
-    (pattern (=-> #:vars (var:variable ...) left:term right:term)
+    (pattern (=-> #:vars (var:variable ...) left:term-pattern right:term)
              #:with ops #'(list)
              #:with rules
              #'(list (mterm '=->
                             (list (mterm 'vars (list var.var ...))
                                   left.value no-condition right.value))))
-    (pattern (=-> #:var var:variable left:term right:term)
+    (pattern (=-> #:var var:variable left:term-pattern right:term)
              #:with ops #'(list)
              #:with rules
              #'(list (mterm '=->
                             (list (mterm 'vars (list var.var))
                                   left.value no-condition right.value))))
-    (pattern (=-> left:term  #:if cond:term right:term)
+    (pattern (=-> left:term-pattern  #:if cond:term right:term)
              #:with ops #'(list)
              #:with rules
              #'(list (mterm '=->
                             (list (mterm 'vars empty)
                                   left.value cond.value right.value))))
     (pattern (=-> #:vars (var:variable ...)
-                  left:term
+                  left:term-pattern
                   #:if cond:term
                   right:term)
              #:with ops #'(list)
@@ -132,7 +147,7 @@
                             (list (mterm 'vars (list var.var ...))
                                   left.value cond.value right.value))))
     (pattern (=-> #:var var:variable
-                  left:term 
+                  left:term-pattern
                   #:if cond:term
                   right:term)
              #:with ops #'(list)
@@ -140,7 +155,7 @@
              #'(list (mterm '=->
                             (list (mterm 'vars (list var.var))
                                   left.value cond.value right.value)))))
-  
+
   (define-syntax-class import
     #:description "import"
     #:datum-literals (use extend)
@@ -150,7 +165,7 @@
     (pattern (extend module:id)
              #:with value #'(mterm 'extend
                                    (list (modules:module-hashcode module)))))
-  
+
   (define-syntax-class sort
     #:description "sort"
     #:attributes (sorts subsorts)

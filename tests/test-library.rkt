@@ -20,18 +20,21 @@
     (check-reduce boolean (and false false) false)
     (check-reduce boolean (and true false)  false)
     (check-reduce boolean (and false true)  false)
+    (check-reduce boolean (and false true false true) false)
     (check-reduce boolean (and (not false) (not false)) true)
 
     (check-reduce boolean (or true true)   true)
     (check-reduce boolean (or false false) false)
     (check-reduce boolean (or true false)  true)
     (check-reduce boolean (or false true)  true)
+    (check-reduce boolean (or false true false true) true)
     (check-reduce boolean (or (not false) (not false)) true)
 
     (check-reduce boolean (xor true true)   false)
     (check-reduce boolean (xor false false) false)
     (check-reduce boolean (xor true false)  true)
     (check-reduce boolean (xor false true)  true)
+    (check-reduce boolean (xor false true false true) false)
     (check-reduce boolean (xor (not false) (not true)) true)))
 
 (module* main #f

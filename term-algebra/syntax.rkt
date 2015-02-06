@@ -35,9 +35,16 @@
               (mterm (terms:term-op term)
                (match-let ([(list op args) t-args])
                  (list op
-                       (mterm 'args
-                              (map (λ (a) (fix-var-refs* var-symbols a))
-                                   (terms:term-args args))))))))
+                       (cond
+                         [(equal? (terms:term-op args) 'head-tail)
+                          (mterm 'head-tail
+                                 (map (λ (a) (fix-var-refs* var-symbols a))
+                                      (terms:term-args args)))]
+                         [(equal? (terms:term-op args) 'args)
+                          (mterm 'args
+                                 (map (λ (a) (fix-var-refs* var-symbols a))
+                                      (terms:term-args args)))]
+                         [else (error "unknown arglist type")]))))))
         term))
 
   (match-let ([(list vars left condition right) (terms:term-args rule)])
@@ -69,6 +76,11 @@
 
   (define-syntax-class term-pattern
     #:description "term pattern"
+    (pattern (symbol:id head:term-pattern (~datum :) tail:term-pattern)
+             #:with value
+             #'(pterm 'pattern (list (quote symbol)
+                                     (pterm 'head-tail (list head.value
+                                                             tail.value)))))
     (pattern (symbol:id arg-terms:term-pattern ...)
              #:with value
              #'(pterm 'pattern (list (quote symbol)

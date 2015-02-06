@@ -4,7 +4,7 @@
          (struct-out var)
          vars-in-term
          sort-of
-         make-term make-pattern make-special-term
+         make-term make-ht-pattern make-special-term
          match-pattern substitute)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -36,9 +36,11 @@
   (cond
    [(var? term)  (set term)]
    [(term? term) (let ([args (term-args term)])
-                   (if (empty? args)
-                       (set)
-                       (apply set-union (map vars-in-term args))))]
+                   (cond
+                     [(empty? args) (set)]
+                     [(list? args) (apply set-union (map vars-in-term args))]
+                     [else (set-union (vars-in-term (car args))
+                                      (vars-in-term (cdr args)))]))]
    [else         (set)]))
 
 (define (sort-of gterm)
@@ -54,19 +56,27 @@
       [else (if (positive? gterm) 'PositiveRational 'NonZeroRational)])]
    [else (error "unknown term type" gterm)]))
 
+(define (range-sort op args op-set)
+  (operators:lookup-op op (map sort-of args) op-set))
+
 (define (make-term op args op-set)
   (unless (operators:has-op? op op-set)
     (error "Undefined operator " op))
-  (let ([sort
-         (operators:lookup-op op
-                              (map sort-of args)
-                              op-set)])
+  (let ([sort (range-sort op args op-set)])
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op args)))
     (term op args sort)))
 
-(define (make-pattern op args op-set)
-  (make-term op args op-set))
+(define (make-ht-pattern op head tail op-set)
+  ; TODO Should check more carefully that the resulting term has a well-defined sort.
+  (unless (operators:has-op? op op-set)
+    (error "Undefined operator " op))
+  (let ([sort
+         (operators:lookup-var-arity-op
+          op (sort-of head) (sort-of tail) op-set)])
+    (unless sort
+      (error "Wrong number or sort of arguments: " (cons op (cons head tail))))
+    (term op (cons head tail) sort)))
 
 (define (make-special-term value op-set)
   (cond
@@ -86,7 +96,7 @@
 
 ; Pattern matching and substitution
 
-(define (match-pattern pattern term op-set)
+(define (match-pattern pattern target op-set)
 
   (define (merge-substitutions s-acc s)
     (if (not s)
@@ -100,27 +110,41 @@
                 #f
                 (hash-set s-acc var value))))))
 
-  (define (match-pattern* pattern term sorts)
+  (define (match-pattern* pattern target sorts)
     (cond
      [(var? pattern)
-      (if (sorts:is-sort? (sort-of term) (var-sort pattern) sorts)
-          (hash pattern term)
+      (if (sorts:is-sort? (sort-of target) (var-sort pattern) sorts)
+          (hash pattern target)
           #f)]
      [(and (term? pattern)
-           (term? term)
-           (equal? (term-op pattern) (term-op term))
-           (equal? (length (term-args pattern)) (length (term-args term))))
-      (for/fold ([subst (hash)])
-                ([p-arg (term-args pattern)]
-                 [t-arg (term-args term)])
-        #:break (not subst)
-        (merge-substitutions subst (match-pattern* p-arg t-arg sorts)))]
-     [(equal? pattern term)
+           (term? target)
+           (equal? (term-op pattern) (term-op target)))
+      (let ([p-args (term-args pattern)]
+            [t-args (term-args target)])
+        (if (list? p-args)
+            ; The pattern is a standard term
+            (if (equal? (length p-args) (length t-args))
+                (for/fold ([subst (hash)])
+                          ([p-arg p-args]
+                           [t-arg t-args])
+                  #:break (not subst)
+                  (merge-substitutions subst
+                                       (match-pattern* p-arg t-arg sorts)))
+                #f)
+            ; The pattern is a head-tail term
+            (let ([sort (range-sort (term-op target) (rest t-args) op-set)])
+              (and sort
+                   (merge-substitutions
+                    (match-pattern* (car p-args) (first t-args) sorts)
+                    (match-pattern* (cdr p-args)
+                                    (term (term-op target) (rest t-args) sort)
+                                    sorts))))))]
+     [(equal? pattern target)
       (hash)]
      [else
       #f]))
 
-  (match-pattern* pattern term (operators:op-set-sorts op-set)))
+  (match-pattern* pattern target (operators:op-set-sorts op-set)))
 
 (define (substitute pattern substitution op-set)
   (cond

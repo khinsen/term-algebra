@@ -3,7 +3,8 @@
 (provide empty-op-set op-set-sorts
          add-op add-special-op merge-op-set
          has-op? has-special-op? has-var-arity?
-         lookup-op op-definitions)
+         lookup-op lookup-var-arity-op
+         op-definitions)
 
 (require (prefix-in sorts: term-algebra/sorts)
          racket/generator)
@@ -208,11 +209,31 @@
               #f
               (let* ([domain-kind (first domain-kinds)]
                      [op-var (hash-ref ops-for-symbol domain-kind #f)])
-                (or (lookup-var arg-sorts
-                                op-var
-                                sorts)
+                (or (lookup-var arg-sorts op-var sorts)
                     (lookup-any arg-sorts
                                 (hash-ref ops-for-symbol
                                           (map (λ (s) 'Any) arg-sorts) #f)
                                 sorts)
                     (lookup-var-any (hash-ref ops-for-symbol 'Any #f)))))))))
+
+(define (lookup-var-arity-op symbol arg-sort range-sort ops)
+
+  (define (lookup-var arg-sort range-sort op-var sorts)
+    (and op-var
+         (for/first ([sig (operator-signatures op-var)]
+                     #:when (and (sorts:is-sort?
+                                  arg-sort (first (car sig)) sorts)
+                                 (sorts:is-sort? range-sort (cdr sig) sorts)))
+           (cdr sig))))
+
+  (define (lookup-var-any op-any)
+    ; A var-arity operator with domain sort Any matches everything.
+    (and op-any
+         (cdr (first (operator-signatures op-any)))))
+
+  (let* ([sorts (op-set-sorts ops)]
+         [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
+         [domain-kind (sorts:kind arg-sort sorts)]
+         [op-var (hash-ref ops-for-symbol domain-kind #f)])
+    (or (lookup-var arg-sort range-sort op-var sorts)
+        (lookup-var-any (hash-ref ops-for-symbol 'Any #f)))))

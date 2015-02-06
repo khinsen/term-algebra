@@ -115,10 +115,6 @@
   (terms:make-term op-symbol (map (λ (arg) (meta-down module arg)) args)
                    (modules:module-ops module)))
 
-(define (pattern-from-meta module op-symbol args)
-  (terms:make-pattern op-symbol (map (λ (arg) (meta-down module arg)) args)
-                      (modules:module-ops module)))
-
 (define (module-from-meta meta-terms)
 
   (define (subsort-list subsort-terms)
@@ -158,16 +154,17 @@
 
     (define (pattern-from-meta module vars meta-term)
       (match meta-term
-        [(mterm 'pattern (list op (mterm 'args args)))
-         (terms:make-pattern op
-                             (map (λ (arg)
-                                    (pattern-from-meta module vars arg)) args)
-                             (modules:module-ops module))]
-        [(mterm 'term (list op (mterm 'args args)))
+        [(or (mterm 'term (list op (mterm 'args args)))
+             (mterm 'pattern (list op (mterm 'args args))))
          (terms:make-term op
                           (map (λ (arg)
                                  (pattern-from-meta module vars arg)) args)
                           (modules:module-ops module))]
+        [(mterm 'pattern (list op (mterm 'head-tail (list head tail))))
+         (terms:make-ht-pattern op
+                                (pattern-from-meta module vars head)
+                                (pattern-from-meta module vars tail)
+                                (modules:module-ops module))]
         [(mterm 'var-ref (list var-name))
          (terms:var var-name (hash-ref vars var-name))]
         [(mterm 'no-condition empty)
@@ -252,8 +249,6 @@
   (match a-term
     [(mterm 'term (list op-symbol (mterm 'args args)))
      (term-from-meta module op-symbol args)]
-    [(mterm 'pattern (list op-symbol (mterm 'args args)))
-     (pattern-from-meta module op-symbol args)]
     [(mterm 'module args)
      #:when (eq? module meta-module)
      (module-from-meta a-term)]

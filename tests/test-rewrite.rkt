@@ -9,7 +9,7 @@
 (define-module boolean
 
   (use builtin:truth)
- 
+
   (op (not Boolean) Boolean)
   (=-> (not true) false)
   (=-> (not false) true)
@@ -17,7 +17,12 @@
   (op (and Boolean Boolean) Boolean)
   (=-> (and true true) true)
   (=-> #:var [X Boolean] (and false X) false)
-  (=-> #:var [X Boolean] (and X false) false))
+  (=-> #:var [X Boolean] (and X false) false)
+
+  (op (or Boolean ...) Boolean)
+  (=-> #:var [X Boolean] (or X) X)
+  (=-> #:var [X Boolean] (or true : X) true)
+  (=-> #:var [X Boolean] (or false : X) X))
 
 (define-module test
   (use builtin:equality)
@@ -46,8 +51,22 @@
     (check-equal? (reduce (term boolean (and false (not false))))
                   (term boolean false))
     (check-equal? (reduce (term boolean (and (not false) (not false))))
+                  (term boolean true))
+    (check-equal? (reduce (term boolean (or true)))
+                  (term boolean true))
+    (check-equal? (reduce (term boolean (or false)))
+                  (term boolean false))
+    (check-equal? (reduce (term boolean (or true true)))
+                  (term boolean true))
+    (check-equal? (reduce (term boolean (or false true)))
+                  (term boolean true))
+    (check-equal? (reduce (term boolean (or true false)))
+                  (term boolean true))
+    (check-equal? (reduce (term boolean (or false false)))
+                  (term boolean false))
+    (check-equal? (reduce (term boolean (or false false true false true)))
                   (term boolean true)))
-  
+
   (test-case "test"
     (check-equal? (reduce (term test (foo bar bar)))
                   (term test bar))

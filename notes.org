@@ -5,3 +5,23 @@
 This causes lots of special cases. Perhaps it should not be exposed (reserved for builtin modules) and handled with less generality and less checking.
 ** Domains for division
 What should the range sort of (/ 1 0) be?
+** Sorts in equations
+In Maude, left and right hand side must be of the same kind. In OBJ3, the right-hans side must be of lower sort.
+*** Illustration (legal in Maude, but not in OBJ3)
+fmod ABCD is
+  sorts A B C D .
+  subsort A C < B .
+  subsort C < D .
+  op a : -> A .
+  op b : -> B .
+  op c : -> C .
+  op d : -> D .
+  op foo : A -> A .
+  eq a = b .
+  eq b = c .
+  eq c = d .
+endfm
+
+reduce in ABCD : foo(a) .
+rewrites: 3
+result [D,B]: foo(d)

@@ -101,13 +101,13 @@
              #:with use #'#t)
     (pattern ((~datum extend) module:id)
              #:with use #'#f))
-  
+
   (define-syntax-class op-builtin
     #:description "operator/rule for builtin modules"
     #:attributes (ops fns)
 
     (pattern ((~datum op) op-name:id range-sort:id)
-             #:with ops 
+             #:with ops
              #'(list (list (quote op-name)
                            '()
                            (quote range-sort)
@@ -143,17 +143,11 @@
         (~optional
          ((~datum special-ops) s-op:id ...))
         op-decl:op-builtin ...)
-     (with-syntax ([sort-import-list (if (attribute import-decl.module)
-                                         #'(list (operators:op-set-sorts
-                                                  (module-ops
-                                                   import-decl.module)) ...)
-                                         #'(list))]
-                   [op-import-list (if (attribute import-decl.module)
-                                       #'(map (lambda (a b) (cons a b))
-                                              (list (module-ops
-                                                     import-decl.module) ...)
-                                              (list import-decl.use ...))
-                                       #'(list))]
+     (with-syntax ([import-list (if (attribute import-decl.module)
+                                    #'(map (lambda (a b) (cons a b))
+                                           (list import-decl.module ...)
+                                           (list import-decl.use ...))
+                                    #'(list))]
                    [sort-list (if (attribute sort)
                                   #'(list (quote sort) ...)
                                   #'(list))]
@@ -175,27 +169,36 @@
                                 #'(append op-decl.fns ...)
                                 #'(list))])
        #'(define module-name
-           (let* ([sorts (sorts:empty-sort-graph)]
-                  [sorts (foldl sorts:merge-sort-graph sorts sort-import-list)]
+           (let* ([sorts (for/fold ([sorts (sorts:empty-sort-graph)])
+                                   ([import import-list])
+                           (sorts:merge-sort-graph
+                            (operators:op-set-sorts (module-ops (car import)))
+                            sorts))]
                   [sorts (foldl sorts:add-sort sorts sort-list)]
                   [sorts (for/fold ([sorts sorts])
                                    ([sort-pair subsort-list])
                            (sorts:add-subsort (car sort-pair) (cdr sort-pair)
                                               sorts))]
-                  [ops (operators:empty-op-set sorts)]
-                  [ops (for/fold ([ops ops]) 
-                                 ([mod op-import-list])
-                         (operators:merge-op-set (car mod) (cdr mod) ops))]
-                  [ops (for/fold ([ops ops]) 
+                  [ops (for/fold ([ops (operators:empty-op-set sorts)])
+                                 ([mod import-list])
+                         (operators:merge-op-set (module-ops (car mod))
+                                                 (cdr mod) ops))]
+                  [ops (for/fold ([ops ops])
                                  ([op-spec op-list])
                          (match-let ([(list symbol domain range properties)
                                       op-spec])
                            (operators:add-op symbol domain range
                                              properties ops)))]
-                  [ops (for/fold ([ops ops]) 
+                  [ops (for/fold ([ops ops])
                                  ([s-op-symbol s-op-list])
                          (operators:add-special-op s-op-symbol ops))]
-                  [rules (for/fold ([rules (hash)]) 
+                  [rules (for*/fold ([rules (hash)])
+                                    ([import import-list]
+                                     [kv (hash->list
+                                          (module-rules (car import)))])
+                           (hash-update rules (first kv)
+                                        (λ (l) (append l (cdr kv))) empty))]
+                  [rules (for/fold ([rules rules])
                                    ([fn-spec fn-list])
                            (match-let ([(list symbol proc-expr) fn-spec])
                              (hash-update rules symbol

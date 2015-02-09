@@ -125,7 +125,8 @@
               (op-set-special-ops ops)))))
 
 (define (add-special-op special-op ops)
-  (unless (member special-op '(string symbol rational-number))
+  (unless (member special-op '(string symbol natural-number
+                                      integer-number rational-number))
     (error "Illegial special op " special-op))
   (op-set (op-set-sorts ops)
           (op-set-ops ops)

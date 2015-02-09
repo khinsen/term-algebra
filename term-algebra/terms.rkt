@@ -88,10 +88,20 @@
     (if (operators:has-special-op? 'symbol op-set)
         value
         (error "import builtin:symbol to use symbols"))]
-   [(number? value)
+   [(and (number? value) (exact? value))
     (if (operators:has-special-op? 'rational-number op-set)
         value
-        (error "import builtin:rational to use rational numbers"))]
+        (if (and (integer? value)
+                 (operators:has-special-op? 'integer-number op-set))
+            value
+            (if (and (not (negative? value))
+                     (operators:has-special-op? 'natural-number op-set))
+                value
+                (if (not (integer? value))
+                    (error "import builtin:rational to use rational numbers")
+                    (if (negative? value)
+                        (error "import builtin:integer to use integer numbers")
+                        (error "import builtin:natural to use natural numbers"))))))]
    [else (error "invalid special term " value)]))
 
 ; Pattern matching and substitution

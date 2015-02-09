@@ -106,8 +106,8 @@
                                   symbol first-range)))
                  (define-values (before after)
                    (splitf-at op-signatures
-                              (λ (sig) (sorts:is-subsort?
-                                        (cdr sig) range sorts))))
+                              (λ (sig) (not (sorts:is-subsort?
+                                             range (cdr sig) sorts)))))
                  (when debug
                    (printf "~s | ~s | ~s\n" before (cons domain range) after))
                  (operator symbol (append before

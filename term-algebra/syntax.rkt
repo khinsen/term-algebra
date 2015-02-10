@@ -115,7 +115,7 @@
                                          (list (quote arg-sort) ...))
                                   (quote range-sort))))
              #:with rules #'(list))
-    (pattern (op (op-name:id arg-sort:id ...+) range-sort:id)
+    (pattern (op (op-name:id arg-sort:id ...) range-sort:id)
              #:with ops
              #'(list (mterm 'op
                             (list (quote op-name)

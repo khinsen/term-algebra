@@ -95,6 +95,14 @@
              #:with var
              #'(mterm 'var (list (quote var-name) (quote var-sort)))))
 
+  (define-splicing-syntax-class variable-list
+    #:description "variable list in a rule"
+    #:attributes (value)
+    (pattern (~seq #:var v:variable)
+             #:with value #'(mterm 'vars (list v.var)))
+    (pattern (~seq #:vars (v:variable ...))
+             #:with value #'(mterm 'vars (list v.var ...))))
+
   (define-syntax-class operator
     #:description "operator/rule"
     #:attributes (ops rules)
@@ -125,47 +133,17 @@
                                   (quote range-sort))))
              #:with rules #'(list))
 
-    (pattern (=-> left:term-pattern right:term)
-             #:with ops #'(list)
-             #:with rules
-             #'(list (mterm '=->
-                            (list (mterm 'vars empty)
-                                  left.value no-condition right.value))))
-    (pattern (=-> #:vars (var:variable ...) left:term-pattern right:term)
-             #:with ops #'(list)
-             #:with rules
-             #'(list (mterm '=->
-                            (list (mterm 'vars (list var.var ...))
-                                  left.value no-condition right.value))))
-    (pattern (=-> #:var var:variable left:term-pattern right:term)
-             #:with ops #'(list)
-             #:with rules
-             #'(list (mterm '=->
-                            (list (mterm 'vars (list var.var))
-                                  left.value no-condition right.value))))
-    (pattern (=-> left:term-pattern  #:if cond:term right:term)
-             #:with ops #'(list)
-             #:with rules
-             #'(list (mterm '=->
-                            (list (mterm 'vars empty)
-                                  left.value cond.value right.value))))
-    (pattern (=-> #:vars (var:variable ...)
+    (pattern (=-> (~optional vars:variable-list
+                             #:defaults ([vars.value #'(mterm 'vars empty)]))
                   left:term-pattern
-                  #:if cond:term
+                  (~optional (~seq #:if cond:term)
+                             #:defaults ([cond.value #'no-condition]))
+
                   right:term)
              #:with ops #'(list)
              #:with rules
              #'(list (mterm '=->
-                            (list (mterm 'vars (list var.var ...))
-                                  left.value cond.value right.value))))
-    (pattern (=-> #:var var:variable
-                  left:term-pattern
-                  #:if cond:term
-                  right:term)
-             #:with ops #'(list)
-             #:with rules
-             #'(list (mterm '=->
-                            (list (mterm 'vars (list var.var))
+                            (list vars.value
                                   left.value cond.value right.value)))))
 
   (define-syntax-class import

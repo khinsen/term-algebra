@@ -1,6 +1,6 @@
 #lang racket
 
-(provide truth equality string symbol natural integer rational)
+(provide any truth equality string symbol natural integer rational)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in modules: term-algebra/modules)

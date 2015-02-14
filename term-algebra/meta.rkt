@@ -209,19 +209,12 @@
                                 op-spec])
                      (operators:add-op symbol domain range
                                        properties ops)))]
-            [rules (make-hash)]
+            [rules (rules:empty-rules)]
             [mod (modules:make-module name ops rules meta-terms)])
        (for ([import (import-list import-terms)])
-         (hash-for-each
-          (modules:module-rules (car import))
-          (λ (key value)
-            (hash-update! rules key (λ (l) (append l value)) empty))))
+         (rules:merge-rules (modules:module-rules (car import)) rules))
        (for ([rule (rule-list mod rule-terms)])
-         (let* ([pattern (rules:rule-pattern rule)]
-                [key (if (terms:term? pattern)
-                         (terms:term-op pattern)
-                         (terms:sort-of pattern))])
-           (hash-update! rules key (λ (l) (append l (list rule))) empty)))
+         (rules:add-rule! rule rules))
        mod)]
     [_ (error "Invalid meta module " meta-terms)]))
 

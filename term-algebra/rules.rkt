@@ -1,7 +1,8 @@
 #lang racket
 
 (provide (struct-out rule)
-         make-rule)
+         make-rule
+         empty-rules merge-rules add-rule! add-proc!)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
@@ -10,6 +11,9 @@
 (struct rule (pattern condition replacement)
         #:transparent)
 
+;
+; Make a rule structure after checking its components
+;
 (define (make-rule ops vars pattern condition replacement)
   (let* ([vars-in-pattern (terms:vars-in-term pattern)]
          [vars-in-replacement (terms:vars-in-term replacement)]
@@ -33,3 +37,24 @@
       (error (format "Term ~s must of sort ~s"
                      replacement (terms:sort-of pattern))))
     (rule pattern condition replacement)))
+
+;
+; Manage complete rule lists as used in modules
+;
+(define (empty-rules)
+  (make-hash))
+
+(define (merge-rules to-merge rules)
+  (hash-for-each to-merge
+                 (λ (key value)
+                   (hash-update! rules key (λ (l) (append l value)) empty))))
+
+(define (add-rule! rule rules)
+  (let* ([pattern (rule-pattern rule)]
+         [key (if (terms:term? pattern)
+                  (terms:term-op pattern)
+                  (terms:sort-of pattern))])
+    (hash-update! rules key (λ (l) (append l (list rule))) empty)))
+
+(define (add-proc! op-symbol proc rules)
+  (hash-update! rules op-symbol (λ (l) (append l (list proc))) empty))

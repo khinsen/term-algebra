@@ -11,6 +11,7 @@
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
          (prefix-in terms: term-algebra/terms)
+         (prefix-in rules: term-algebra/rules)
          (for-syntax syntax/parse)
          (only-in file/sha1 sha1))
 
@@ -192,16 +193,10 @@
                   [ops (for/fold ([ops ops])
                                  ([s-op-symbol s-op-list])
                          (operators:add-special-op s-op-symbol ops))]
-                  [rules (for*/fold ([rules (hash)])
-                                    ([import import-list]
-                                     [kv (hash->list
-                                          (module-rules (car import)))])
-                           (hash-update rules (first kv)
-                                        (λ (l) (append l (cdr kv))) empty))]
-                  [rules (for/fold ([rules rules])
-                                   ([fn-spec fn-list])
-                           (match-let ([(list symbol proc-expr) fn-spec])
-                             (hash-update rules symbol
-                                          (λ (l) (append l (list proc-expr)))
-                                          empty)))])
+                  [rules (rules:empty-rules)])
+             (for ([import import-list])
+               (rules:merge-rules (module-rules (car import)) rules))
+             (for ([fn-spec fn-list])
+               (match-let ([(list symbol proc-expr) fn-spec])
+                 (rules:add-proc! symbol proc-expr rules)))
              (make-module (quote module-name) ops rules #f))))]))

@@ -23,85 +23,58 @@
 
 (define no-condition (mterm 'no-condition empty))
 
-(define (fix-var-refs rule)
-
-  (define (fix-var-refs* var-symbols term)
-    (if (and (terms:term? term)
-             (member (terms:term-op term) '(term pattern)))
-        (let ([t-args (terms:term-args term)])
-          (if (and (member (first t-args) var-symbols)
-                   (equal? (second t-args) (tterm 'args empty)))
-              (mterm 'var-ref (list (first t-args)))
-              (mterm (terms:term-op term)
-               (match-let ([(list op args) t-args])
-                 (list op
-                       (cond
-                         [(equal? (terms:term-op args) 'head-tail)
-                          (mterm 'head-tail
-                                 (map (λ (a) (fix-var-refs* var-symbols a))
-                                      (terms:term-args args)))]
-                         [(equal? (terms:term-op args) 'args)
-                          (mterm 'args
-                                 (map (λ (a) (fix-var-refs* var-symbols a))
-                                      (terms:term-args args)))]
-                         [else (error "unknown arglist type")]))))))
-        term))
-
-  (match-let ([(list vars left condition right) (terms:term-args rule)])
-    (let ([var-symbols (map (λ (vt) (first (terms:term-args vt)))
-                            (terms:term-args vars))])
-      (mterm (terms:term-op rule) (list vars
-                                        (fix-var-refs* var-symbols left)
-                                        (fix-var-refs* var-symbols condition)
-                                        (fix-var-refs* var-symbols right))))))
-
-
 (begin-for-syntax
 
-  (define-syntax-class term
+  (define-syntax-class (term var-symbols)
     #:description "term"
     (pattern symbol:id
              #:with value
-             #'(tterm 'term (list (quote symbol)
-                                  (tterm 'args (list)))))
+             #`(if (set-member? #,var-symbols (quote symbol))
+                   (tterm 'var-ref (list (quote symbol)))
+                   (tterm 'term (list (quote symbol)
+                                  (tterm 'args (list))))))
     (pattern s:str #:with value #'s)
     (pattern ((~literal quote) symbol:id)
              #:with value #'(quote symbol))
-    (pattern (symbol:id arg-terms:term ...)
+    (pattern (symbol:id (~var arg-terms (term var-symbols)) ...)
              #:with value
              #'(tterm 'term (list (quote symbol)
                                   (tterm 'args (list arg-terms.value ...)))))
     (pattern x:number #:when (exact? (syntax-e #'x))
              #:with value #'x))
 
-  (define-syntax-class term-pattern
+  (define-syntax-class (term-pattern var-symbols)
     #:description "term pattern"
-    (pattern (symbol:id head:term-pattern (~datum :) tail:term-pattern)
+    (pattern (symbol:id (~var head (term-pattern var-symbols))
+                        (~datum :)
+                        (~var tail (term-pattern var-symbols)))
              #:with value
              #'(pterm 'pattern (list (quote symbol)
                                      (pterm 'head-tail (list head.value
                                                              tail.value)))))
-    (pattern (symbol:id arg-terms:term-pattern ...)
+    (pattern (symbol:id (~var arg-terms (term-pattern var-symbols)) ...)
              #:with value
              #'(pterm 'pattern (list (quote symbol)
                                      (pterm 'args (list arg-terms.value ...)))))
-    (pattern t:term
+    (pattern (~var t (term var-symbols))
              #:with value #'t.value))
 
   (define-syntax-class variable
     #:description "variable in rule"
-    #:attributes (var)
-    (pattern [var-name:id var-sort:id]
+    #:attributes (var var-symbol)
+    (pattern [var-symbol:id sort-symbol:id]
              #:with var
-             #'(mterm 'var (list (quote var-name) (quote var-sort)))))
+             #'(mterm 'var (list (quote var-symbol) (quote sort-symbol)))))
 
   (define-splicing-syntax-class variable-list
     #:description "variable list in a rule"
-    #:attributes (value)
+    #:attributes (value symbols)
     (pattern (~seq #:var v:variable)
-             #:with value #'(mterm 'vars (list v.var)))
+             #:with value #'(mterm 'vars (list v.var))
+             #:with symbols #'(set (quote v.var-symbol)))
     (pattern (~seq #:vars (v:variable ...))
-             #:with value #'(mterm 'vars (list v.var ...))))
+             #:with value #'(mterm 'vars (list v.var ...))
+             #:with symbols #'(set (quote v.var-symbol) ...)))
 
   (define-syntax-class operator
     #:description "operator/rule"
@@ -134,17 +107,19 @@
              #:with rules #'(list))
 
     (pattern (=-> (~optional vars:variable-list
-                             #:defaults ([vars.value #'(mterm 'vars empty)]))
-                  left:term-pattern
-                  (~optional (~seq #:if cond:term)
+                             #:defaults ([vars.value #'(mterm 'vars empty)]
+                                         [vars.symbols #'(set)]))
+                  (~var left (term-pattern #'var-symbols))
+                  (~optional (~seq #:if (~var cond (term #'var-symbols)))
                              #:defaults ([cond.value #'no-condition]))
 
-                  right:term)
+                  (~var right (term #'var-symbols)))
              #:with ops #'(list)
              #:with rules
-             #'(list (mterm '=->
-                            (list vars.value
-                                  left.value cond.value right.value)))))
+             #'(let ([var-symbols vars.symbols])
+                 (list (mterm '=->
+                              (list vars.value
+                                    left.value cond.value right.value))))))
 
   (define-syntax-class import
     #:description "import"
@@ -193,7 +168,7 @@
                     (mterm 'ops
                            (append op-decl.ops ...))
                     (mterm 'rules
-                           (map fix-var-refs (append op-decl.rules ...)))))]))
+                           (append op-decl.rules ...))))]))
 
 (define-syntax (define-meta-module stx)
   (syntax-parse stx
@@ -209,10 +184,10 @@
 
 (define-syntax (meta-term stx)
   (syntax-parse stx
-    [(_  expr:term)
+    [(_  (~var expr (term #'(set))))
      #'(modules:make-vterm meta:meta-term expr.value)]))
 
 (define-syntax (term stx)
   (syntax-parse stx
-    [(_ module:expr expr:term)
+    [(_ module:expr (~var expr (term #'(set))))
      #'(modules:make-vterm module (meta:meta-down module expr.value))]))

@@ -23,7 +23,7 @@
 ; component to which the sort belongs, and is represented by a set of
 ; all the sorts that belong to it.
 ;
-(struct sort-graph (dag cc)
+(struct sort-graph (dag cc origins)
         #:transparent)
 
 ;
@@ -31,28 +31,32 @@
 ;
 (define (empty-sort-graph)
   (let ([dag (unweighted-graph/directed '())]
-        [cc (make-hash)])
-    (sort-graph dag cc)))
+        [cc (make-hash)]
+        [origins (make-hash)])
+    (sort-graph dag cc origins)))
 
-(define (add-sort sort graph)
+(define (add-sort sort origin graph)
   (let ([dag (sort-graph-dag graph)]
-        [cc (sort-graph-cc graph)])
+        [cc (sort-graph-cc graph)]
+        [origins (sort-graph-origins graph)])
     (if (has-vertex? dag sort)
         (error "sort already defined: " sort)
         (begin
           (add-vertex! dag sort)
-          (hash-set! cc sort (set sort)))))
+          (hash-set! cc sort (set sort))
+          (hash-set! origins sort origin))))
   graph)
 
-(define (add-subsort sort1 sort2 graph)
-  
+(define (add-subsort sort1 sort2 origin graph)
+
   (define (merge-connected-components cc sort1 sort2)
     (let ([new-cc-value (set-union (hash-ref cc sort1) (hash-ref cc sort2))])
       (for ([sort new-cc-value])
         (hash-set! cc sort new-cc-value))))
-  
+
   (let ([dag (sort-graph-dag graph)]
-        [cc (sort-graph-cc graph)])
+        [cc (sort-graph-cc graph)]
+        [origins (sort-graph-origins graph)])
     (cond
      [(equal? sort1 sort2)
       (error "sorts are equal: " (cons sort1 sort2))]
@@ -70,15 +74,21 @@
      [else
       (begin
         (add-directed-edge! dag sort1 sort2)
-        (merge-connected-components cc sort1 sort2))]))
+        (merge-connected-components cc sort1 sort2)
+        (hash-set! origins (list sort1 sort2) origin))]))
   graph)
 
-(define (merge-sort-graph to-merge graph)
-  (for ([sort (in-vertices (sort-graph-dag to-merge))])
-    (add-sort sort graph))
-  (for ([subsort (in-edges (sort-graph-dag to-merge))])
-    (add-subsort (first subsort) (second subsort) graph))
-  graph)
+(define (merge-sort-graph to-merge ignored-origins graph)
+  (let ([merged-origins (sort-graph-origins to-merge)])
+    (for ([sort (in-vertices (sort-graph-dag to-merge))])
+      (let ([origin (hash-ref merged-origins sort)])
+        (unless (set-member? ignored-origins origin)
+          (add-sort sort origin graph))))
+    (for ([subsort (in-edges (sort-graph-dag to-merge))])
+      (let ([origin (hash-ref merged-origins subsort)])
+        (unless (set-member? ignored-origins origin)
+          (add-subsort (first subsort) (second subsort) origin graph))))
+    graph))
 
 (define (is-subsort? sort1 sort2 graph)
   (fewest-vertices-path (sort-graph-dag graph) sort1 sort2))

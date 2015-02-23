@@ -34,11 +34,11 @@
 (define test-any-ops (module-ops test-any))
 
 (define-test-suite operator-tests
-  
+
   (test-case "test-sorts"
     (check-equal? A-kind (set 'A 'B 'C))
     (check-equal? X-kind (set 'X 'Y 'Z)))
-  
+
   (test-case "operator-lookup"
     (check-equal? (operators:lookup-op 'foo (list 'A) test-ops)
                   'X)
@@ -62,14 +62,14 @@
                   'X))
 
   (test-case "operator-definition"
-    
+
     (let ()
       (define-builtin-module test2
         (extend test)
         (op (foo Z) A))
       (let* ([op-hash (op-set-ops (module-ops test2))]
              [foo-op (hash-ref op-hash 'foo)])
-        (check-equal? 
+        (check-equal?
          (hash-count foo-op) ; Number of different kinds
          2)
         (check-equal?
@@ -85,7 +85,7 @@
         (op (foo B) Z))
       (let* ([op-hash (op-set-ops (module-ops test2))]
              [foo-op (hash-ref op-hash 'foo)])
-        (check-equal? 
+        (check-equal?
          (hash-count foo-op)  ; Number of different kinds
          1)
         (check-equal?
@@ -99,7 +99,7 @@
         (op (foo Z ...) A))
       (let* ([op-hash (op-set-ops (module-ops test2))]
              [foo-op (hash-ref op-hash 'foo)])
-        (check-equal? 
+        (check-equal?
          (hash-count foo-op) ; Number of different signatures
          2)
         (check-equal?
@@ -143,11 +143,28 @@
 
   (test-exn "mixed-var-args"
       #rx"Conflicting fixed and variable arity definitions.*"
-      (lambda () 
+      (lambda ()
         (define-builtin-module error
           (extend test)
           (op (foo B ...) Z))
-        (void))))
+        (void)))
+
+  (test-exn "double-definition"
+      #rx"Signature .* already defined"
+    (lambda ()
+      (define-builtin-module error
+        (extend test)
+        (op (foo A) X))
+      (void)))
+  
+  (test-not-exn "direct and indirect import"
+    (lambda ()
+      (define-builtin-module test2
+        (extend test))
+      (define-builtin-module import-test
+        (use test)
+        (use test2))
+      (void))))
 
 (module* main #f
   (require rackunit/text-ui)

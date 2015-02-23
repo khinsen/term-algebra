@@ -2,7 +2,7 @@
 
 (provide (struct-out rule)
          make-rule
-         empty-rules merge-rules add-rule! add-proc!)
+         empty-rules merge-rules! add-rule! add-proc!)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
@@ -44,17 +44,31 @@
 (define (empty-rules)
   (make-hash))
 
-(define (merge-rules to-merge rules)
+(define (merge-rules! to-merge ignored-origins rules)
   (hash-for-each to-merge
                  (λ (key value)
-                   (hash-update! rules key (λ (l) (append l value)) empty))))
+                   (define new-rules
+                     (for/list ([rule value]
+                                #:when (not (set-member? ignored-origins
+                                                         (cdr rule))))
+                       rule))
+                   (hash-update! rules
+                                 key
+                                 (λ (l) (append l new-rules))
+                                 empty))))
 
-(define (add-rule! rule rules)
+(define (add-rule! rule origin rules)
   (let* ([pattern (rule-pattern rule)]
          [key (if (terms:term? pattern)
                   (terms:term-op pattern)
                   (terms:sort-of pattern))])
-    (hash-update! rules key (λ (l) (append l (list rule))) empty)))
+    (hash-update! rules
+                  key
+                  (λ (l) (append l (list (cons rule origin))))
+                  empty)))
 
-(define (add-proc! op-symbol proc rules)
-  (hash-update! rules op-symbol (λ (l) (append l (list proc))) empty))
+(define (add-proc! op-symbol proc origin rules)
+  (hash-update! rules
+                op-symbol
+                (λ (l) (append l (list (cons proc origin))))
+                empty))

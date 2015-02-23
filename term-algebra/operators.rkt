@@ -20,6 +20,12 @@
         #:transparent)
 
 ;
+; A signature consists of a a domain (a list of sorts) and a range sort
+;
+(struct signature (domain range origin)
+        #:transparent)
+
+;
 ; Management of op-sets
 ;
 ; An op-set consists of a reference to a sort graph and a hash mapping
@@ -50,9 +56,11 @@
     (let ([ranges
            (for*/list ([sig (operator-signatures op)]
                        #:when (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
-                                      arg-sorts (car sig)))
-             (when debug (printf "~s -> ~s\n" (car sig) (cdr sig)))
-             (cdr sig))])
+                                      arg-sorts (signature-domain sig)))
+             (when debug (printf "~s -> ~s\n"
+                                 (signature-domain sig)
+                                 (signature-range sig)))
+             (signature-range sig))])
       ; The first of these ranges must be the lowest sort in the list.
       (andmap (λ (r) (sorts:is-sort? (first ranges) r sorts))
               (rest ranges)))))
@@ -71,7 +79,7 @@
             (ormap (λ (dk) (conflict? domain-kinds dk)) fixed))
     (error "Conflicting fixed and variable arity definitions.")))
 
-(define (add-op symbol domain range properties ops)
+(define (add-op symbol domain range properties origin ops)
   (define debug (member symbol '()))
   (when debug
     (printf "--- add-op ~s ~s ---\n" domain range))
@@ -92,12 +100,13 @@
                         [else (map (λ (s) (sorts:kind s sorts)) domain)])]
          [range-kind (sorts:kind range sorts)]
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
-         [op (hash-ref ops-for-symbol domain-kinds #f)])
+         [op (hash-ref ops-for-symbol domain-kinds #f)]
+         [sig (signature domain range origin)])
     (let ([extended-op
            (if op
                (let* ([op-signatures (operator-signatures op)]
                       [first-signature (first op-signatures)]
-                      [first-range (cdr first-signature)])
+                      [first-range (signature-range first-signature)])
                  (unless (equal? properties (operator-properties op))
                    (error (format "Operator ~s must have properties ~s"
                                   symbol (operator-properties op))))
@@ -107,15 +116,22 @@
                  (define-values (before after)
                    (splitf-at op-signatures
                               (λ (sig) (not (sorts:is-subsort?
-                                             range (cdr sig) sorts)))))
+                                             range (signature-range sig) sorts)))))
                  (when debug
-                   (printf "~s | ~s | ~s\n" before (cons domain range) after))
-                 (operator symbol (append before
-                                          (cons (cons domain range) after))
+                   (printf "~s | ~s | ~s\n" before sig after))
+                 (when (and (not (empty? after))
+                            (equal? (signature-domain sig)
+                                    (signature-domain (first after)))
+                            (equal? (signature-range sig)
+                                    (signature-range (first after))))
+                   (error (format "Signature ~s -> ~s already defined"
+                                  (cons symbol (signature-domain (first after)))
+                                  (signature-range (first after)))))
+                 (operator symbol (append before (cons sig after))
                            properties))
                (begin
                  (check-for-conflicts domain-kinds (hash-keys ops-for-symbol))
-                 (operator symbol (list (cons domain range)) properties)))])
+                 (operator symbol (list sig) properties)))])
       (unless (preregular? extended-op sorts domain)
         (error (format "Operator ~s is not preregular after addition of signature ~s -> ~s" symbol domain range)))
       (op-set (op-set-sorts ops)
@@ -124,7 +140,8 @@
                                          domain-kinds extended-op))
               (op-set-special-ops ops)))))
 
-(define (add-special-op special-op ops)
+(define (add-special-op special-op origin ops)
+  ; 'origin' isn't used by the current implementation
   (unless (member special-op '(string symbol natural-number
                                       integer-number rational-number))
     (error "Illegial special op " special-op))
@@ -140,20 +157,22 @@
          (λ (domain-kinds op)
            (for ([sig (operator-signatures op)])
              (yield (list (operator-symbol op)
-                          (car sig)
-                          (cdr sig)
-                          (operator-properties op))))))))))
+                          (signature-domain sig)
+                          (signature-range sig)
+                          (operator-properties op)
+                          (signature-origin sig))))))))))
 
-(define (merge-op-set to-merge mark-imported? ops)
+(define (merge-op-set to-merge mark-imported? ignored-origins ops)
   ; mark-imported? is currently ignored
-  (let ([merged-ops
-         (for/fold ([ops ops])
-                   ([spec (op-definitions to-merge)])
-           (apply add-op (append spec (list ops))))])
-    (op-set (op-set-sorts merged-ops)
-            (op-set-ops merged-ops)
-            (set-union (op-set-special-ops merged-ops)
-                       (op-set-special-ops to-merge)))))
+  (define merged-ops
+    (for/fold ([ops ops])
+              ([spec (op-definitions to-merge)]
+               #:when (not (set-member? ignored-origins (last spec))))
+      (apply add-op (append spec (list ops)))))
+  (op-set (op-set-sorts merged-ops)
+          (op-set-ops merged-ops)
+          (set-union (op-set-special-ops merged-ops)
+                     (op-set-special-ops to-merge))))
 
 (define (has-op? symbol ops)
   (not (not (hash-ref (op-set-ops ops) symbol #f))))
@@ -174,31 +193,31 @@
     (and op-fixed
          (for/first ([sig (operator-signatures op-fixed)]
                      #:when (and (equal? (length arg-sorts)
-                                         (length (car sig)))
+                                         (length (signature-domain sig)))
                                  (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
-                                         arg-sorts (car sig))))
-           (cdr sig))))
+                                         arg-sorts (signature-domain sig))))
+           (signature-range sig))))
 
   (define (lookup-var arg-sorts op-var sorts)
     (and op-var
          (for/first ([sig (operator-signatures op-var)]
                      #:when (andmap (λ (s) (sorts:is-sort?
-                                            s (first (car sig)) sorts))
+                                            s (first (signature-domain sig)) sorts))
                                     arg-sorts))
-           (cdr sig))))
+           (signature-range sig))))
 
   (define (lookup-any arg-sorts op-any sorts)
     (and op-any
          (for/first ([sig (operator-signatures op-any)]
                      #:when (andmap (λ (s) (sorts:is-sort?
-                                            s (first (car sig)) sorts))
+                                            s (first (signature-domain sig)) sorts))
                                     arg-sorts))
-           (cdr sig))))
+           (signature-range sig))))
 
   (define (lookup-var-any op-any)
     ; A var-arity operator with domain sort Any matches everything.
     (and op-any
-         (cdr (first (operator-signatures op-any)))))
+         (signature-range (first (operator-signatures op-any)))))
 
   (let* ([sorts (op-set-sorts ops)]
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
@@ -223,14 +242,14 @@
     (and op-var
          (for/first ([sig (operator-signatures op-var)]
                      #:when (and (sorts:is-sort?
-                                  arg-sort (first (car sig)) sorts)
-                                 (sorts:is-sort? range-sort (cdr sig) sorts)))
-           (cdr sig))))
+                                  arg-sort (first (signature-domain sig)) sorts)
+                                 (sorts:is-sort? range-sort (signature-range sig) sorts)))
+           (signature-range sig))))
 
   (define (lookup-var-any op-any)
     ; A var-arity operator with domain sort Any matches everything.
     (and op-any
-         (cdr (first (operator-signatures op-any)))))
+         (signature-range (first (operator-signatures op-any)))))
 
   (let* ([sorts (op-set-sorts ops)]
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]

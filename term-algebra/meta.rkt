@@ -189,32 +189,59 @@
                           (mterm 'subsorts subsort-terms)
                           (mterm 'ops operator-terms)
                           (mterm 'rules rule-terms)))
-     (let* ([sorts (for/fold ([sorts (sorts:empty-sort-graph)])
-                             ([import (import-list import-terms)])
-                     (sorts:merge-sort-graph
-                      (operators:op-set-sorts (modules:module-ops (car import)))
-                      sorts))]
-            [sorts (foldl sorts:add-sort sorts sort-symbols)]
-            [sorts (for/fold ([sorts sorts])
+     (let*-values
+         ([(hashcode) (modules:module-hash name meta-terms)]
+          [(imports) (for/list ([import-spec (import-list import-terms)])
+                       (match-let ([(cons mod mode) import-spec])
+                         (list mod
+                               (set-add (modules:module-imports mod)
+                                        (modules:module-hashcode mod))
+                               mode)))]
+          [(sorts _) (for/fold ([sorts (sorts:empty-sort-graph)]
+                                [ignore (set)])
+                               ([import imports])
+                       (values (sorts:merge-sort-graph
+                                (operators:op-set-sorts
+                                 (modules:module-ops (first import)))
+                                ignore
+                                sorts)
+                               (set-union ignore (second import))))]
+          [(sorts) (for/fold ([sorts sorts])
+                             ([sort sort-symbols])
+                     (sorts:add-sort sort hashcode sorts))]
+          [(sorts) (for/fold ([sorts sorts])
                              ([sort-pair (subsort-list subsort-terms)])
-                     (sorts:add-subsort (car sort-pair) (cdr sort-pair) sorts))]
-            [ops (for/fold ([ops (operators:empty-op-set sorts)])
-                           ([import (import-list import-terms)])
-                   (operators:merge-op-set (modules:module-ops (car import))
-                                           (cdr import)
-                                           ops))]
-            [ops (for/fold ([ops ops])
+                     (sorts:add-subsort (car sort-pair) (cdr sort-pair)
+                                        hashcode sorts))]
+          [(ops _) (for/fold ([ops (operators:empty-op-set sorts)]
+                              [ignore (set)])
+                             ([import imports])
+                     (values (operators:merge-op-set
+                              (modules:module-ops (first import))
+                              (third import)
+                              ignore
+                              ops)
+                             (set-union ignore (second import))))]
+          [(ops) (for/fold ([ops ops])
                            ([op-spec (op-list operator-terms)])
                    (match-let ([(list symbol domain range properties)
                                 op-spec])
                      (operators:add-op symbol domain range
-                                       properties ops)))]
-            [rules (rules:empty-rules)]
-            [mod (modules:make-module name ops rules meta-terms)])
-       (for ([import (import-list import-terms)])
-         (rules:merge-rules (modules:module-rules (car import)) rules))
+                                       properties hashcode ops)))]
+          [(rules) (rules:empty-rules)]
+          [(mod) (modules:make-module name ops rules
+                                      (for/fold ([all-imports (set)])
+                                                ([import imports])
+                                        (set-union all-imports (second import)))
+                                      meta-terms hashcode)])
+       (for/fold ([ignore (set)])
+                 ([import imports])
+         (rules:merge-rules! (modules:module-rules (first import))
+                             ignore
+                             rules)
+         (set-union ignore (second import)))
        (for ([rule (rule-list mod rule-terms)])
-         (rules:add-rule! rule rules))
+         (rules:add-rule! rule hashcode rules))
        mod)]
     [_ (error "Invalid meta module " meta-terms)]))
 

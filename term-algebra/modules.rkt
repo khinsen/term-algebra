@@ -4,7 +4,7 @@
          (struct-out vterm)
          define-builtin-module
          sort-from op-from
-         lookup-module-hash
+         module-hash lookup-module-hash
          make-module
          make-term make-vterm)
 
@@ -18,7 +18,7 @@
 ;
 ; The data structure for the internal module representation
 ;
-(struct module (name ops rules meta hashcode)
+(struct module (name ops rules imports meta hashcode)
         #:transparent)
 
 ;
@@ -48,13 +48,16 @@
 ;
 ; The module registry
 ;
-(define (hash-of-string s)
-  (sha1 (open-input-string s)))
+(define (module-hash module-name meta-module)
 
-(define (hash-of-meta-module meta-module)
-  (let ([o (open-output-string)])
-    (write meta-module o)
-    (hash-of-string (get-output-string o))))
+  (define (hash-of-string s)
+    (sha1 (open-input-string s)))
+
+  (if meta-module
+      (let ([o (open-output-string)])
+        (write meta-module o)
+        (hash-of-string (get-output-string o)))
+      (hash-of-string (symbol->string module-name))))
 
 (define *modules* (make-hash))
 
@@ -64,11 +67,8 @@
 (define (lookup-module-hash hash)
   (weak-box-value (hash-ref *modules* hash)))
 
-(define (make-module module-name ops rules meta-terms)
-  (let* ([hashcode (if meta-terms
-                       (hash-of-meta-module meta-terms)
-                       (hash-of-string (symbol->string module-name)))]
-         [mod (module module-name ops rules meta-terms hashcode)])
+(define (make-module module-name ops rules imports meta-terms hashcode)
+  (let* ([mod (module module-name ops rules imports meta-terms hashcode)])
     (register-module mod)
     mod))
 
@@ -138,9 +138,9 @@
     [(_ module-name:id
         import-decl:import-builtin ...
         (~optional
-         ((~datum sorts) sort:id ...))
+         ((~datum sorts) s-id:id ...))
         (~optional
-         ((~datum subsorts) (sort1:id sort2:id) ...))
+         ((~datum subsorts) (s-id1:id s-id2:id) ...))
         (~optional
          ((~datum special-ops) s-op:id ...))
         op-decl:op-builtin ...)
@@ -149,12 +149,12 @@
                                            (list import-decl.module ...)
                                            (list import-decl.use ...))
                                     #'(list))]
-                   [sort-list (if (attribute sort)
-                                  #'(list (quote sort) ...)
+                   [sort-list (if (attribute s-id)
+                                  #'(list (quote s-id) ...)
                                   #'(list))]
-                   [subsort-list (if (attribute sort1)
-                                     #'(list (cons (quote sort1)
-                                                   (quote sort2))
+                   [subsort-list (if (attribute s-id1)
+                                     #'(list (cons (quote s-id1)
+                                                   (quote s-id2))
                                              ...)
                                      #'(list))]
                    [special-op-set (if (attribute s-op)
@@ -170,33 +170,63 @@
                                 #'(append op-decl.fns ...)
                                 #'(list))])
        #'(define module-name
-           (let* ([sorts (for/fold ([sorts (sorts:empty-sort-graph)])
-                                   ([import import-list])
-                           (sorts:merge-sort-graph
-                            (operators:op-set-sorts (module-ops (car import)))
-                            sorts))]
-                  [sorts (foldl sorts:add-sort sorts sort-list)]
-                  [sorts (for/fold ([sorts sorts])
+           (let*-values
+               ([(hashcode) (module-hash (quote module-name) #f)]
+                [(imports) (for/list ([import-spec import-list])
+                             (match-let ([(cons mod mode) import-spec])
+                               (list mod
+                                     (set-add (module-imports mod)
+                                              (module-hashcode mod))
+                                     mode)))]
+                [(sorts _) (for/fold ([sorts (sorts:empty-sort-graph)]
+                                      [ignore (set)])
+                                     ([import imports])
+                             (values (sorts:merge-sort-graph
+                                      (operators:op-set-sorts
+                                       (module-ops (first import)))
+                                      ignore
+                                      sorts)
+                                     (set-union ignore (second import))))]
+                [(sorts) (for/fold ([sorts sorts])
+                                   ([sort sort-list])
+                           (sorts:add-sort sort hashcode sorts))]
+                [(sorts) (for/fold ([sorts sorts])
                                    ([sort-pair subsort-list])
                            (sorts:add-subsort (car sort-pair) (cdr sort-pair)
-                                              sorts))]
-                  [ops (for/fold ([ops (operators:empty-op-set sorts)])
-                                 ([mod import-list])
-                         (operators:merge-op-set (module-ops (car mod))
-                                                 (cdr mod) ops))]
-                  [ops (for/fold ([ops ops])
+                                              hashcode sorts))]
+                [(ops _) (for/fold ([ops (operators:empty-op-set sorts)]
+                                    [ignore (set)])
+                                   ([import imports])
+                           (values (operators:merge-op-set
+                                    (module-ops (first import))
+                                    (third import)
+                                    ignore
+                                    ops)
+                                   (set-union ignore (second import))))]
+                [(ops) (for/fold ([ops ops])
                                  ([op-spec op-list])
                          (match-let ([(list symbol domain range properties)
                                       op-spec])
                            (operators:add-op symbol domain range
-                                             properties ops)))]
-                  [ops (for/fold ([ops ops])
+                                             properties hashcode ops)))]
+                [(ops) (for/fold ([ops ops])
                                  ([s-op-symbol s-op-list])
-                         (operators:add-special-op s-op-symbol ops))]
-                  [rules (rules:empty-rules)])
-             (for ([import import-list])
-               (rules:merge-rules (module-rules (car import)) rules))
+                         (operators:add-special-op s-op-symbol hashcode ops))]
+                [(rules) (rules:empty-rules)])
+             (for/fold ([ignore (set)])
+                       ([import imports])
+               (rules:merge-rules! (module-rules (first import))
+                                   ignore
+                                   rules)
+               (set-union ignore (second import)))
              (for ([fn-spec fn-list])
                (match-let ([(list symbol proc-expr) fn-spec])
-                 (rules:add-proc! symbol proc-expr rules)))
-             (make-module (quote module-name) ops rules #f))))]))
+                 (rules:add-proc! symbol proc-expr hashcode rules)))
+             (make-module (quote module-name)
+                          ops
+                          rules
+                          (for/fold ([all-imports (set)])
+                                    ([import imports])
+                            (set-union all-imports (second import)))
+                          #f
+                          hashcode))))]))

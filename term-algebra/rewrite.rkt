@@ -21,25 +21,27 @@
          [rules (hash-ref (modules:module-rules module) key empty)]
          [ops (modules:module-ops module)])
     (or (for/fold ([rewritten-term #f])
-                  ([rule rules])
+                  ([rule-with-origin rules])
           #:break rewritten-term
-          (if (procedure? rule)
-              ; special rule (function)
-              (with-handlers ([exn:fail? (lambda (v) #f)])
-                (apply rule (terms:term-args a-term)))
-              ; rewrite rule
-              (let* ([pattern (rules:rule-pattern rule)]
-                     [condition (rules:rule-condition rule)]
-                     [value (rules:rule-replacement rule)]
-                     [s (terms:match-pattern pattern a-term ops)])
-                (if s
-                    (if condition
-                        (and (equal? (reduce (terms:substitute condition s ops)
-                                             module)
-                                     true-term)
-                             (terms:substitute value s ops))
-                        (terms:substitute value s ops))
-                    #f))))
+          (let ([rule (car rule-with-origin)])
+            (if (procedure? rule)
+                ; special rule (function)
+                (with-handlers ([exn:fail? (lambda (v) #f)])
+                  (apply rule (terms:term-args a-term)))
+                ; rewrite rule
+                (let* ([pattern (rules:rule-pattern rule)]
+                       [condition (rules:rule-condition rule)]
+                       [value (rules:rule-replacement rule)]
+                       [s (terms:match-pattern pattern a-term ops)])
+                  (if s
+                      (if condition
+                          (and (equal? (reduce (terms:substitute condition
+                                                                 s ops)
+                                               module)
+                                       true-term)
+                               (terms:substitute value s ops))
+                          (terms:substitute value s ops))
+                      #f)))))
         a-term)))
 
 (define (rewrite-leftmost-innermost a-term module)

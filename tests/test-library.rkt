@@ -4,36 +4,13 @@
 
 (require rackunit
          term-algebra/api
-         term-algebra/library
-         (prefix-in modules: term-algebra/modules))
+         term-algebra/library)
 
 (define-syntax-rule (check-reduce module initial-term reduced-term)
   (check-equal? (reduce (term module initial-term))
                 (term module reduced-term)))
 
-(define-module test
-  (use boolean)
-  (extend boolean))
-
 (define-test-suite library-tests
-
-  (test-case "rule-verification"
-    (check-equal? (length (hash-ref (modules:module-rules boolean) 'not))
-                  2)
-    (check-equal? (length (hash-ref (modules:module-rules boolean) 'and))
-                  3)
-    (check-equal? (length (hash-ref (modules:module-rules boolean) 'or))
-                  3)
-    (check-equal? (length (hash-ref (modules:module-rules boolean) 'xor))
-                  3)
-    (check-equal? (length (hash-ref (modules:module-rules test) 'not))
-                  2)
-    (check-equal? (length (hash-ref (modules:module-rules test) 'and))
-                  3)
-    (check-equal? (length (hash-ref (modules:module-rules test) 'or))
-                  3)
-    (check-equal? (length (hash-ref (modules:module-rules test) 'xor))
-                  3))
 
   (test-case "boolean"
     (check-reduce boolean (not true)  false)

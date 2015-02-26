@@ -123,12 +123,12 @@
 
   (define-syntax-class import
     #:description "import"
-    #:datum-literals (use extend)
+    #:datum-literals (use include)
     (pattern (use module:id)
              #:with value #'(mterm 'use
                                    (list (modules:module-hashcode module))))
-    (pattern (extend module:id)
-             #:with value #'(mterm 'extend
+    (pattern (include module:id)
+             #:with value #'(mterm 'include
                                    (list (modules:module-hashcode module)))))
 
   (define-syntax-class sort

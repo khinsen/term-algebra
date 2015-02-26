@@ -16,7 +16,7 @@
   (subsorts [A C] [B C] [X Y] [Y Z]))
 
 (define-builtin-module sort-test-2
-  (extend sort-test-1)
+  (include sort-test-1)
   (subsorts [A X]))
 
 

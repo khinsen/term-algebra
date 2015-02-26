@@ -13,7 +13,7 @@
 
 (api:define-module test
   (use library:boolean)
-  (extend library:boolean))
+  (include library:boolean))
 
 (define-test-suite module-tests
 

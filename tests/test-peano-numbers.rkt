@@ -49,7 +49,7 @@
 
 (define-module pn+
   (use builtin:rational)
-  (extend pn)
+  (include pn)
   (op (from-natural Natural) PN)
   (=-> (from-natural 0) zero)
   (=-> #:var [N NonZeroNatural]

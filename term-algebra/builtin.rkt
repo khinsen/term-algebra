@@ -75,7 +75,7 @@
   (fn = (lambda (x y) (if (= x y) true false))))
 
 (modules:define-builtin-module integer
-  (extend natural)
+  (include natural)
 
   (sorts Integer NonZeroInteger)
 
@@ -105,7 +105,7 @@
   (op (= Integer Integer) Boolean))
 
 (modules:define-builtin-module rational
-  (extend integer)
+  (include integer)
 
   (sorts Rational NonZeroRational PositiveRational)
 

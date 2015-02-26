@@ -32,7 +32,7 @@
 
 (modules:define-builtin-module meta-pattern
 
-  (extend meta-term)
+  (include meta-term)
 
   (sorts Pattern PatternArgList)
   (subsorts [Term Pattern] [ArgList PatternArgList])
@@ -43,7 +43,7 @@
 
 (modules:define-builtin-module meta-module
 
-  (extend meta-pattern)
+  (include meta-pattern)
 
   (sorts Module
          ImportList Import
@@ -56,7 +56,7 @@
   (op (imports Import ...) ImportList)
   (op (imports) ImportList)
   (op (use String) Import)
-  (op (extend String) Import)
+  (op (include String) Import)
 
   (op (sorts Symbol ...) SortList)
   (op (sorts) SortList)
@@ -138,7 +138,7 @@
       (match import
         [(mterm 'use (list hashcode))
          (cons (modules:lookup-module-hash hashcode) #t)]
-        [(mterm 'extend (list hashcode))
+        [(mterm 'include (list hashcode))
          (cons (modules:lookup-module-hash hashcode) #f)]
         [_ (error "Invalid import term " import)])))
 

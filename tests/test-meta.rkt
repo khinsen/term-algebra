@@ -20,7 +20,7 @@
       #rx"Term.*contains variables that are not in the rule pattern"
     (lambda ()
       (define-module test2
-        (extend test)
+        (include test)
         (=-> #:vars ([X A] [Y B]) (foo X) Y))
       (void)))
   
@@ -28,7 +28,7 @@
       #rx"Condition.*contains variables that are not in the rule pattern"
     (lambda ()
       (define-module test2
-        (extend test)
+        (include test)
         (=-> #:vars ([X A] [Y B]) (foo X) #:if (== X Y) X))
       (void)))
   
@@ -36,7 +36,7 @@
       #rx"Condition.*not of sort Boolean"
     (lambda ()
       (define-module test2
-        (extend test)
+        (include test)
         (=-> #:var [X A] (foo X) #:if X X))
       (void)))
   
@@ -44,7 +44,7 @@
       #rx"Undefined operator.*"
     (lambda ()
       (define-module test2
-        (extend test)
+        (include test)
         (=-> #:var [X A] (bar X) (foo X)))
       (void)))
   
@@ -66,7 +66,7 @@
   (test-not-exn "rule-for-imported-op"
     (lambda ()
       (define-module test
-        (extend builtin:truth)
+        (include builtin:truth)
         (=-> true false))
       (void))))
 

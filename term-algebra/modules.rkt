@@ -95,7 +95,7 @@
     #:attributes (module use)
     (pattern ((~datum use) module:id)
              #:with use #'#t)
-    (pattern ((~datum extend) module:id)
+    (pattern ((~datum include) module:id)
              #:with use #'#f))
 
   (define-syntax-class op-builtin

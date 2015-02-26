@@ -65,7 +65,7 @@
 
     (let ()
       (define-builtin-module test2
-        (extend test)
+        (include test)
         (op (foo Z) A))
       (let* ([op-hash (op-set-ops (module-ops test2))]
              [foo-op (hash-ref op-hash 'foo)])
@@ -81,7 +81,7 @@
 
     (let ()
       (define-builtin-module test2
-        (extend test)
+        (include test)
         (op (foo B) Z))
       (let* ([op-hash (op-set-ops (module-ops test2))]
              [foo-op (hash-ref op-hash 'foo)])
@@ -95,7 +95,7 @@
   (test-case "variable-arity"
     (let ()
       (define-builtin-module test2
-        (extend test)
+        (include test)
         (op (foo Z ...) A))
       (let* ([op-hash (op-set-ops (module-ops test2))]
              [foo-op (hash-ref op-hash 'foo)])
@@ -128,7 +128,7 @@
       #rx"Operator .*bar.* is not preregular.*"
       (lambda ()
         (define-builtin-module error
-          (extend test)
+          (include test)
           (op (bar C B) Z)
           (op (bar A C) Y))
         (void)))
@@ -137,7 +137,7 @@
       #rx"Operator .*foo.* must have the kind of sort.*"
       (lambda ()
         (define-builtin-module error
-          (extend test)
+          (include test)
           (op (foo B) A))
         (void)))
 
@@ -145,7 +145,7 @@
       #rx"Conflicting fixed and variable arity definitions.*"
       (lambda ()
         (define-builtin-module error
-          (extend test)
+          (include test)
           (op (foo B ...) Z))
         (void)))
 
@@ -153,14 +153,14 @@
       #rx"Signature .* already defined"
     (lambda ()
       (define-builtin-module error
-        (extend test)
+        (include test)
         (op (foo A) X))
       (void)))
   
   (test-not-exn "direct and indirect import"
     (lambda ()
       (define-builtin-module test2
-        (extend test))
+        (include test))
       (define-builtin-module import-test
         (use test)
         (use test2))

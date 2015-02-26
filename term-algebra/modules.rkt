@@ -3,7 +3,6 @@
 (provide (struct-out module)
          (struct-out vterm)
          define-builtin-module
-         sort-from op-from
          module-hash lookup-module-hash
          make-module
          make-term make-vterm)
@@ -66,18 +65,6 @@
 
 (define (lookup-module-hash hash)
   (weak-box-value (hash-ref *modules* hash)))
-
-(define (sort-from module sort-symbol)
-  (if (sorts:has-sort? sort-symbol
-                       (operators:op-set-sorts (module-ops module)))
-      sort-symbol
-      (error (format "no sort ~s in module ~s" sort-symbol module))))
-
-(define (op-from module op-symbol)
-  (if (operators:has-op? op-symbol
-                         (module-ops module))
-      op-symbol
-      (error (format "no op ~s in module ~s" op-symbol module))))
 
 (define (make-term op args module)
   (terms:make-term op args (module-ops module)))

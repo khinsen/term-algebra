@@ -3,8 +3,7 @@
 (provide sort-tests)
 
 (require rackunit
-         (only-in term-algebra/modules define-builtin-module
-                                       sort-from module-ops)
+         (only-in term-algebra/modules define-builtin-module module-ops)
          (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators))
 

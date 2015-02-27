@@ -163,7 +163,31 @@
       (define-builtin-module import-test
         (use test)
         (use test2))
-      (void))))
+      (void)))
+  
+  (test-exn "restricted import"
+      #rx"Operator .* was imported in restricted mode"
+    (lambda ()
+      (define-builtin-module test2
+        (use test)
+        (op (foo B) Z))
+      (void)))
+  (test-not-exn "unrestricted import"
+    (lambda ()
+      (define-builtin-module test2
+        (include test)
+        (op (foo B) Z))
+      (void)))
+  (test-not-exn "restricted and unrestricted import"
+    (lambda ()
+      (define-builtin-module import-test
+        (use test))
+      (define-builtin-module test2
+        (use import-test)
+        (include test)
+        (op (foo B) Z))
+      (void)))
+  )
 
 (module* main #f
   (require rackunit/text-ui)

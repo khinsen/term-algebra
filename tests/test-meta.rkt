@@ -57,7 +57,7 @@
       (void)))
   
   (test-exn "no-rule-for-imported-op"
-      #rx"cannot add rule to imported operator.*"
+      #rx"Cannot add rule for operator .* imported in restricted mode"
     (lambda ()
       (define-module test
         (use builtin:truth)

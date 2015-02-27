@@ -86,6 +86,25 @@
                  (use sort-test-1)
                  (use sort-test-2))
             import-test))
+  (test-exn "restricted import"
+      #rx"both sorts from restricted import.*"
+    (lambda () (define-builtin-module import-test
+                 (use sort-test-1)
+                 (subsorts [A X]))
+            import-test))
+  (test-not-exn "unrestricted import"
+    (lambda () (define-builtin-module import-test
+                 (include sort-test-1)
+                 (subsorts [A X]))
+            import-test))
+  (test-not-exn "restricted and unrestricted import"
+    (lambda () (define-builtin-module import-test-1
+                 (use sort-test-1))
+               (define-builtin-module import-test-2
+                 (use import-test-1)
+                 (include sort-test-1)
+                 (subsorts [A X]))
+            import-test-2))
 
   (test-case "kinds-1"
     (check-equal? (sorts:kind 'A (module-sorts sort-test-1))

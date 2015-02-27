@@ -159,65 +159,70 @@
 (define (make-module module-name meta-terms
                      import-list sort-list subsort-list
                      op-list s-op-list fn-list)
+
+  (define (merge-imports imports1 imports2)
+    (for/fold ([imports imports1])
+              ([kv (hash->list imports2)])
+      (hash-set imports (car kv) (cdr kv))))
+
   (let*-values
       ([(imports) (for/list ([import-spec import-list])
-                    (match-let ([(cons mod mode) import-spec])
+                    (match-let ([(cons mod rmode) import-spec])
                       (list mod
-                            (set-add (module-imports mod)
-                                     (module-hashcode mod))
-                            mode)))]
+                            (hash-set
+                             (if rmode
+                                 (for/hash ([(hashcode _)
+                                             (in-hash (module-imports mod))])
+                                   (values hashcode #t))
+                                 (module-imports mod))
+                             (module-hashcode mod) rmode))))]
+       [(all-imports) (for/fold ([all-imports (hash)])
+                                ([import imports])
+                        (merge-imports all-imports (second import)))]
        [(hashcode) (module-hash module-name meta-terms)]
        [(sorts _) (for/fold ([sorts (sorts:empty-sort-graph)]
-                             [ignore (set)])
+                             [prior-imports (hash)])
                             ([import imports])
                     (values (sorts:merge-sort-graph
                              (operators:op-set-sorts
                               (module-ops (first import)))
-                             ignore
+                             prior-imports
                              sorts)
-                            (set-union ignore (second import))))]
+                            (merge-imports prior-imports (second import))))]
        [(sorts) (for/fold ([sorts sorts])
                           ([sort sort-list])
-                  (sorts:add-sort sort hashcode sorts))]
+                  (sorts:add-sort sort hashcode all-imports sorts))]
        [(sorts) (for/fold ([sorts sorts])
                           ([sort-pair subsort-list])
                   (sorts:add-subsort (car sort-pair) (cdr sort-pair)
-                                     hashcode sorts))]
+                                     hashcode all-imports sorts))]
        [(ops _) (for/fold ([ops (operators:empty-op-set sorts)]
-                           [ignore (set)])
+                           [prior-imports (hash)])
                           ([import imports])
                   (values (operators:merge-op-set
                            (module-ops (first import))
-                           (third import)
-                           ignore
+                           prior-imports
                            ops)
-                          (set-union ignore (second import))))]
+                          (merge-imports prior-imports (second import))))]
        [(ops) (for/fold ([ops ops])
                         ([op-spec op-list])
                 (match-let ([(list symbol domain range properties)
                              op-spec])
                   (operators:add-op symbol domain range
-                                    properties hashcode ops)))]
+                                    properties hashcode all-imports ops)))]
        [(ops) (for/fold ([ops ops])
                         ([s-op-symbol s-op-list])
-                (operators:add-special-op s-op-symbol hashcode ops))]
+                (operators:add-special-op s-op-symbol hashcode all-imports ops))]
        [(rules) (rules:empty-rules)])
-    (for/fold ([ignore (set)])
+    (for/fold ([prior-imports (hash)])
               ([import imports])
       (rules:merge-rules! (module-rules (first import))
-                          ignore
+                          prior-imports
                           rules)
-      (set-union ignore (second import)))
+      (merge-imports prior-imports (second import)))
     (for ([fn-spec fn-list])
       (match-let ([(list symbol proc-expr) fn-spec])
         (rules:add-proc! symbol proc-expr hashcode rules)))
-    (let ([mod (module module-name
-                       ops
-                       rules
-                       (for/fold ([all-imports (set)])
-                                 ([import imports])
-                         (set-union all-imports (second import)))
-                       meta-terms
-                       hashcode)])
+    (let ([mod (module module-name ops rules all-imports meta-terms hashcode)])
       (register-module mod)
       mod)))

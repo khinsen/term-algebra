@@ -44,13 +44,13 @@
 (define (empty-rules)
   (make-hash))
 
-(define (merge-rules! to-merge ignored-origins rules)
+(define (merge-rules! to-merge prior-imports rules)
   (hash-for-each to-merge
                  (λ (key value)
                    (define new-rules
                      (for/list ([rule value]
-                                #:when (not (set-member? ignored-origins
-                                                         (cdr rule))))
+                                #:when (not (hash-has-key? prior-imports
+                                                           (cdr rule))))
                        rule))
                    (hash-update! rules
                                  key

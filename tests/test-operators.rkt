@@ -186,8 +186,7 @@
         (use import-test)
         (include test)
         (op (foo B) Z))
-      (void)))
-  )
+      (void))))
 
 (module* main #f
   (require rackunit/text-ui)

@@ -79,7 +79,7 @@
             (ormap (λ (dk) (conflict? domain-kinds dk)) fixed))
     (error "Conflicting fixed and variable arity definitions.")))
 
-(define (add-op symbol domain range properties origin ops)
+(define (add-op symbol domain range properties origin imports ops)
   (define debug (member symbol '()))
   (when debug
     (printf "--- add-op ~s ~s ---\n" domain range))
@@ -107,6 +107,10 @@
                (let* ([op-signatures (operator-signatures op)]
                       [first-signature (first op-signatures)]
                       [first-range (signature-range first-signature)])
+                 (when (ormap (λ (s) (hash-ref imports (signature-origin s) #f))
+                              op-signatures)
+                   (error (format "Operator ~s was imported in restricted mode"
+                                  symbol)))
                  (unless (equal? properties (operator-properties op))
                    (error (format "Operator ~s must have properties ~s"
                                   symbol (operator-properties op))))
@@ -140,8 +144,8 @@
                                          domain-kinds extended-op))
               (op-set-special-ops ops)))))
 
-(define (add-special-op special-op origin ops)
-  ; 'origin' isn't used by the current implementation
+(define (add-special-op special-op origin imports ops)
+  ; origin and imports aren't used by the current implementation
   (unless (member special-op '(string symbol natural-number
                                       integer-number rational-number))
     (error "Illegial special op " special-op))
@@ -162,13 +166,14 @@
                           (operator-properties op)
                           (signature-origin sig))))))))))
 
-(define (merge-op-set to-merge mark-imported? ignored-origins ops)
-  ; mark-imported? is currently ignored
+(define (merge-op-set to-merge prior-imports ops)
+  (define unrestricted (for/hash ([(hashcode _) (in-hash prior-imports)])
+                         (values hashcode #f)))
   (define merged-ops
     (for/fold ([ops ops])
               ([spec (op-definitions to-merge)]
-               #:when (not (set-member? ignored-origins (last spec))))
-      (apply add-op (append spec (list ops)))))
+               #:when (not (hash-has-key? prior-imports (last spec))))
+      (apply add-op (append spec (list unrestricted ops)))))
   (op-set (op-set-sorts merged-ops)
           (op-set-ops merged-ops)
           (set-union (op-set-special-ops merged-ops)

@@ -3,7 +3,8 @@
 (provide empty-op-set op-set-sorts
          add-op add-special-op merge-op-set
          has-op? has-special-op? has-var-arity?
-         lookup-op lookup-var-arity-op
+         lookup-range lookup-var-arity-range
+         lookup-origin lookup-var-arity-origin
          op-definitions)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -201,28 +202,30 @@
                                          (length (signature-domain sig)))
                                  (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
                                          arg-sorts (signature-domain sig))))
-           (signature-range sig))))
+           (cons op-fixed sig))))
 
   (define (lookup-var arg-sorts op-var sorts)
     (and op-var
          (for/first ([sig (operator-signatures op-var)]
                      #:when (andmap (λ (s) (sorts:is-sort?
-                                            s (first (signature-domain sig)) sorts))
+                                            s (first (signature-domain sig))
+                                            sorts))
                                     arg-sorts))
-           (signature-range sig))))
+           (cons op-var sig))))
 
   (define (lookup-any arg-sorts op-any sorts)
     (and op-any
          (for/first ([sig (operator-signatures op-any)]
                      #:when (andmap (λ (s) (sorts:is-sort?
-                                            s (first (signature-domain sig)) sorts))
+                                            s (first (signature-domain sig))
+                                            sorts))
                                     arg-sorts))
-           (signature-range sig))))
+           (cons op-any sig))))
 
   (define (lookup-var-any op-any)
     ; A var-arity operator with domain sort Any matches everything.
     (and op-any
-         (signature-range (first (operator-signatures op-any)))))
+         (cons op-any (first (operator-signatures op-any)))))
 
   (let* ([sorts (op-set-sorts ops)]
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
@@ -248,8 +251,9 @@
          (for/first ([sig (operator-signatures op-var)]
                      #:when (and (sorts:is-sort?
                                   arg-sort (first (signature-domain sig)) sorts)
-                                 (sorts:is-sort? range-sort (signature-range sig) sorts)))
-           (signature-range sig))))
+                                 (sorts:is-sort? range-sort
+                                                 (signature-range sig) sorts)))
+           (cons op-var sig))))
 
   (define (lookup-var-any op-any)
     ; A var-arity operator with domain sort Any matches everything.
@@ -262,3 +266,25 @@
          [op-var (hash-ref ops-for-symbol domain-kind #f)])
     (or (lookup-var arg-sort range-sort op-var sorts)
         (lookup-var-any (hash-ref ops-for-symbol 'Any #f)))))
+
+
+(define (lookup-range symbol arg-sorts ops)
+  (let ([op-sig (lookup-op symbol arg-sorts ops)])
+    (and op-sig
+         (signature-range (cdr op-sig)))))
+
+(define (lookup-var-arity-range symbol arg-sort range-sort ops)
+  (let ([op-sig (lookup-var-arity-op symbol arg-sort range-sort ops)])
+    (and op-sig
+         (signature-range (cdr op-sig)))))
+
+(define (lookup-origin symbol arg-sorts ops)
+  (let ([op-sig (lookup-op symbol arg-sorts ops)])
+    (and op-sig
+         (signature-origin (cdr op-sig)))))
+
+(define (lookup-var-arity-origin symbol arg-sort range-sort ops)
+  (let ([op-sig (lookup-var-arity-op symbol arg-sort range-sort ops)])
+    (and op-sig
+         (signature-origin (cdr op-sig)))))
+

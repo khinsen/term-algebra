@@ -197,7 +197,16 @@
             [rules (modules:module-rules mod)]
             [hashcode (modules:module-hashcode mod)])
        (for ([rule (rule-list mod rule-terms)])
-         (rules:add-rule! rule hashcode rules))
+         (let ([pattern (rules:rule-pattern rule)]
+               [imports (modules:module-imports mod)])
+           (when (and (terms:term? pattern)
+                      (hash-ref imports 
+                                (terms:op-origin pattern
+                                                 (modules:module-ops mod))
+                                #f))
+             (error (format "Cannot add rule for operator ~s imported in restricted mode"
+                            (terms:term-op pattern)))))
+         (rules:add-rule! rule hashcode  rules))
        mod)]
     [_ (error "Invalid meta module " meta-terms)]))
 

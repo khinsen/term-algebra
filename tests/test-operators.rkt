@@ -39,25 +39,25 @@
     (check-equal? X-kind (set 'X 'Y 'Z)))
 
   (test-case "operator-lookup"
-    (check-equal? (operators:lookup-op 'foo (list 'A) test-ops)
+    (check-equal? (operators:lookup-range 'foo (list 'A) test-ops)
                   'X)
-    (check-equal? (operators:lookup-op 'foo (list 'B) test-ops)
+    (check-equal? (operators:lookup-range 'foo (list 'B) test-ops)
                   'Z)
-    (check-equal? (operators:lookup-op 'foo (list 'C) test-ops)
+    (check-equal? (operators:lookup-range 'foo (list 'C) test-ops)
                   'Z)
-    (check-equal? (operators:lookup-op 'foo (list 'X) test-ops)
+    (check-equal? (operators:lookup-range 'foo (list 'X) test-ops)
                   #f))
 
   (test-case "operator-lookup-any"
-    (check-equal? (operators:lookup-op 'foo (list 'X) test-any-ops)
+    (check-equal? (operators:lookup-range 'foo (list 'X) test-any-ops)
                   'X)
-    (check-equal? (operators:lookup-op 'foo (list 'X 'X) test-any-ops)
+    (check-equal? (operators:lookup-range 'foo (list 'X 'X) test-any-ops)
                   'Y)
-    (check-equal? (operators:lookup-op 'bar empty test-any-ops)
+    (check-equal? (operators:lookup-range 'bar empty test-any-ops)
                   #f)
-    (check-equal? (operators:lookup-op 'bar (list 'X) test-any-ops)
+    (check-equal? (operators:lookup-range 'bar (list 'X) test-any-ops)
                   'X)
-    (check-equal? (operators:lookup-op 'bar (list 'X 'X) test-any-ops)
+    (check-equal? (operators:lookup-range 'bar (list 'X 'X) test-any-ops)
                   'X))
 
   (test-case "operator-definition"

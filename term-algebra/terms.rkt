@@ -5,7 +5,8 @@
          vars-in-term
          sort-of
          make-term make-ht-pattern make-special-term
-         match-pattern substitute)
+         match-pattern substitute
+         op-origin)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators))
@@ -57,7 +58,7 @@
    [else (error "unknown term type" gterm)]))
 
 (define (range-sort op args op-set)
-  (operators:lookup-op op (map sort-of args) op-set))
+  (operators:lookup-range op (map sort-of args) op-set))
 
 (define (make-term op args op-set)
   (unless (operators:has-op? op op-set)
@@ -72,7 +73,7 @@
   (unless (operators:has-op? op op-set)
     (error "Undefined operator " op))
   (let ([sort
-         (operators:lookup-var-arity-op
+         (operators:lookup-var-arity-range
           op (sort-of head) (sort-of tail) op-set)])
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op (cons head tail))))
@@ -162,10 +163,18 @@
     (hash-ref substitution pattern)]
    [(term? pattern)
     (let* ([op-symbol (term-op pattern)]
-           [sort (operators:lookup-op
+           [sort (operators:lookup-range
                   op-symbol (map sort-of (term-args pattern)) op-set)])
       (term op-symbol
             (map (λ (arg) (substitute arg substitution op-set))
                  (term-args pattern))
             sort))]
    [else pattern]))
+
+(define (op-origin term op-set)
+  (let ([op (term-op term)]
+        [args (term-args term)])
+    (if (list? args)
+        (operators:lookup-origin op (map sort-of args) op-set)
+        (operators:lookup-var-arity-origin
+         op (sort-of (car args)) (sort-of (cdr args)) op-set))))

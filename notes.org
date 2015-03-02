@@ -1,6 +1,8 @@
 * Open questions
 ** Semantics of import modes
-"use" and "include" were clear in the absence of overloading. They are not any more. In the current implementation they are equivalent. Proposed rules:
+"use" and "include" were clear in the absence of overloading. They are not any more. In the current implementation they are equivalent.
+
+The current rules:
 *** Sorts
 Subsort declarations must involve at least one sort that is not imported in restricted mode.
 *** Operators
@@ -12,7 +14,7 @@ This causes lots of special cases. Perhaps it should not be exposed (reserved fo
 ** Domains for division
 What should the range sort of (/ 1 0) be?
 ** Sorts in equations
-In Maude, left and right hand side must be of the same kind. In OBJ3, the right-hand side must be of lower sort.
+In Maude, left and right hand side must be of the same kind. In OBJ3, the right-hand side must be of lower sort. This is the currently implemented behavior.
 *** Illustration (legal in Maude, but not in OBJ3)
 fmod ABCD is
   sorts A B C D .

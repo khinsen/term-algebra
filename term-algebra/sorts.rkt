@@ -7,7 +7,8 @@
          check-subsort-graph
          is-sort?
          kind
-         subsorts)
+         subsorts
+         least-common-sort)
 
 (require graph)
 
@@ -123,3 +124,20 @@
     (for/set ([s (kind sort graph)]
               #:when (hash-ref tc (list s sort)))
       s)))
+
+(define (least-common-sort graph sort1 . other-sorts)
+  ; In case of multiple equidistant common sorts, return an
+  ; arbitrary one. The function is intended for use with argument
+  ; sorts from an operator signature. Regularity guarantees that
+  ; there is a unique least common sort.
+  ; The implementation is not very efficient.
+  (define-values (dist _) (bfs (sort-graph-dag graph) sort1))
+  (define-values (least-sort __)
+    (for/fold ([least-sort #f]
+               [min-distance #f])
+              ([(sort distance) (in-hash dist)]
+               #:when (andmap (λ (s) (is-subsort? s sort graph)) other-sorts))
+      (if (or (not min-distance) (< distance min-distance))
+          (values sort distance)
+          (values least-sort min-distance))))
+  least-sort)

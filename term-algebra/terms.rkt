@@ -84,14 +84,19 @@
     (term op args sort)))
 
 (define (make-pattern op args op-set)
-  (let ([nsvars (count svar? args)])
-    (cond
-      [(zero? nsvars) (make-term op args op-set)]
-      [(and (equal? nsvars 1)
-            (svar? (last args)))
-       (make-term op args op-set)]
-      [else
-       (error "svar allowed only as last argument")])))
+  (unless (operators:has-op? op op-set)
+    (error "Undefined operator " op))
+  (let* ([nsvars (count svar? args)]
+         [sort (cond
+                 [(zero? nsvars)
+                  (operators:lookup-range op (map sort-of args) op-set)]
+                 [(and (equal? nsvars 1)
+                       (svar? (last args)))
+                  (operators:lookup-var-arity-range*
+                   op (map sort-of args) op-set)]
+                 [else
+                  (error "svar allowed only as last argument")])])
+    (term op args sort)))
 
 (define (make-ht-pattern op head tail op-set)
   ; TODO Should check more carefully that the resulting term has a well-defined sort.
@@ -146,28 +151,58 @@
                 #f
                 (hash-set s-acc var value))))))
 
+  (define (match-var var target sorts)
+    (if (sorts:is-sort? (sort-of target) (var-sort var) sorts)
+        (hash var target)
+        #f))
+
+  (define (match-svar svar targets sorts)
+    (if (andmap (λ (t) (sorts:is-sort? (sort-of t) (svar-sort svar) sorts))
+                targets)
+        (hash svar targets)
+        #f))
+  
   (define (match-pattern* pattern target sorts)
     (cond
-      ; svar
-     [(var? pattern)
-      (if (sorts:is-sort? (sort-of target) (var-sort pattern) sorts)
-          (hash pattern target)
-          #f)]
-     [(and (term? pattern)
-           (term? target)
-           (equal? (term-op pattern) (term-op target)))
-      (let ([p-args (term-args pattern)]
-            [t-args (term-args target)])
-        (if (list? p-args)
+      [(var? pattern)
+       (match-var pattern target sorts)]
+      [(and (term? pattern)
+            (term? target)
+            (equal? (term-op pattern) (term-op target)))
+       (let ([p-args (term-args pattern)]
+             [t-args (term-args target)])
+         (cond
+           [(and (list? p-args)
+                 (not (empty? p-args))
+                 (svar? (last p-args)))
+            ; The pattern has an svar argument
+            (cond
+              [(< (length t-args) (- (length p-args) 1))
+               ; Not enough arguments
+               #f]
+              [else
+               (define n-fix (- (length p-args) 1))
+               (for/fold ([subst (match-svar
+                                  (last p-args) (drop t-args n-fix) sorts)])
+                         ([p-arg (take p-args n-fix)]
+                          [t-arg (take t-args n-fix)])
+                  #:break (not subst)
+                  (merge-substitutions subst
+                                       (match-pattern* p-arg t-arg sorts)))])
+            ]
+           [(list? p-args)
             ; The pattern is a standard term
-            (if (equal? (length p-args) (length t-args))
-                (for/fold ([subst (hash)])
+            (cond
+              [(equal? (length p-args) (length t-args))
+               ; Matching number of arguments
+               (for/fold ([subst (hash)])
                           ([p-arg p-args]
                            [t-arg t-args])
                   #:break (not subst)
                   (merge-substitutions subst
-                                       (match-pattern* p-arg t-arg sorts)))
-                #f)
+                                       (match-pattern* p-arg t-arg sorts)))]
+              [else #f])]
+           [else
             ; The pattern is a head-tail term
             (let ([sort (range-sort (term-op target) (rest t-args) op-set)])
               (and sort
@@ -175,11 +210,11 @@
                     (match-pattern* (car p-args) (first t-args) sorts)
                     (match-pattern* (cdr p-args)
                                     (term (term-op target) (rest t-args) sort)
-                                    sorts))))))]
-     [(equal? pattern target)
-      (hash)]
-     [else
-      #f]))
+                                    sorts))))]))]
+      [(equal? pattern target)
+       (hash)]
+      [else
+       #f]))
 
   (match-pattern* pattern target (operators:op-set-sorts op-set)))
 
@@ -190,12 +225,16 @@
     (hash-ref substitution pattern)]
    [(term? pattern)
     (let* ([op-symbol (term-op pattern)]
+           [p-args (term-args pattern)]
+           [args (if (and (not (empty? p-args)) (svar? (last p-args)))
+                     (append (map (λ (arg) (substitute arg substitution op-set))
+                                  (drop-right p-args 1))
+                             (hash-ref substitution (last p-args)))
+                     (map (λ (arg) (substitute arg substitution op-set))
+                          p-args))]
            [sort (operators:lookup-range
-                  op-symbol (map sort-of (term-args pattern)) op-set)])
-      (term op-symbol
-            (map (λ (arg) (substitute arg substitution op-set))
-                 (term-args pattern))
-            sort))]
+                  op-symbol (map sort-of args) op-set)])
+      (term op-symbol args sort))]
    [else pattern]))
 
 (define (op-origin term op-set)

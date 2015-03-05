@@ -151,7 +151,15 @@
     (check-equal? (sorts:subsorts 'Y (module-sorts sort-test-2))
                   (set 'A 'X 'Y))
     (check-equal? (sorts:subsorts 'Z (module-sorts sort-test-2))
-                  (set 'A 'X 'Y 'Z))))
+                  (set 'A 'X 'Y 'Z))
+    (check-equal? (sorts:least-common-sort (module-sorts sort-test-1) 'A 'B)
+                  'C)
+    (check-equal? (sorts:least-common-sort (module-sorts sort-test-1) 'A 'C)
+                  'C)
+    (check-equal? (sorts:least-common-sort (module-sorts sort-test-1) 'A 'B 'C)
+                  'C)
+    (check-equal? (sorts:least-common-sort (module-sorts sort-test-2) 'A 'Y)
+                  'Y)))
 
 
 (module* main #f

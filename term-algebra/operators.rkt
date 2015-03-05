@@ -3,8 +3,8 @@
 (provide empty-op-set op-set-sorts
          add-op add-special-op merge-op-set
          has-op? has-special-op? has-var-arity?
-         lookup-range lookup-var-arity-range
-         lookup-origin lookup-var-arity-origin
+         lookup-range lookup-var-arity-range lookup-var-arity-range*
+         lookup-origin lookup-var-arity-origin lookup-var-arity-origin*
          op-definitions)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -267,6 +267,27 @@
     (or (lookup-var arg-sort range-sort op-var sorts)
         (lookup-var-any (hash-ref ops-for-symbol 'Any #f)))))
 
+(define (lookup-var-arity-op* symbol arg-sorts ops)
+
+  (define (lookup-var arg-sort op-var sorts)
+    (and op-var
+         (for/first ([sig (operator-signatures op-var)]
+                     #:when (sorts:is-sort?
+                             arg-sort (first (signature-domain sig)) sorts))
+           (cons op-var sig))))
+
+  (define (lookup-var-any op-any)
+    ; A var-arity operator with domain sort Any matches everything.
+    (and op-any
+         (signature-range (first (operator-signatures op-any)))))
+
+  (let* ([sorts (op-set-sorts ops)]
+         [lcsort (apply sorts:least-common-sort (cons sorts arg-sorts))]
+         [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
+         [domain-kind (sorts:kind lcsort sorts)]
+         [op-var (hash-ref ops-for-symbol domain-kind #f)])
+    (or (lookup-var lcsort op-var sorts)
+        (lookup-var-any (hash-ref ops-for-symbol 'Any #f)))))
 
 (define (lookup-range symbol arg-sorts ops)
   (let ([op-sig (lookup-op symbol arg-sorts ops)])
@@ -275,6 +296,11 @@
 
 (define (lookup-var-arity-range symbol arg-sort range-sort ops)
   (let ([op-sig (lookup-var-arity-op symbol arg-sort range-sort ops)])
+    (and op-sig
+         (signature-range (cdr op-sig)))))
+
+(define (lookup-var-arity-range* symbol arg-sorts ops)
+  (let ([op-sig (lookup-var-arity-op* symbol arg-sorts ops)])
     (and op-sig
          (signature-range (cdr op-sig)))))
 
@@ -288,3 +314,7 @@
     (and op-sig
          (signature-origin (cdr op-sig)))))
 
+(define (lookup-var-arity-origin* symbol arg-sorts ops)
+  (let ([op-sig (lookup-var-arity-op* symbol arg-sorts ops)])
+    (and op-sig
+         (signature-origin (cdr op-sig)))))

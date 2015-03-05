@@ -18,7 +18,10 @@
   (let* ([vars-in-pattern (terms:vars-in-term pattern)]
          [vars-in-replacement (terms:vars-in-term replacement)]
          [declared-vars (list->set
-                         (hash-map vars (λ (name sort) (terms:var name sort))))])
+                         (hash-map vars (λ (name spec)
+                                          (if (cdr spec)
+                                              (terms:svar name (car spec))
+                                              (terms:var name (car spec))))))])
     (when condition
       (unless (sorts:is-sort? (terms:sort-of condition) 'Boolean
                               (operators:op-set-sorts ops))

@@ -55,7 +55,27 @@
         (use builtin:truth)
         (=-> #:var [X Boolean] true false))
       (void)))
-  
+
+  (test-exn "svar-in-wrong-position"
+      #rx"svar allowed only as last argument"
+    (lambda ()
+      (define-module test
+        (sort A)
+        (op (foo A ...) A)
+        (=-> #:vars ([X A] [Y A ...])
+             (foo Y X)
+             (foo X)))
+      (void)))
+  (test-not-exn "svar-in-right-position"
+    (lambda ()
+      (define-module test
+        (sort A)
+        (op (foo A ...) A)
+        (=-> #:vars ([X A] [Y A ...])
+             (foo X Y)
+             (foo Y)))
+      (void)))
+
   (test-exn "no-rule-for-imported-op"
       #rx"Cannot add rule for operator .* imported in restricted mode"
     (lambda ()

@@ -64,7 +64,10 @@
     #:attributes (var var-symbol)
     (pattern [var-symbol:id sort-symbol:id]
              #:with var
-             #'(mterm 'var (list (quote var-symbol) (quote sort-symbol)))))
+             #'(mterm 'var (list (quote var-symbol) (quote sort-symbol))))
+    (pattern [var-symbol:id sort-symbol:id (~datum ...)]
+             #:with var
+             #'(mterm 'svar (list (quote var-symbol) (quote sort-symbol)))))
 
   (define-splicing-syntax-class variable-list
     #:description "variable list in a rule"

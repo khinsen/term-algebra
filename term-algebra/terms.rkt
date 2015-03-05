@@ -2,9 +2,10 @@
 
 (provide (struct-out term)
          (struct-out var)
+         (struct-out svar)
          vars-in-term
          sort-of
-         make-term make-ht-pattern make-special-term
+         make-term make-pattern make-ht-pattern make-special-term
          match-pattern substitute
          op-origin)
 
@@ -31,23 +32,37 @@
             (write-string ":" port)
             (write (var-sort var) port))))
 
+(struct svar (symbol sort)
+        #:transparent
+        #:property prop:custom-write
+        (lambda (svar port mode)
+          (begin
+            (write (svar-symbol svar) port)
+            (write-string ":" port)
+            (write (svar-sort svar) port)
+            (write-string "..." port))))
+
 ; Basic operations
 
 (define (vars-in-term term)
   (cond
-   [(var? term)  (set term)]
-   [(term? term) (let ([args (term-args term)])
-                   (cond
-                     [(empty? args) (set)]
-                     [(list? args) (apply set-union (map vars-in-term args))]
-                     [else (set-union (vars-in-term (car args))
-                                      (vars-in-term (cdr args)))]))]
-   [else         (set)]))
+    [(or (var? term) (svar? term))
+     (set term)]
+    [(term? term)
+     (let ([args (term-args term)])
+       (cond
+         [(empty? args) (set)]
+         [(list? args) (apply set-union (map vars-in-term args))]
+         [else (set-union (vars-in-term (car args))
+                          (vars-in-term (cdr args)))]))]
+    [else
+     (set)]))
 
 (define (sort-of gterm)
   (cond
    [(term? gterm)   (term-sort gterm)]
    [(var? gterm)    (var-sort gterm)]
+   [(svar? gterm)    (svar-sort gterm)]
    [(symbol? gterm) 'Symbol]
    [(string? gterm) 'String]
    [(and (number? gterm) (exact? gterm))
@@ -67,6 +82,16 @@
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op args)))
     (term op args sort)))
+
+(define (make-pattern op args op-set)
+  (let ([nsvars (count svar? args)])
+    (cond
+      [(zero? nsvars) (make-term op args op-set)]
+      [(and (equal? nsvars 1)
+            (svar? (last args)))
+       (make-term op args op-set)]
+      [else
+       (error "svar allowed only as last argument")])))
 
 (define (make-ht-pattern op head tail op-set)
   ; TODO Should check more carefully that the resulting term has a well-defined sort.
@@ -123,6 +148,7 @@
 
   (define (match-pattern* pattern target sorts)
     (cond
+      ; svar
      [(var? pattern)
       (if (sorts:is-sort? (sort-of target) (var-sort pattern) sorts)
           (hash pattern target)
@@ -159,6 +185,7 @@
 
 (define (substitute pattern substitution op-set)
   (cond
+    ; svar
    [(var? pattern)
     (hash-ref substitution pattern)]
    [(term? pattern)

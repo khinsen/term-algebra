@@ -78,6 +78,7 @@
   (op (vars Var ...) VarList)
   (op (vars) VarList)
   (op (var Symbol Symbol) Var)
+  (op (svar Symbol Symbol) Var)
   (op no-condition Term))
 
 (define meta-term-ops (modules:module-ops meta-term))
@@ -149,24 +150,28 @@
                 ([var-term var-terms])
         (match var-term
           [(mterm 'var (list var sort))
-           (hash-set vars var sort)]
+           (hash-set vars var (cons sort #f))]
+          [(mterm 'svar (list var sort))
+           (hash-set vars var (cons sort #t))]
           [_ (error "Invalid var term " var-term)])))
 
     (define (pattern-from-meta module vars meta-term)
       (match meta-term
         [(or (mterm 'term (list op (mterm 'args args)))
              (mterm 'pattern (list op (mterm 'args args))))
-         (terms:make-term op
-                          (map (λ (arg)
-                                 (pattern-from-meta module vars arg)) args)
-                          (modules:module-ops module))]
+         (let* ([args (map (λ (arg)
+                             (pattern-from-meta module vars arg)) args)])
+           (terms:make-pattern op args (modules:module-ops module)))]
         [(mterm 'pattern (list op (mterm 'head-tail (list head tail))))
          (terms:make-ht-pattern op
                                 (pattern-from-meta module vars head)
                                 (pattern-from-meta module vars tail)
                                 (modules:module-ops module))]
         [(mterm 'var-ref (list var-name))
-         (terms:var var-name (hash-ref vars var-name))]
+         (let ([var-spec (hash-ref vars var-name)])
+           (if (cdr var-spec)
+               (terms:svar var-name (car var-spec))
+               (terms:var var-name (car var-spec))))]
         [(mterm 'no-condition empty)
          #f]
         [_ (terms:make-special-term meta-term (modules:module-ops module))]))

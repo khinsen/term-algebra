@@ -25,39 +25,42 @@
 
 (begin-for-syntax
 
-  (define-syntax-class (term var-symbols)
-    #:description "term"
-    (pattern symbol:id
-             #:with value
-             #`(if (set-member? #,var-symbols (quote symbol))
-                   (tterm 'var-ref (list (quote symbol)))
-                   (tterm 'term (list (quote symbol)
-                                  (tterm 'args (list))))))
+  (define-syntax-class atom
+    #:description "atomic term"
+    #:attributes (value)
     (pattern s:str #:with value #'s)
     (pattern ((~literal quote) symbol:id)
              #:with value #'(quote symbol))
-    (pattern (symbol:id (~var arg-terms (term var-symbols)) ...)
-             #:with value
-             #'(tterm 'term (list (quote symbol)
-                                  (tterm 'args (list arg-terms.value ...)))))
     (pattern x:number #:when (exact? (syntax-e #'x))
              #:with value #'x))
 
-  (define-syntax-class (term-pattern var-symbols)
-    #:description "term pattern"
-    (pattern (symbol:id (~var head (term-pattern var-symbols))
-                        (~datum :)
-                        (~var tail (term-pattern var-symbols)))
+  (define-syntax-class term
+    #:description "term"
+    #:attributes (value)
+    (pattern a:atom #:with value #'a.value)
+    (pattern symbol:id
              #:with value
-             #'(pterm 'pattern (list (quote symbol)
-                                     (pterm 'head-tail (list head.value
-                                                             tail.value)))))
+             #`(tterm 'term (list (quote symbol)
+                                  (tterm 'args (list)))))
+    (pattern (symbol:id arg-terms:term ...)
+             #:with value
+             #'(tterm 'term (list (quote symbol)
+                                  (tterm 'args (list arg-terms.value ...))))))
+
+  (define-syntax-class (term-pattern var-symbols)
+    #:description "term or pattern"
+    #:attributes (value)
+    (pattern a:atom #:with value #'a.value)
+    (pattern symbol:id
+             #:with value
+             #`(if (set-member? #,var-symbols (quote symbol))
+                   (pterm 'var-ref (list (quote symbol)))
+                   (pterm 'term (list (quote symbol)
+                                  (tterm 'args (list))))))
     (pattern (symbol:id (~var arg-terms (term-pattern var-symbols)) ...)
              #:with value
              #'(pterm 'pattern (list (quote symbol)
-                                     (pterm 'args (list arg-terms.value ...)))))
-    (pattern (~var t (term var-symbols))
-             #:with value #'t.value))
+                                     (pterm 'args (list arg-terms.value ...))))))
 
   (define-syntax-class variable
     #:description "variable in rule"
@@ -113,10 +116,10 @@
                              #:defaults ([vars.value #'(mterm 'vars empty)]
                                          [vars.symbols #'(set)]))
                   (~var left (term-pattern #'var-symbols))
-                  (~optional (~seq #:if (~var cond (term #'var-symbols)))
+                  (~optional (~seq #:if (~var cond (term-pattern #'var-symbols)))
                              #:defaults ([cond.value #'no-condition]))
 
-                  (~var right (term #'var-symbols)))
+                  (~var right (term-pattern #'var-symbols)))
              #:with ops #'(list)
              #:with rules
              #'(let ([var-symbols vars.symbols])
@@ -187,10 +190,10 @@
 
 (define-syntax (meta-term stx)
   (syntax-parse stx
-    [(_  (~var expr (term #'(set))))
+    [(_  expr:term)
      #'(modules:make-vterm meta:meta-term expr.value)]))
 
 (define-syntax (term stx)
   (syntax-parse stx
-    [(_ module:expr (~var expr (term #'(set))))
+    [(_ module:expr expr:term)
      #'(modules:make-vterm module (meta:meta-down module expr.value))]))

@@ -5,7 +5,7 @@
          (struct-out svar)
          vars-in-term
          sort-of
-         make-term make-pattern make-ht-pattern make-special-term
+         make-term make-pattern make-special-term
          match-pattern substitute
          op-origin)
 
@@ -50,19 +50,16 @@
      (set term)]
     [(term? term)
      (let ([args (term-args term)])
-       (cond
-         [(empty? args) (set)]
-         [(list? args) (apply set-union (map vars-in-term args))]
-         [else (set-union (vars-in-term (car args))
-                          (vars-in-term (cdr args)))]))]
-    [else
-     (set)]))
+       (if (empty? args)
+           (set)
+           (apply set-union (map vars-in-term args))))]
+    [else (set)]))
 
 (define (sort-of gterm)
   (cond
    [(term? gterm)   (term-sort gterm)]
    [(var? gterm)    (var-sort gterm)]
-   [(svar? gterm)    (svar-sort gterm)]
+   [(svar? gterm)   (svar-sort gterm)]
    [(symbol? gterm) 'Symbol]
    [(string? gterm) 'String]
    [(and (number? gterm) (exact? gterm))
@@ -72,13 +69,10 @@
       [else (if (positive? gterm) 'PositiveRational 'NonZeroRational)])]
    [else (error "unknown term type" gterm)]))
 
-(define (range-sort op args op-set)
-  (operators:lookup-range op (map sort-of args) op-set))
-
 (define (make-term op args op-set)
   (unless (operators:has-op? op op-set)
     (error "Undefined operator " op))
-  (let ([sort (range-sort op args op-set)])
+  (let ([sort (operators:lookup-range op (map sort-of args) op-set)])
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op args)))
     (term op args sort)))
@@ -92,22 +86,11 @@
                   (operators:lookup-range op (map sort-of args) op-set)]
                  [(and (equal? nsvars 1)
                        (svar? (last args)))
-                  (operators:lookup-var-arity-range*
+                  (operators:lookup-var-arity-range
                    op (map sort-of args) op-set)]
                  [else
                   (error "svar allowed only as last argument")])])
     (term op args sort)))
-
-(define (make-ht-pattern op head tail op-set)
-  ; TODO Should check more carefully that the resulting term has a well-defined sort.
-  (unless (operators:has-op? op op-set)
-    (error "Undefined operator " op))
-  (let ([sort
-         (operators:lookup-var-arity-range
-          op (sort-of head) (sort-of tail) op-set)])
-    (unless sort
-      (error "Wrong number or sort of arguments: " (cons op (cons head tail))))
-    (term op (cons head tail) sort)))
 
 (define (make-special-term value op-set)
   (cond
@@ -172,8 +155,7 @@
        (let ([p-args (term-args pattern)]
              [t-args (term-args target)])
          (cond
-           [(and (list? p-args)
-                 (not (empty? p-args))
+           [(and (not (empty? p-args))
                  (svar? (last p-args)))
             ; The pattern has an svar argument
             (cond
@@ -190,7 +172,7 @@
                   (merge-substitutions subst
                                        (match-pattern* p-arg t-arg sorts)))])
             ]
-           [(list? p-args)
+           [else
             ; The pattern is a standard term
             (cond
               [(equal? (length p-args) (length t-args))
@@ -201,16 +183,7 @@
                   #:break (not subst)
                   (merge-substitutions subst
                                        (match-pattern* p-arg t-arg sorts)))]
-              [else #f])]
-           [else
-            ; The pattern is a head-tail term
-            (let ([sort (range-sort (term-op target) (rest t-args) op-set)])
-              (and sort
-                   (merge-substitutions
-                    (match-pattern* (car p-args) (first t-args) sorts)
-                    (match-pattern* (cdr p-args)
-                                    (term (term-op target) (rest t-args) sort)
-                                    sorts))))]))]
+              [else #f])]))]
       [(equal? pattern target)
        (hash)]
       [else
@@ -240,7 +213,4 @@
 (define (op-origin term op-set)
   (let ([op (term-op term)]
         [args (term-args term)])
-    (if (list? args)
-        (operators:lookup-origin op (map sort-of args) op-set)
-        (operators:lookup-var-arity-origin
-         op (sort-of (car args)) (sort-of (cdr args)) op-set))))
+    (operators:lookup-origin op (map sort-of args) op-set)))

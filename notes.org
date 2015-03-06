@@ -36,4 +36,5 @@ result [D,B]: foo(d)
 
 * Details to be defined at some point
 ** Which symbols are legal identifiers?
+- currently 'quote' cannot be used as an identifier because of the Lisp-liks syntax for quoted symbols
 ** How is the module hashcode computed?

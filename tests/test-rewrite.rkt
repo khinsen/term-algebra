@@ -21,8 +21,8 @@
 
   (op (or Boolean ...) Boolean)
   (=-> #:var [X Boolean] (or X) X)
-  (=-> #:var [X Boolean] (or true : X) true)
-  (=-> #:var [X Boolean] (or false : X) X))
+  (=-> #:var [Xs Boolean ...] (or true Xs) true)
+  (=-> #:var [Xs Boolean ...] (or false  Xs) (or Xs)))
 
 (define-module test
   (use builtin:equality)

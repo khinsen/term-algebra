@@ -21,12 +21,9 @@
   (use builtin:symbol)
 
   (sorts Term ArgList)
-
   (subsorts [Rational Term] [String Term] [Symbol Term])
 
   (op (term Symbol ArgList) Term)
-  (op (var-ref Symbol) Term)
-
   (op (args Term ...) ArgList)
   (op (args) ArgList))
 
@@ -37,9 +34,9 @@
   (sorts Pattern PatternArgList)
   (subsorts [Term Pattern] [ArgList PatternArgList])
 
+  (op (var-ref Symbol) Pattern)
   (op (pattern Symbol PatternArgList) Pattern)
-  (op (args Pattern ...) PatternArgList)
-  (op (head-tail Pattern Pattern) PatternArgList))
+  (op (args Pattern ...) PatternArgList))
 
 (modules:define-builtin-module meta-module
 
@@ -74,12 +71,12 @@
 
   (op (rules Rule ...) RuleList)
   (op (rules) RuleList)
-  (op (=-> VarList Pattern Term Term) Rule)
+  (op (=-> VarList Pattern Pattern Pattern) Rule)
   (op (vars Var ...) VarList)
   (op (vars) VarList)
   (op (var Symbol Symbol) Var)
   (op (svar Symbol Symbol) Var)
-  (op no-condition Term))
+  (op no-condition Pattern))
 
 (define meta-term-ops (modules:module-ops meta-term))
 (define meta-module-ops (modules:module-ops meta-module))
@@ -162,11 +159,6 @@
          (let* ([args (map (λ (arg)
                              (pattern-from-meta module vars arg)) args)])
            (terms:make-pattern op args (modules:module-ops module)))]
-        [(mterm 'pattern (list op (mterm 'head-tail (list head tail))))
-         (terms:make-ht-pattern op
-                                (pattern-from-meta module vars head)
-                                (pattern-from-meta module vars tail)
-                                (modules:module-ops module))]
         [(mterm 'var-ref (list var-name))
          (let ([var-spec (hash-ref vars var-name)])
            (if (cdr var-spec)

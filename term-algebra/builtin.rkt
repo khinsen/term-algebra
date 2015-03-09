@@ -1,6 +1,7 @@
 #lang racket
 
-(provide any truth equality string symbol natural integer rational)
+(provide any truth equality string symbol natural integer rational
+         lookup-module)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in modules: term-algebra/modules)
@@ -139,3 +140,18 @@
   (op (< Rational Rational) Boolean)
   (op (<= Rational Rational) Boolean)
   (op (= Rational Rational) Boolean))
+
+;
+; Lookup builtin module by name
+;
+(define (lookup-module name)
+  (case name
+    ['any any]
+    ['truth truth]
+    ['equality equality]
+    ['string string]
+    ['symbol symbol]
+    ['natural natural]
+    ['integer integer]
+    ['rational rational]
+    [else #f]))

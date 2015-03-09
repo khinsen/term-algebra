@@ -6,11 +6,13 @@
          vars-in-term
          sort-of
          make-term make-pattern make-special-term
+         term-hashcode
          match-pattern substitute
          op-origin)
 
 (require (prefix-in sorts: term-algebra/sorts)
-         (prefix-in operators: term-algebra/operators))
+         (prefix-in operators: term-algebra/operators)
+         (only-in file/sha1 sha1))
 
 ; Struct definitions
 
@@ -117,6 +119,13 @@
                         (error "import builtin:integer to use integer numbers")
                         (error "import builtin:natural to use natural numbers"))))))]
    [else (error "invalid special term " value)]))
+
+(define (term-hashcode a-term)
+  (define (hash-of-string s)
+    (sha1 (open-input-string s)))
+  (let ([o (open-output-string)])
+    (write a-term o)
+    (hash-of-string (get-output-string o))))
 
 ; Pattern matching and substitution
 

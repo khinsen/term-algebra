@@ -1,6 +1,7 @@
 #lang racket
 
-(provide define-module define-meta-module meta-module 
+(provide define-module module
+         define-unchecked-module unchecked-module
          term meta-term)
 
 (require (prefix-in modules: term-algebra/modules)
@@ -20,7 +21,8 @@
 (define no-condition (mterm 'no-condition empty))
 
 (define (unwrap-vterm vterm)
-  (modules:vterm-term vterm))
+  ;;; TODO
+  vterm)
 
 (begin-for-syntax
 
@@ -133,10 +135,10 @@
     #:datum-literals (use include)
     (pattern (use module:id)
              #:with value #'(mterm 'use
-                                   (list (modules:module-hashcode module))))
+                                   (list (meta:module-hashcode module))))
     (pattern (include module:id)
              #:with value #'(mterm 'include
-                                   (list (modules:module-hashcode module)))))
+                                   (list (meta:module-hashcode module)))))
 
   (define-syntax-class sort
     #:description "sort"
@@ -158,13 +160,13 @@
              #'(list (mterm 'subsort
                             (list (quote s-id1) (quote s-id2))) ...))))
 
-(define-syntax (meta-module stx)
+(define-syntax (unchecked-module stx)
   (syntax-parse stx
     [(_ module-name:id
         import-decl:import ...
         sort-decl:sort ...
         op-decl:operator ...)
-     #'(modules:make-vterm meta:m-module
+     #'(meta:make-vterm meta:m-module
         (mterm 'module
                (list (quote module-name)
                      (mterm 'imports
@@ -178,23 +180,27 @@
                      (mterm 'rules
                             (append op-decl.rules ...)))))]))
 
-(define-syntax (define-meta-module stx)
+(define-syntax (define-unchecked-module stx)
   (syntax-parse stx
     [(_ module-name:id decl ...)
-     #'(define module-name (meta-module module-name decl ...))]))
+     #'(define module-name (unchecked-module module-name decl ...))]))
+
+(define-syntax (module stx)
+  (syntax-parse stx
+    [(_ arg ...)
+     #'(meta:check-module (unchecked-module arg ...))]))
 
 (define-syntax (define-module stx)
   (syntax-parse stx
     [(_ module-name:id decl ...)
-     #'(define module-name
-         (meta:meta-down meta:m-module (meta-module module-name decl ...)))]))
+     #'(define module-name (module module-name decl ...))]))
 
 (define-syntax (meta-term stx)
   (syntax-parse stx
     [(_  expr:term)
-     #'(modules:make-vterm meta:m-term expr.value)]))
+     #'(meta:make-vterm meta:m-term expr.value)]))
 
 (define-syntax (term stx)
   (syntax-parse stx
     [(_ module:expr expr:term)
-     #'(meta:meta-down module (modules:make-vterm meta:m-term expr.value))]))
+     #'(meta:meta-down module (meta-term expr))]))

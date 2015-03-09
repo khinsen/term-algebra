@@ -10,6 +10,7 @@
 
 (require/expose term-algebra/operators [op-set-ops
                                         operator-signatures])
+(require/expose term-algebra/meta [internal-module])
 
 (api:define-module test
   (use library:boolean)
@@ -18,8 +19,9 @@
 (define-test-suite module-tests
 
   (test-case "op-verification"
-    (define ops1 (op-set-ops (modules:module-ops library:boolean)))
-    (define ops2 (op-set-ops (modules:module-ops test)))
+    (define ops1 (op-set-ops
+                  (modules:module-ops (internal-module library:boolean))))
+    (define ops2 (op-set-ops (modules:module-ops (internal-module test))))
     (define sig-1 (list (set 'Boolean)))
     (define sig-n (set 'Boolean))
     (check-equal? (hash-count ops1) 6)
@@ -36,21 +38,24 @@
                            (hash-ref (hash-ref ops2 'and ) sig-n))) 1))
 
   (test-case "rule-verification"
-    (check-equal? (length (hash-ref (modules:module-rules library:boolean) 'not))
+    (define boolean-rules (modules:module-rules
+                           (internal-module library:boolean)))
+    (define test-rules (modules:module-rules (internal-module test)))
+    (check-equal? (length (hash-ref boolean-rules 'not))
                   2)
-    (check-equal? (length (hash-ref (modules:module-rules library:boolean) 'and))
+    (check-equal? (length (hash-ref boolean-rules 'and))
                   3)
-    (check-equal? (length (hash-ref (modules:module-rules library:boolean) 'or))
+    (check-equal? (length (hash-ref boolean-rules 'or))
                   3)
-    (check-equal? (length (hash-ref (modules:module-rules library:boolean) 'xor))
+    (check-equal? (length (hash-ref boolean-rules 'xor))
                   3)
-    (check-equal? (length (hash-ref (modules:module-rules test) 'not))
+    (check-equal? (length (hash-ref test-rules 'not))
                   2)
-    (check-equal? (length (hash-ref (modules:module-rules test) 'and))
+    (check-equal? (length (hash-ref test-rules 'and))
                   3)
-    (check-equal? (length (hash-ref (modules:module-rules test) 'or))
+    (check-equal? (length (hash-ref test-rules 'or))
                   3)
-    (check-equal? (length (hash-ref (modules:module-rules test) 'xor))
+    (check-equal? (length (hash-ref test-rules 'xor))
                   3)))
 
 (module* main #f

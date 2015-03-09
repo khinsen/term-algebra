@@ -1,63 +1,26 @@
 #lang racket
 
 (provide (struct-out module)
-         (struct-out vterm)
          define-builtin-module
-         module-hash lookup-module-hash
+         lookup-module-hash
          make-module
-         make-term make-vterm)
+         make-term)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
          (prefix-in terms: term-algebra/terms)
          (prefix-in rules: term-algebra/rules)
-         (for-syntax syntax/parse)
-         (only-in file/sha1 sha1))
+         (for-syntax syntax/parse))
 
 ;
 ; The data structure for the internal module representation
 ;
-(struct module (name ops rules imports meta hashcode)
+(struct module (name ops rules imports hashcode)
         #:transparent)
-
-;
-; The data structure for a term validated with reference to a module
-;
-(struct vterm (module sort term)
-        #:transparent
-        #:property prop:custom-write
-        (lambda (vterm port mode)
-          (define (write-term term op-set port)
-            (let ([op (terms:term-op term)])
-              (if (and (null? (terms:term-args term))
-                       (not (operators:has-var-arity? op op-set)))
-                  (write op port)
-                  (write (cons op (terms:term-args term)) port))))
-          (let* ([mod (vterm-module vterm)]
-                 [ops (module-ops mod)]
-                 [term (vterm-term vterm)])
-            (write (module-name mod) port)
-            (write-string ":" port)
-            (write (vterm-sort vterm) port)
-            (write-string ":" port)
-            (if (terms:term? term)
-                (write-term term ops port)
-                (write term port)))))
 
 ;
 ; The module registry
 ;
-(define (module-hash module-name meta-module)
-
-  (define (hash-of-string s)
-    (sha1 (open-input-string s)))
-
-  (if meta-module
-      (let ([o (open-output-string)])
-        (write meta-module o)
-        (hash-of-string (get-output-string o)))
-      (hash-of-string (symbol->string module-name))))
-
 (define *modules* (make-hash))
 
 (define (register-module module)
@@ -68,9 +31,6 @@
 
 (define (make-term op args module)
   (terms:make-term op args (module-ops module)))
-
-(define (make-vterm module term)
-  (vterm module (terms:sort-of term) term))
 
 ;
 ; Macro for defining builtin modules
@@ -152,7 +112,10 @@
                                 #'(append op-decl.fns ...)
                                 #'(list))])
        #'(define module-name
-           (make-module (quote module-name) #f
+           (make-module (quote module-name)
+                        (terms:term 'builtin-module
+                                    (list (quote module-name))
+                                    'Module)
                         import-list sort-list subsort-list
                         op-list s-op-list fn-list)))]))
 
@@ -179,7 +142,7 @@
        [(all-imports) (for/fold ([all-imports (hash)])
                                 ([import imports])
                         (merge-imports all-imports (second import)))]
-       [(hashcode) (module-hash module-name meta-terms)]
+       [(hashcode) (terms:term-hashcode meta-terms)]
        [(sorts _) (for/fold ([sorts (sorts:empty-sort-graph)]
                              [prior-imports (hash)])
                             ([import imports])
@@ -223,6 +186,6 @@
     (for ([fn-spec fn-list])
       (match-let ([(list symbol proc-expr) fn-spec])
         (rules:add-proc! symbol proc-expr hashcode rules)))
-    (let ([mod (module module-name ops rules all-imports meta-terms hashcode)])
+    (let ([mod (module module-name ops rules all-imports hashcode)])
       (register-module mod)
       mod)))

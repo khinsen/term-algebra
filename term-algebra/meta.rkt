@@ -1,7 +1,10 @@
 #lang racket
 
 (provide m-term m-pattern m-module
-         meta-up meta-down)
+         meta-up meta-down
+         make-vterm
+         (struct-out vterm)
+         check-module module-hashcode)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
@@ -10,6 +13,34 @@
          (prefix-in builtin: term-algebra/builtin)
          (prefix-in rules: term-algebra/rules)
          (for-syntax syntax/parse))
+
+;
+; The data structure for a term validated with reference to a module
+;
+(struct vterm (module sort term)
+        #:transparent
+        #:property prop:custom-write
+        (lambda (vterm port mode)
+          (define (write-term term op-set port)
+            (let ([op (terms:term-op term)])
+              (if (and (null? (terms:term-args term))
+                       (not (operators:has-var-arity? op op-set)))
+                  (write op port)
+                  (write (cons op (terms:term-args term)) port))))
+          (let* ([mod (vterm-module vterm)]
+                 [ops (modules:module-ops mod)]
+                 [term (vterm-term vterm)])
+            (write (modules:module-name mod) port)
+            (write-string ":" port)
+            (write (vterm-sort vterm) port)
+            (write-string ":" port)
+            (if (terms:term? term)
+                (write-term term ops port)
+                (write term port)))))
+
+; A specialized version for module terms that caches the
+; internal representation
+(struct module-vterm vterm ([internal #:mutable]))
 
 ;
 ; The meta-representation of terms and modules as terms
@@ -48,6 +79,8 @@
          OpList Op Domain
          RuleList Rule VarList Var)
 
+  (op (builtin-module Symbol) Module)
+
   (op (module Symbol ImportList SortList SubsortList OpList RuleList) Module)
 
   (op (imports Import ...) ImportList)
@@ -81,6 +114,16 @@
 (define m-term-ops (modules:module-ops m-term))
 (define m-module-ops (modules:module-ops m-module))
 
+(define (make-vterm module term)
+  (if (equal? module m-module)
+      (module-vterm module (terms:sort-of term) term #f)
+      (vterm module (terms:sort-of term) term)))
+
+(define (internal-module m-vterm)
+  (unless (module-vterm? m-vterm)
+    (error "Not a module: " m-vterm))
+  (module-vterm-internal m-vterm))
+
 (define (meta-up* a-term)
   (cond
     [(terms:term? a-term)
@@ -91,18 +134,10 @@
                                                   (terms:term-args a-term))
                                              m-term-ops))
                       m-term-ops)]
-    [(modules:module? a-term)
-     (modules:module-meta a-term)]
     [else a-term]))
 
 (define (meta-up vterm-or-module)
-  (define module? (modules:module? vterm-or-module))
-  (let* ([term (if module?
-                   (modules:module-meta vterm-or-module)
-                   (modules:vterm-term vterm-or-module))]
-         [mt (meta-up* term)]
-         [m (if module? m-module m-term)])
-    (modules:make-vterm m mt)))
+  (make-vterm m-term (meta-up* (vterm-term vterm-or-module))))
 
 ;
 ; Parse meta-terms into concrete terms
@@ -215,21 +250,41 @@
                             (terms:term-op pattern)))))
          (rules:add-rule! rule hashcode  rules))
        mod)]
+    [(mterm 'builtin-module (list name))
+     (or (builtin:lookup-module name)
+         (case name
+           ['m-term m-term]
+           ['m-pattern m-pattern]
+           ['m-module m-module]
+           [else (error "Unknown builtin module: " name)]))]
     [_ (error "Invalid meta module " meta-terms)]))
 
 (define (meta-down* module a-term)
   (match a-term
     [(mterm 'term (list op-symbol (mterm 'args args)))
      (term-from-meta module op-symbol args)]
-    [(mterm 'module args)
-     #:when (eq? module m-module)
-     (module-from-meta a-term)]
     [(terms:term _ _ _)
      (error "Invalid meta-term " a-term)]
     [_ (terms:make-special-term a-term (modules:module-ops module))]))
 
 (define (meta-down module a-term)
-  (let ([term (meta-down* module (modules:vterm-term a-term))])
-    (if (modules:module? term)
-        term
-        (modules:make-vterm module term))))
+  (unless (module-vterm? module)
+    (error (format "Not a module: ~s" module)))
+  (unless (vterm? a-term)
+    (error (format "Not a term: ~s" a-term)))
+  (let ([int-mod (module-vterm-internal (check-module module))])
+    (make-vterm int-mod (meta-down* int-mod (vterm-term a-term)))))
+
+(define (check-module module-term)
+  (unless (module-vterm? module-term)
+    (error (format "Not a module: ~s" module-term)))
+  (unless (module-vterm-internal module-term)
+    (set-module-vterm-internal! module-term
+                                (module-from-meta (vterm-term module-term))))
+  module-term)
+
+(define (module-hashcode module)
+  (modules:module-hashcode
+   (if (module-vterm? module)
+       (module-vterm-internal (check-module module))
+       module)))

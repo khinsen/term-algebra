@@ -3,9 +3,7 @@
 (provide meta-tests)
 
 (require rackunit
-         (only-in term-algebra/syntax define-module term meta-term)
-         (prefix-in meta: term-algebra/meta)
-         (prefix-in builtin: term-algebra/builtin))
+         term-algebra/api)
 
 (define-module test
   (use builtin:equality)
@@ -19,13 +17,11 @@
 
   (test-case "meta-up-and-down"
     (define a-term (term test (foo aB)))
-    (check-equal? (meta:meta-up a-term)
+    (check-equal? (meta-up a-term)
                   (meta-term (foo aB)))
-    (check-equal? (meta:meta-down meta:m-term
-                                  (meta:meta-up (meta:meta-up a-term)))
-                  (meta:meta-up a-term))
-    (check-equal? (meta:meta-down test
-                                  (meta:meta-up a-term))
+    (check-equal? (meta-down m-term (meta-up (meta-up a-term)))
+                  (meta-up a-term))
+    (check-equal? (meta-down test (meta-up a-term))
                   a-term))
   
   (test-exn "variable-not-in-pattern-1"

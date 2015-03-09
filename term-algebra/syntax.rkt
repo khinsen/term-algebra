@@ -1,6 +1,6 @@
 #lang racket
 
-(provide define-module define-meta-module
+(provide define-module define-meta-module meta-module 
          term meta-term)
 
 (require (prefix-in modules: term-algebra/modules)
@@ -8,20 +8,19 @@
          (prefix-in meta: term-algebra/meta)
          (for-syntax syntax/parse))
 
-(define meta-term-ops (modules:module-ops meta:meta-term))
-(define meta-pattern-ops (modules:module-ops meta:meta-pattern))
-(define meta-module-ops (modules:module-ops meta:meta-module))
-
 (define (mterm op args)
-  (terms:make-term op args meta-module-ops))
+  (terms:make-term op args (modules:module-ops meta:m-module)))
 
 (define (pterm op args)
-  (terms:make-term op args meta-pattern-ops))
+  (terms:make-term op args (modules:module-ops meta:m-pattern)))
 
 (define (tterm op args)
-  (terms:make-term op args meta-term-ops))
+  (terms:make-term op args (modules:module-ops meta:m-term)))
 
 (define no-condition (mterm 'no-condition empty))
+
+(define (unwrap-vterm vterm)
+  (modules:vterm-term vterm))
 
 (begin-for-syntax
 
@@ -45,7 +44,9 @@
     (pattern (symbol:id arg-terms:term ...)
              #:with value
              #'(tterm 'term (list (quote symbol)
-                                  (tterm 'args (list arg-terms.value ...))))))
+                                  (tterm 'args (list arg-terms.value ...)))))
+    (pattern [[expr:expr]]
+             #:with value #'(unwrap-vterm expr)))
 
   (define-syntax-class (term-pattern var-symbols)
     #:description "term or pattern"
@@ -157,43 +158,43 @@
              #'(list (mterm 'subsort
                             (list (quote s-id1) (quote s-id2))) ...))))
 
-(define-syntax (meta-module* stx)
+(define-syntax (meta-module stx)
   (syntax-parse stx
     [(_ module-name:id
         import-decl:import ...
         sort-decl:sort ...
         op-decl:operator ...)
-     #'(mterm 'module
-              (list (quote module-name)
-                    (mterm 'imports
-                           (list import-decl.value ...))
-                    (mterm 'sorts
-                           (append sort-decl.sorts ...))
-                    (mterm 'subsorts
-                           (append sort-decl.subsorts ...))
-                    (mterm 'ops
-                           (append op-decl.ops ...))
-                    (mterm 'rules
-                           (append op-decl.rules ...))))]))
+     #'(modules:make-vterm meta:m-module
+        (mterm 'module
+               (list (quote module-name)
+                     (mterm 'imports
+                            (list import-decl.value ...))
+                     (mterm 'sorts
+                            (append sort-decl.sorts ...))
+                     (mterm 'subsorts
+                            (append sort-decl.subsorts ...))
+                     (mterm 'ops
+                            (append op-decl.ops ...))
+                     (mterm 'rules
+                            (append op-decl.rules ...)))))]))
 
 (define-syntax (define-meta-module stx)
   (syntax-parse stx
     [(_ module-name:id decl ...)
-     #'(define module-name (meta-module* module-name decl ...))]))
+     #'(define module-name (meta-module module-name decl ...))]))
 
 (define-syntax (define-module stx)
   (syntax-parse stx
     [(_ module-name:id decl ...)
      #'(define module-name
-         (meta:meta-down meta:meta-module
-                         (meta-module* module-name decl ...)))]))
+         (meta:meta-down meta:m-module (meta-module module-name decl ...)))]))
 
 (define-syntax (meta-term stx)
   (syntax-parse stx
     [(_  expr:term)
-     #'(modules:make-vterm meta:meta-term expr.value)]))
+     #'(modules:make-vterm meta:m-term expr.value)]))
 
 (define-syntax (term stx)
   (syntax-parse stx
     [(_ module:expr expr:term)
-     #'(modules:make-vterm module (meta:meta-down module expr.value))]))
+     #'(meta:meta-down module (modules:make-vterm meta:m-term expr.value))]))

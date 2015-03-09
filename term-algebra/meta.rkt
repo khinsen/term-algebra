@@ -1,6 +1,6 @@
 #lang racket
 
-(provide meta-term meta-pattern meta-module
+(provide m-term m-pattern m-module
          meta-up meta-down)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -14,7 +14,7 @@
 ;
 ; The meta-representation of terms and modules as terms
 ;
-(modules:define-builtin-module meta-term
+(modules:define-builtin-module m-term
 
   (use builtin:rational)
   (use builtin:string)
@@ -27,9 +27,9 @@
   (op (args Term ...) ArgList)
   (op (args) ArgList))
 
-(modules:define-builtin-module meta-pattern
+(modules:define-builtin-module m-pattern
 
-  (include meta-term)
+  (include m-term)
 
   (sorts Pattern PatternArgList)
   (subsorts [Term Pattern] [ArgList PatternArgList])
@@ -38,9 +38,9 @@
   (op (pattern Symbol PatternArgList) Pattern)
   (op (args Pattern ...) PatternArgList))
 
-(modules:define-builtin-module meta-module
+(modules:define-builtin-module m-module
 
-  (include meta-pattern)
+  (include m-pattern)
 
   (sorts Module
          ImportList Import
@@ -78,21 +78,31 @@
   (op (svar Symbol Symbol) Var)
   (op no-condition Pattern))
 
-(define meta-term-ops (modules:module-ops meta-term))
-(define meta-module-ops (modules:module-ops meta-module))
+(define m-term-ops (modules:module-ops m-term))
+(define m-module-ops (modules:module-ops m-module))
 
-(define (meta-up a-term)
+(define (meta-up* a-term)
   (cond
-   [(terms:term? a-term)
-    (terms:make-term 'term
-                     (list (terms:term-op a-term)
-                           (terms:make-term 'args
-                                            (map meta-up
-                                                 (terms:term-args a-term))
-                                            meta-term-ops))
-                     meta-term-ops)]
-   [(modules:module? a-term) (modules:module-meta a-term)]
-   [else a-term]))
+    [(terms:term? a-term)
+     (terms:make-term 'term
+                      (list (terms:term-op a-term)
+                            (terms:make-term 'args
+                                             (map meta-up*
+                                                  (terms:term-args a-term))
+                                             m-term-ops))
+                      m-term-ops)]
+    [(modules:module? a-term)
+     (modules:module-meta a-term)]
+    [else a-term]))
+
+(define (meta-up vterm-or-module)
+  (define module? (modules:module? vterm-or-module))
+  (let* ([term (if module?
+                   (modules:module-meta vterm-or-module)
+                   (modules:vterm-term vterm-or-module))]
+         [mt (meta-up* term)]
+         [m (if module? m-module m-term)])
+    (modules:make-vterm m mt)))
 
 ;
 ; Parse meta-terms into concrete terms
@@ -110,7 +120,7 @@
        #'(struct* terms:term ([op (==  an-op equal?)] [args (list)]))])))
 
 (define (term-from-meta module op-symbol args)
-  (terms:make-term op-symbol (map (λ (arg) (meta-down module arg)) args)
+  (terms:make-term op-symbol (map (λ (arg) (meta-down* module arg)) args)
                    (modules:module-ops module)))
 
 (define (module-from-meta meta-terms)
@@ -207,13 +217,19 @@
        mod)]
     [_ (error "Invalid meta module " meta-terms)]))
 
-(define (meta-down module a-term)
+(define (meta-down* module a-term)
   (match a-term
     [(mterm 'term (list op-symbol (mterm 'args args)))
      (term-from-meta module op-symbol args)]
     [(mterm 'module args)
-     #:when (eq? module meta-module)
+     #:when (eq? module m-module)
      (module-from-meta a-term)]
     [(terms:term _ _ _)
      (error "Invalid meta-term " a-term)]
     [_ (terms:make-special-term a-term (modules:module-ops module))]))
+
+(define (meta-down module a-term)
+  (let ([term (meta-down* module (modules:vterm-term a-term))])
+    (if (modules:module? term)
+        term
+        (modules:make-vterm module term))))

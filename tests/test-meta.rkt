@@ -3,7 +3,8 @@
 (provide meta-tests)
 
 (require rackunit
-         (only-in term-algebra/syntax define-module term)
+         (only-in term-algebra/syntax define-module term meta-term)
+         (prefix-in meta: term-algebra/meta)
          (prefix-in builtin: term-algebra/builtin))
 
 (define-module test
@@ -16,6 +17,17 @@
 
 (define-test-suite meta-tests
 
+  (test-case "meta-up-and-down"
+    (define a-term (term test (foo aB)))
+    (check-equal? (meta:meta-up a-term)
+                  (meta-term (foo aB)))
+    (check-equal? (meta:meta-down meta:m-term
+                                  (meta:meta-up (meta:meta-up a-term)))
+                  (meta:meta-up a-term))
+    (check-equal? (meta:meta-down test
+                                  (meta:meta-up a-term))
+                  a-term))
+  
   (test-exn "variable-not-in-pattern-1"
       #rx"Term.*contains variables that are not in the rule pattern"
     (lambda ()

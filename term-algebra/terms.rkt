@@ -92,6 +92,8 @@
                    op (map sort-of args) op-set)]
                  [else
                   (error "svar allowed only as last argument")])])
+    (unless sort
+      (error (format "No signature for ~s" (cons op args))))
     (term op args sort)))
 
 (define (make-special-term value op-set)

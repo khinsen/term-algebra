@@ -22,11 +22,21 @@
         #:property prop:custom-write
         (lambda (vterm port mode)
           (define (write-term term op-set port)
-            (let ([op (terms:term-op term)])
-              (if (and (null? (terms:term-args term))
-                       (not (operators:has-var-arity? op op-set)))
-                  (write op port)
-                  (write (cons op (terms:term-args term)) port))))
+            (cond
+              [(terms:term? term)
+               (let ([op (terms:term-op term)])
+                 (if (and (null? (terms:term-args term))
+                          (not (operators:has-var-arity? op op-set)))
+                     (write op port)
+                     (begin
+                       (write-string "(" port)
+                       (write op port)
+                       (for ([arg (terms:term-args term)])
+                         (write-string " " port)
+                         (write-term arg op-set port))
+                       (write-string ")" port))))]
+              [else
+               (print term port)]))
           (let* ([mod (vterm-module vterm)]
                  [ops (modules:module-ops mod)]
                  [term (vterm-term vterm)])
@@ -34,9 +44,7 @@
             (write-string ":" port)
             (write (vterm-sort vterm) port)
             (write-string ":" port)
-            (if (terms:term? term)
-                (write-term term ops port)
-                (write term port)))))
+            (write-term term ops port))))
 
 ; A specialized version for module terms that caches the
 ; internal representation

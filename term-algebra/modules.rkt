@@ -4,7 +4,8 @@
          define-builtin-module
          lookup-module-hash
          make-module
-         make-term)
+         make-term
+         imports?)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
@@ -28,9 +29,6 @@
 
 (define (lookup-module-hash hash)
   (weak-box-value (hash-ref *modules* hash)))
-
-(define (make-term op args module)
-  (terms:make-term op args (module-ops module)))
 
 ;
 ; Macro for defining builtin modules
@@ -129,6 +127,7 @@
       (hash-set imports (car kv) (cdr kv))))
 
   (let*-values
+      ; imports is a list of (hashcode restricted-mode) sublists
       ([(imports) (for/list ([import-spec import-list])
                     (match-let ([(cons mod rmode) import-spec])
                       (list mod
@@ -139,6 +138,7 @@
                                    (values hashcode #t))
                                  (module-imports mod))
                              (module-hashcode mod) rmode))))]
+       ; all-imports maps hashcodes to a boolean indicating restricted mode
        [(all-imports) (for/fold ([all-imports (hash)])
                                 ([import imports])
                         (merge-imports all-imports (second import)))]
@@ -189,3 +189,14 @@
     (let ([mod (module module-name ops rules all-imports hashcode)])
       (register-module mod)
       mod)))
+
+; Make a term relative to a module
+; (used in rewrite.rkt)
+(define (make-term op args module)
+  (terms:make-term op args (module-ops module)))
+
+; Check if a module imports another one
+
+(define (imports? mod-a mod-b)
+  (or (equal? mod-a mod-b)
+      (hash-has-key? (module-imports mod-a) (module-hashcode mod-b))))

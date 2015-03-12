@@ -21,8 +21,7 @@
 (define no-condition (mterm 'no-condition empty))
 
 (define (unwrap-vterm vterm)
-  ;;; TODO
-  vterm)
+  (meta:vterm-term (meta:meta-up vterm)))
 
 (begin-for-syntax
 

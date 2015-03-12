@@ -231,18 +231,17 @@
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
          [domain-kinds (map (λ (s) (sorts:kind s sorts)) arg-sorts)]
          [op-fixed (hash-ref ops-for-symbol domain-kinds #f)])
-    (let ([range (lookup-fixed arg-sorts op-fixed sorts)])
-      (or range
-          (if (empty? arg-sorts)
-              #f
-              (let* ([domain-kind (first domain-kinds)]
-                     [op-var (hash-ref ops-for-symbol domain-kind #f)])
-                (or (lookup-var arg-sorts op-var sorts)
-                    (lookup-any arg-sorts
-                                (hash-ref ops-for-symbol
-                                          (map (λ (s) 'Any) arg-sorts) #f)
-                                sorts)
-                    (lookup-var-any (hash-ref ops-for-symbol 'Any #f)))))))))
+    (or (lookup-fixed arg-sorts op-fixed sorts)
+        (if (empty? arg-sorts)
+            #f
+            (let* ([domain-kind (first domain-kinds)]
+                   [op-var (hash-ref ops-for-symbol domain-kind #f)])
+              (or (lookup-var arg-sorts op-var sorts)
+                  (lookup-any arg-sorts
+                              (hash-ref ops-for-symbol
+                                        (map (λ (s) 'Any) arg-sorts) #f)
+                              sorts)
+                  (lookup-var-any (hash-ref ops-for-symbol 'Any #f))))))))
 
 (define (lookup-var-arity-op symbol arg-sorts ops)
 

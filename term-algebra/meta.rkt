@@ -123,7 +123,7 @@
 (define m-module-ops (modules:module-ops m-module))
 
 (define (make-vterm module term)
-  (if (equal? module m-module)
+  (if (modules:imports? module m-module)
       (module-vterm module (terms:sort-of term) term #f)
       (vterm module (terms:sort-of term) term)))
 

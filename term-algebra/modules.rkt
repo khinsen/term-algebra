@@ -28,7 +28,7 @@
   (hash-set! *modules* (module-hashcode module) (make-weak-box module)))
 
 (define (lookup-module-hash hash)
-  (weak-box-value (hash-ref *modules* hash)))
+  (weak-box-value (hash-ref *modules* hash (make-weak-box #f))))
 
 ;
 ; Macro for defining builtin modules
@@ -126,69 +126,81 @@
               ([kv (hash->list imports2)])
       (hash-set imports (car kv) (cdr kv))))
 
-  (let*-values
-      ; imports is a list of (hashcode restricted-mode) sublists
-      ([(imports) (for/list ([import-spec import-list])
-                    (match-let ([(cons mod rmode) import-spec])
-                      (list mod
-                            (hash-set
-                             (if rmode
-                                 (for/hash ([(hashcode _)
-                                             (in-hash (module-imports mod))])
-                                   (values hashcode #t))
-                                 (module-imports mod))
-                             (module-hashcode mod) rmode))))]
-       ; all-imports maps hashcodes to a boolean indicating restricted mode
-       [(all-imports) (for/fold ([all-imports (hash)])
+  (define hashcode (terms:term-hashcode meta-terms))
+
+  (or (lookup-module-hash hashcode)
+      (let*-values
+          ; imports is a list of (hashcode restricted-mode) sublists
+          ([(imports) (for/list ([import-spec import-list])
+                        (match-let ([(cons mod rmode) import-spec])
+                          (list mod
+                                (hash-set
+                                 (if rmode
+                                     (for/hash ([(hashcode _)
+                                                 (in-hash (module-imports mod))])
+                                       (values hashcode #t))
+                                     (module-imports mod))
+                                 (module-hashcode mod) rmode))))]
+           ; all-imports maps hashcodes to a boolean indicating restricted mode
+           [(all-imports) (for/fold ([all-imports (hash)])
+                                    ([import imports])
+                            (merge-imports all-imports (second import)))]
+           ; The sort graph is constructed from (1) imports, (2) sorts,
+           ; (3) subsorts.
+           [(sorts _) (for/fold ([sorts (sorts:empty-sort-graph)]
+                                 [prior-imports (hash)])
                                 ([import imports])
-                        (merge-imports all-imports (second import)))]
-       [(hashcode) (terms:term-hashcode meta-terms)]
-       [(sorts _) (for/fold ([sorts (sorts:empty-sort-graph)]
-                             [prior-imports (hash)])
-                            ([import imports])
-                    (values (sorts:merge-sort-graph
-                             (operators:op-set-sorts
-                              (module-ops (first import)))
-                             prior-imports
-                             sorts)
-                            (merge-imports prior-imports (second import))))]
-       [(sorts) (for/fold ([sorts sorts])
-                          ([sort sort-list])
-                  (sorts:add-sort sort hashcode all-imports sorts))]
-       [(sorts) (for/fold ([sorts sorts])
-                          ([sort-pair subsort-list])
-                  (sorts:add-subsort (car sort-pair) (cdr sort-pair)
-                                     hashcode all-imports sorts))]
-       [(ops _) (for/fold ([ops (operators:empty-op-set sorts)]
-                           [prior-imports (hash)])
-                          ([import imports])
-                  (values (operators:merge-op-set
-                           (module-ops (first import))
-                           prior-imports
-                           ops)
-                          (merge-imports prior-imports (second import))))]
-       [(ops) (for/fold ([ops ops])
-                        ([op-spec op-list])
-                (match-let ([(list symbol domain range properties)
-                             op-spec])
-                  (operators:add-op symbol domain range
-                                    properties hashcode all-imports ops)))]
-       [(ops) (for/fold ([ops ops])
-                        ([s-op-symbol s-op-list])
-                (operators:add-special-op s-op-symbol hashcode all-imports ops))]
-       [(rules) (rules:empty-rules)])
-    (for/fold ([prior-imports (hash)])
-              ([import imports])
-      (rules:merge-rules! (module-rules (first import))
-                          prior-imports
-                          rules)
-      (merge-imports prior-imports (second import)))
-    (for ([fn-spec fn-list])
-      (match-let ([(list symbol proc-expr) fn-spec])
-        (rules:add-proc! symbol proc-expr hashcode rules)))
-    (let ([mod (module module-name ops rules all-imports hashcode)])
-      (register-module mod)
-      mod)))
+                        (values (sorts:merge-sort-graph
+                                 (operators:op-set-sorts
+                                  (module-ops (first import)))
+                                 prior-imports
+                                 sorts)
+                                (merge-imports prior-imports (second import))))]
+           [(sorts) (for/fold ([sorts sorts])
+                              ([sort sort-list])
+                      (sorts:add-sort sort hashcode all-imports sorts))]
+           [(sorts) (for/fold ([sorts sorts])
+                              ([sort-pair subsort-list])
+                      (sorts:add-subsort (car sort-pair) (cdr sort-pair)
+                                         hashcode all-imports sorts))]
+           ; The operator signatures are constructed from (1) imports
+           ; (2) op declarations (3) special ops.
+           [(ops _) (for/fold ([ops (operators:empty-op-set sorts)]
+                               [prior-imports (hash)])
+                              ([import imports])
+                      (values (operators:merge-op-set
+                               (module-ops (first import))
+                               prior-imports
+                               ops)
+                              (merge-imports prior-imports (second import))))]
+           [(ops) (for/fold ([ops ops])
+                            ([op-spec op-list])
+                    (match-let ([(list symbol domain range properties)
+                                 op-spec])
+                      (operators:add-op symbol domain range
+                                        properties hashcode all-imports ops)))]
+           [(ops) (for/fold ([ops ops])
+                            ([s-op-symbol s-op-list])
+                    (operators:add-special-op s-op-symbol hashcode
+                                              all-imports ops))]
+           ; Rules are initialized to an empty mutable hash. This is required
+           ; for constructing modules from their meta-representation.
+           [(rules) (rules:empty-rules)])
+        ; Rules are constructed from (1) imports (2) procedure specifications.
+        ; Part (2) is effective only for builtin modules. Meta-modules are
+        ; instantiated with an empty rule set at this stage.
+        (for/fold ([prior-imports (hash)])
+                  ([import imports])
+          (rules:merge-rules! (module-rules (first import))
+                              prior-imports
+                              rules)
+          (merge-imports prior-imports (second import)))
+        (for ([fn-spec fn-list])
+          (match-let ([(list symbol proc-expr) fn-spec])
+            (rules:add-proc! symbol proc-expr hashcode rules)))
+        (let ([mod (module module-name ops rules all-imports hashcode)])
+          (register-module mod)
+          mod))))
 
 ; Make a term relative to a module
 ; (used in rewrite.rkt)

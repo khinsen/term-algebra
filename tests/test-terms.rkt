@@ -10,7 +10,7 @@
          (only-in term-algebra/modules
                    define-builtin-module module-ops))
 
-(define-builtin-module test
+(define-builtin-module test-terms
   (use builtin:string)
   (use builtin:symbol)
   (sorts A B C X Y Z)
@@ -25,7 +25,7 @@
   (op (bar A ...) Z)
   (op (bar X Y) Z))
 
-(define test-ops (module-ops test))
+(define test-ops (module-ops test-terms))
 (define anA (terms:make-term 'anA empty test-ops))
 (define aB (terms:make-term 'aB empty test-ops))
 (define aC (terms:make-term 'aC empty test-ops))

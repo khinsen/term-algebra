@@ -13,24 +13,24 @@
 (define (module-sorts module)
   (operators:op-set-sorts (module-ops module)))
 
-(define-builtin-module test
+(define-builtin-module test-op
   (sorts A B C X Y Z)
   (subsorts [A C] [B C] [X Y] [X Z])
   (op (foo A) X)
   (op (foo C) Z))
 
-(define test-sorts (module-sorts test))
-(define test-ops (module-ops test))
+(define test-sorts (module-sorts test-op))
+(define test-ops (module-ops test-op))
 (define A-kind (sorts:kind 'A test-sorts))
 (define X-kind (sorts:kind 'X test-sorts))
 
-(define-builtin-module test-any
+(define-builtin-module test-op-any
   (sorts Any X Y)
   (op (foo Any) X)
   (op (foo X Any) Y)
   (op (bar Any ...) X))
 
-(define test-any-ops (module-ops test-any))
+(define test-any-ops (module-ops test-op-any))
 
 (define-test-suite operator-tests
 
@@ -63,10 +63,10 @@
   (test-case "operator-definition"
 
     (let ()
-      (define-builtin-module test2
-        (include test)
+      (define-builtin-module test-op-1
+        (include test-op)
         (op (foo Z) A))
-      (let* ([op-hash (op-set-ops (module-ops test2))]
+      (let* ([op-hash (op-set-ops (module-ops test-op-1))]
              [foo-op (hash-ref op-hash 'foo)])
         (check-equal?
          (hash-count foo-op) ; Number of different kinds
@@ -79,10 +79,10 @@
          1)))
 
     (let ()
-      (define-builtin-module test2
-        (include test)
+      (define-builtin-module test-op-2
+        (include test-op)
         (op (foo B) Z))
-      (let* ([op-hash (op-set-ops (module-ops test2))]
+      (let* ([op-hash (op-set-ops (module-ops test-op-2))]
              [foo-op (hash-ref op-hash 'foo)])
         (check-equal?
          (hash-count foo-op)  ; Number of different kinds
@@ -93,10 +93,10 @@
 
   (test-case "variable-arity"
     (let ()
-      (define-builtin-module test2
-        (include test)
+      (define-builtin-module test-op-3
+        (include test-op)
         (op (foo Z ...) A))
-      (let* ([op-hash (op-set-ops (module-ops test2))]
+      (let* ([op-hash (op-set-ops (module-ops test-op-3))]
              [foo-op (hash-ref op-hash 'foo)])
         (check-equal?
          (hash-count foo-op) ; Number of different signatures
@@ -111,14 +111,14 @@
   (test-exn "undefined-range-sort"
       #rx"Undefined sort.*"
       (lambda ()
-        (define-builtin-module test
+        (define-builtin-module test-op-4
           (op foo a))
         (void)))
 
   (test-exn "undefined-arg-sort"
       #rx"Undefined sort.*"
       (lambda ()
-        (define-builtin-module test
+        (define-builtin-module test-op-5
           (sorts a)
           (op (foo b) a))
         (void)))
@@ -126,8 +126,8 @@
   (test-exn "preregularity"
       #rx"Operator .*bar.* is not preregular.*"
       (lambda ()
-        (define-builtin-module error
-          (include test)
+        (define-builtin-module test-op-6
+          (include test-op)
           (op (bar C B) Z)
           (op (bar A C) Y))
         (void)))
@@ -135,56 +135,56 @@
   (test-exn "wrong-range-kind"
       #rx"Operator .*foo.* must have the kind of sort.*"
       (lambda ()
-        (define-builtin-module error
-          (include test)
+        (define-builtin-module test-op-7
+          (include test-op)
           (op (foo B) A))
         (void)))
 
   (test-exn "mixed-var-args"
       #rx"Conflicting fixed and variable arity definitions.*"
       (lambda ()
-        (define-builtin-module error
-          (include test)
+        (define-builtin-module test-op-8
+          (include test-op)
           (op (foo B ...) Z))
         (void)))
 
   (test-exn "double-definition"
       #rx"Signature .* already defined"
     (lambda ()
-      (define-builtin-module error
-        (include test)
+      (define-builtin-module test-op-9
+        (include test-op)
         (op (foo A) X))
       (void)))
   
   (test-not-exn "direct and indirect import"
     (lambda ()
-      (define-builtin-module test2
-        (include test))
-      (define-builtin-module import-test
-        (use test)
-        (use test2))
+      (define-builtin-module test-op-10
+        (include test-op))
+      (define-builtin-module test-op-11
+        (use test-op)
+        (use test-op-10))
       (void)))
   
   (test-exn "restricted import"
       #rx"Operator .* was imported in restricted mode"
     (lambda ()
-      (define-builtin-module test2
-        (use test)
+      (define-builtin-module test-op-12
+        (use test-op)
         (op (foo B) Z))
       (void)))
   (test-not-exn "unrestricted import"
     (lambda ()
-      (define-builtin-module test2
-        (include test)
+      (define-builtin-module test-op-13
+        (include test-op)
         (op (foo B) Z))
       (void)))
   (test-not-exn "restricted and unrestricted import"
     (lambda ()
-      (define-builtin-module import-test
-        (use test))
-      (define-builtin-module test2
-        (use import-test)
-        (include test)
+      (define-builtin-module test-op-14
+        (use test-op))
+      (define-builtin-module test-op-15
+        (use test-op-14)
+        (include test-op)
         (op (foo B) Z))
       (void))))
 

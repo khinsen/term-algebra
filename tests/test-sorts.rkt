@@ -23,88 +23,88 @@
 
   (test-exn "sort redefinition"
       #rx"sort already defined.*"
-    (lambda () (define-builtin-module test
+    (lambda () (define-builtin-module test-sorts-1
                  (sorts a b b c))
-            test))
+            (void)))
 
   (test-exn "missing sort definition for subsort"
       #rx"undefined sort.*"
-    (lambda () (define-builtin-module test
+    (lambda () (define-builtin-module test-sorts-2
                  (sorts a)
                  (subsorts [a b]))
-            test))
+            (void)))
   (test-exn "missing sort definition for subsort"
       #rx"undefined sort.*"
-    (lambda () (define-builtin-module test
+    (lambda () (define-builtin-module test-sorts-3
                  (sorts b)
                  (subsorts [a b]))
-            test))
+            (void)))
 
   (test-exn "equal-sorts-in-subsort"
       #rx"sorts are equal.*"
-    (lambda () (define-builtin-module test
+    (lambda () (define-builtin-module test-sorts-4
                  (sorts a b)
                  (subsorts [a a]))
-            test))
+            (void)))
 
   (test-exn "any-in-subsort"
       #rx"special sort Any forbidden in subsort relations"
-    (lambda () (define-builtin-module test
+    (lambda () (define-builtin-module test-sorts-5
                  (sorts a)
                  (subsorts [a Any]))
-            test))
+            (void)))
   (test-exn "any-in-subsort"
       #rx"special sort Any forbidden in subsort relations"
-    (lambda () (define-builtin-module test
+    (lambda () (define-builtin-module test-sorts-6
                  (sorts a)
                  (subsorts [Any a]))
-            test))
+            (void)))
 
   (test-exn "double subsort definition"
       #rx"subsort relation already defined.*"
-    (lambda () (define-builtin-module test
+    (lambda () (define-builtin-module test-sorts-7
                  (sorts a b)
                  (subsorts [a b] [a b]))
-            test))
+            (void)))
 
   (test-exn "cyclic subsort definition"
       #rx"cyclic subsort dependence.*"
-    (lambda () (define-builtin-module test
+    (lambda () (define-builtin-module test-sorts-8
                  (sorts a b c)
                  (subsorts [a b] [b c] [c a]))
-            test))
+            (void)))
 
   (test-exn "sort redefinition after import"
       #rx"sort already defined.*"
-    (lambda () (define-builtin-module test
+    (lambda () (define-builtin-module test-sorts-9
                  (use sort-test-1)
                  (sorts A B))
-            test))
+            (void)))
 
   (test-not-exn "direct and indirect import"
-    (lambda () (define-builtin-module import-test
+    (lambda () (define-builtin-module test-sorts-10
                  (use sort-test-1)
                  (use sort-test-2))
-            import-test))
+            (void)))
   (test-exn "restricted import"
       #rx"both sorts from restricted import.*"
-    (lambda () (define-builtin-module import-test
+    (lambda () (define-builtin-module test-sorts-11
                  (use sort-test-1)
                  (subsorts [A X]))
-            import-test))
+            (void)))
   (test-not-exn "unrestricted import"
-    (lambda () (define-builtin-module import-test
+    (lambda () (define-builtin-module test-sorts-12
                  (include sort-test-1)
                  (subsorts [A X]))
-            import-test))
+            (void)))
   (test-not-exn "restricted and unrestricted import"
-    (lambda () (define-builtin-module import-test-1
+    (lambda () (define-builtin-module test-sorts-13
                  (use sort-test-1))
-               (define-builtin-module import-test-2
-                 (use import-test-1)
+               (define-builtin-module test-sorts-14
+                 (use test-sorts-13)
                  (include sort-test-1)
                  (subsorts [A X]))
-            import-test-2))
+            (void)))
 
   (test-case "kinds-1"
     (check-equal? (sorts:kind 'A (module-sorts sort-test-1))

@@ -275,13 +275,13 @@
   
 )
 
-;; (define-module test
-;;   (sort A)
-;;   (op (foo A) A)
-;;   (op bar A))
+(define-module test
+  (sort A)
+  (op (foo A) A)
+  (op bar A))
 
-;; (define rw (term module-rewrite (rename-sort [[test]] 'A 'B)))
-;; (reduce rw)
+(define rw (term module-rewrite (rename-sort [[test]] 'A 'B)))
+(reduce rw)
 
 
 (define-module list

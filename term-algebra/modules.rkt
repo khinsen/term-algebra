@@ -115,11 +115,16 @@
                                     (list (quote module-name))
                                     'Module)
                         import-list sort-list subsort-list
-                        op-list s-op-list fn-list)))]))
+                        op-list s-op-list fn-list #t)))]))
 
 (define (make-module module-name meta-terms
                      import-list sort-list subsort-list
-                     op-list s-op-list fn-list)
+                     op-list s-op-list fn-list
+                     strict-checking)
+  ; strict-checking enables checks for situations that are
+  ; usually errors in hand-written modules but can occur in
+  ; metaprogramming: redefinitions of sorts, subsorts, and operator
+  ; signatures, and declaring a sort its own subsort.
 
   (define (merge-imports imports1 imports2)
     (for/fold ([imports imports1])
@@ -158,11 +163,13 @@
                                 (merge-imports prior-imports (second import))))]
            [(sorts) (for/fold ([sorts sorts])
                               ([sort sort-list])
-                      (sorts:add-sort sort hashcode all-imports sorts))]
+                      (sorts:add-sort sort hashcode all-imports sorts
+                                      strict-checking))]
            [(sorts) (for/fold ([sorts sorts])
                               ([sort-pair subsort-list])
                       (sorts:add-subsort (car sort-pair) (cdr sort-pair)
-                                         hashcode all-imports sorts))]
+                                         hashcode all-imports sorts
+                                         strict-checking))]
            ; The operator signatures are constructed from (1) imports
            ; (2) op declarations (3) special ops.
            [(ops _) (for/fold ([ops (operators:empty-op-set sorts)]
@@ -178,7 +185,8 @@
                     (match-let ([(list symbol domain range properties)
                                  op-spec])
                       (operators:add-op symbol domain range
-                                        properties hashcode all-imports ops)))]
+                                        properties hashcode all-imports ops
+                                        strict-checking)))]
            [(ops) (for/fold ([ops ops])
                             ([s-op-symbol s-op-list])
                     (operators:add-special-op s-op-symbol hashcode

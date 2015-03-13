@@ -94,7 +94,9 @@
   (op (imports Import ...) ImportList)
   (op (imports) ImportList)
   (op (use String) Import)
+  (op (use Module) Import)
   (op (include String) Import)
+  (op (include Module) Import)
 
   (op (sorts Symbol ...) SortList)
   (op (sorts) SortList)
@@ -166,7 +168,7 @@
   (terms:make-term op-symbol (map (λ (arg) (meta-down* module arg)) args)
                    (modules:module-ops module)))
 
-(define (module-from-meta meta-terms)
+(define (module-from-meta meta-terms strict-checking)
 
   (define (subsort-list subsort-terms)
     (for/list ([ss subsort-terms])
@@ -185,12 +187,22 @@
         [_ (error "Invalid op term " op)])))
 
   (define (import-list import-terms)
+
+    (define (internal-module module-or-hashcode)
+      (cond
+        [(string? module-or-hashcode)
+         (modules:lookup-module-hash module-or-hashcode)]
+        [(and (terms:term? module-or-hashcode)
+              (equal? (terms:term-sort module-or-hashcode) 'Module))
+         (module-from-meta module-or-hashcode strict-checking)]
+        [else (error "Not a valid module " module-or-hashcode)]))
+
     (for/list ([import import-terms])
       (match import
-        [(mterm 'use (list hashcode))
-         (cons (modules:lookup-module-hash hashcode) #t)]
-        [(mterm 'include (list hashcode))
-         (cons (modules:lookup-module-hash hashcode) #f)]
+        [(mterm 'use (list module-or-hashcode))
+         (cons (internal-module module-or-hashcode) #t)]
+        [(mterm 'include (list module-or-hashcode))
+         (cons (internal-module module-or-hashcode) #f)]
         [_ (error "Invalid import term " import)])))
 
   (define (rule-list module rule-terms)
@@ -243,7 +255,7 @@
                                       (import-list import-terms)
                                       sort-symbols (subsort-list subsort-terms)
                                       (op-list operator-terms)
-                                      empty empty)]
+                                      empty empty strict-checking)]
             [rules (modules:module-rules mod)]
             [hashcode (modules:module-hashcode mod)])
        (for ([rule (rule-list mod rule-terms)])
@@ -280,19 +292,23 @@
     (error (format "Not a module: ~s" module)))
   (unless (vterm? a-term)
     (error (format "Not a term: ~s" a-term)))
-  (let ([int-mod (module-vterm-internal (check-module module))])
+  (let ([int-mod (module-vterm-internal (compile-module module #f))])
     (make-vterm int-mod (meta-down* int-mod (vterm-term a-term)))))
 
-(define (check-module module-term)
+(define (compile-module module-term strict-checking)
   (unless (module-vterm? module-term)
     (error (format "Not a module: ~s" module-term)))
   (unless (module-vterm-internal module-term)
     (set-module-vterm-internal! module-term
-                                (module-from-meta (vterm-term module-term))))
+                                (module-from-meta (vterm-term module-term)
+                                                  strict-checking)))
   module-term)
 
 (define (module-hashcode module)
   (modules:module-hashcode
    (if (module-vterm? module)
-       (module-vterm-internal (check-module module))
+       (module-vterm-internal (compile-module module #f))
        module)))
+
+(define (check-module module-term)
+  (compile-module module-term #t))

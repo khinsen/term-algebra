@@ -36,19 +36,20 @@
         [origins (make-hash)])
     (sort-graph dag cc origins)))
 
-(define (add-sort sort origin imports graph)
+(define (add-sort sort origin imports graph strict-checking)
   (let ([dag (sort-graph-dag graph)]
         [cc (sort-graph-cc graph)]
         [origins (sort-graph-origins graph)])
     (if (has-vertex? dag sort)
-        (error "sort already defined: " sort)
+        (when strict-checking
+          (error "sort already defined: " sort))
         (begin
           (add-vertex! dag sort)
           (hash-set! cc sort (set sort))
           (hash-set! origins sort origin))))
   graph)
 
-(define (add-subsort sort1 sort2 origin imports graph)
+(define (add-subsort sort1 sort2 origin imports graph strict-checking)
 
   (define (merge-connected-components cc sort1 sort2)
     (let ([new-cc-value (set-union (hash-ref cc sort1) (hash-ref cc sort2))])
@@ -60,7 +61,8 @@
         [origins (sort-graph-origins graph)])
     (cond
      [(equal? sort1 sort2)
-      (error "sorts are equal: " (cons sort1 sort2))]
+      (when strict-checking
+        (error "sorts are equal: " (cons sort1 sort2)))]
      [(or (equal? sort1 any-sort)
           (equal? sort2 any-sort))
       (error "special sort Any forbidden in subsort relations")]
@@ -69,7 +71,8 @@
      [(not (has-vertex? dag sort2))
       (error "undefined sort: " sort2)]
      [(has-edge? dag sort1 sort2)
-      (error "subsort relation already defined: " (cons sort1 sort2))]
+      (when strict-checking
+        (error "subsort relation already defined: " (cons sort1 sort2)))]
      [(is-subsort? sort2 sort1 graph)
       (error "cyclic subsort dependence created by " (cons sort1 sort2))]
      [(and (hash-ref imports (hash-ref origins sort1) #f)
@@ -89,12 +92,12 @@
     (for ([sort (in-vertices (sort-graph-dag to-merge))])
       (let ([origin (hash-ref source-origins sort)])
         (unless (hash-has-key? prior-imports origin)
-          (add-sort sort origin unrestricted graph))))
+          (add-sort sort origin unrestricted graph #f))))
     (for ([subsort (in-edges (sort-graph-dag to-merge))])
       (let ([origin (hash-ref source-origins subsort)])
         (unless (hash-has-key? prior-imports origin)
           (add-subsort (first subsort) (second subsort)
-                       origin unrestricted graph))))
+                       origin unrestricted graph #f))))
     graph))
 
 (define (is-subsort? sort1 sort2 graph)

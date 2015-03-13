@@ -96,6 +96,37 @@
       (define-module test
         (include builtin:truth)
         (=-> true false))
+      (void)))
+  
+  (test-exn "sort redefinition"
+      #rx"sort already defined.*"
+    (lambda ()
+      (define-module test
+        (sorts a b b c))
+      (void)))
+  (test-exn "equal-sorts-in-subsort"
+      #rx"sorts are equal.*"
+    (lambda ()
+      (define-module test
+        (sorts a b)
+        (subsorts [a a]))
+      (void)))
+  (test-exn "double subsort definition"
+      #rx"subsort relation already defined.*"
+    (lambda ()
+      (define-module test
+        (sorts a b)
+        (subsorts [a b] [a b]))
+      (void)))
+  (test-exn "double-definition"
+      #rx"Signature .* already defined"
+    (lambda ()
+      (define-module test
+        (sorts A B C X Y Z)
+        (subsorts [A C] [B C] [X Y] [X Z])
+        (op (foo A) X)
+        (op (foo C) Z)
+        (op (foo A) X))
       (void))))
 
 (module* main #f

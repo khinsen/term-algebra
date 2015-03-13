@@ -80,7 +80,8 @@
             (ormap (λ (dk) (conflict? domain-kinds dk)) fixed))
     (error "Conflicting fixed and variable arity definitions.")))
 
-(define (add-op symbol domain range properties origin imports ops)
+(define (add-op symbol domain range properties origin imports ops
+                strict-checking)
   (define debug (member symbol '()))
   (when debug
     (printf "--- add-op ~s ~s ---\n" domain range))
@@ -121,19 +122,23 @@
                  (define-values (before after)
                    (splitf-at op-signatures
                               (λ (sig) (not (sorts:is-subsort?
-                                             range (signature-range sig) sorts)))))
+                                             range (signature-range sig)
+                                             sorts)))))
                  (when debug
                    (printf "~s | ~s | ~s\n" before sig after))
-                 (when (and (not (empty? after))
+                 (if (and (not (empty? after))
                             (equal? (signature-domain sig)
                                     (signature-domain (first after)))
                             (equal? (signature-range sig)
                                     (signature-range (first after))))
-                   (error (format "Signature ~s -> ~s already defined"
-                                  (cons symbol (signature-domain (first after)))
-                                  (signature-range (first after)))))
-                 (operator symbol (append before (cons sig after))
-                           properties))
+                     (if strict-checking
+                         (error (format "Signature ~s -> ~s already defined"
+                                        (cons symbol (signature-domain
+                                                      (first after)))
+                                        (signature-range (first after))))
+                         (operator symbol op-signatures properties))
+                   (operator symbol (append before (cons sig after))
+                             properties)))
                (begin
                  (check-for-conflicts domain-kinds (hash-keys ops-for-symbol))
                  (operator symbol (list sig) properties)))])
@@ -174,7 +179,7 @@
     (for/fold ([ops ops])
               ([spec (op-definitions to-merge)]
                #:when (not (hash-has-key? prior-imports (last spec))))
-      (apply add-op (append spec (list unrestricted ops)))))
+      (apply add-op (append spec (list unrestricted ops #f)))))
   (op-set (op-set-sorts merged-ops)
           (op-set-ops merged-ops)
           (set-union (op-set-special-ops merged-ops)

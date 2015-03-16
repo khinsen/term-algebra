@@ -35,6 +35,11 @@
   (=-> #:vars ([V Var] [Vs Var ...])
        (cons V (vars Vs))
        (vars V Vs))
+  (op (cons Term ArgList) ArgList)
+  (op (cons Pattern PatternArgList) PatternArgList)
+  (=-> #:vars ([A Pattern] [As Pattern ...])
+       (cons A (args As))
+       (args A As))
   ; A bit different - only one op is list-like. Perhaps there should
   ; be a subsort for fixed-arity domains.
   (op (cons Symbol Domain) Domain)
@@ -192,6 +197,84 @@
   ;;      (contains? S (subsorts Ss)))
 
   ;
+  ; rename-op
+  ;
+  (op (rename-op Module Symbol Symbol) Module)
+  (=-> #:vars ([Name Symbol] [Imports ImportList]
+               [Sorts SortList] [Subsorts SubsortList]
+               [Ops OpList] [Rules RuleList]
+               [OS1 Symbol] [OS2 Symbol])
+       (rename-op (module Name Imports Sorts Subsorts Ops Rules) OS1 OS2)
+       (module Name Imports Sorts Subsorts
+         (rename-op Ops OS1 OS2)
+         (rename-op Rules OS1 OS2)))
+
+  ;
+  ; rename-op: map-like application to lists
+  ;
+  (op (rename-op OpList Symbol Symbol) OpList)
+  (=-> #:vars ([OS1 Symbol] [OS2 Symbol])
+       (rename-op (ops) OS1 OS2)
+       (ops))
+  (=-> #:vars ([O Op] [Os Op ...] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (ops O Os) OS1 OS2)
+       (cons (rename-op O OS1 OS2) (rename-op (ops Os) OS1 OS2)))
+
+  (op (rename-op RuleList Symbol Symbol) RuleList)
+  (=-> #:vars ([OS1 Symbol] [OS2 Symbol])
+       (rename-op (rules) OS1 OS2)
+       (rules))
+  (=-> #:vars ([R Rule] [Rs Rule ...] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (rules R Rs) OS1 OS2)
+       (cons (rename-op R OS1 OS2) (rename-op (rules Rs) OS1 OS2)))
+
+  (op (rename-op PatternArgList Symbol Symbol) PatternArgList)
+  (op (rename-op ArgList Symbol Symbol) ArgList)
+  (=-> #:vars ([OS1 Symbol] [OS2 Symbol])
+       (rename-op (args) OS1 OS2)
+       (args))
+  (=-> #:vars ([A Pattern] [As Pattern ...] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (args A As) OS1 OS2)
+       (cons (rename-op A OS1 OS2) (rename-op (args As) OS1 OS2)))
+
+  ;
+  ; rename-op: the operations on the leaves of the tree
+  ;
+  (op (rename-op Op Symbol Symbol) Op)
+  (=-> #:vars ([D Domain] [S Symbol] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (op OS1 D S) OS1 OS2)
+       (op OS2 D S))
+  (=-> #:vars ([N Symbol] [D Domain] [S Symbol] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (op N D S) OS1 OS2)
+       (op N D S))
+
+  (op (rename-op Rule Symbol Symbol) Rule)
+  (=-> #:vars ([Vs VarList] [P1 Pattern] [P2 Pattern] [P3 Pattern]
+               [OS1 Symbol] [OS2 Symbol])
+       (rename-op (=-> Vs P1 P2 P3) OS1 OS2)
+       (=-> Vs (rename-op P1 OS1 OS2)
+               (rename-op P2 OS1 OS2)
+               (rename-op P3 OS1 OS2)))
+
+  (op (rename-op Pattern Symbol Symbol) Pattern)
+  (op (rename-op Term Symbol Symbol) Term)
+  (=-> #:vars ([A PatternArgList] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (pattern OS1 A) OS1 OS2)
+       (pattern OS2 (rename-op A OS1 OS2)))
+  (=-> #:vars ([OS Symbol] [A PatternArgList] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (pattern OS A) OS1 OS2)
+       (pattern OS (rename-op A OS1 OS2)))
+  (=-> #:vars ([A ArgList] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (term OS1 A) OS1 OS2)
+       (term OS2 (rename-op A OS1 OS2)))
+  (=-> #:vars ([OS Symbol] [A ArgList] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (term OS A) OS1 OS2)
+       (term OS (rename-op A OS1 OS2)))
+  (=-> #:vars ([P Pattern] [OS1 Symbol] [OS2 Symbol])
+       (rename-op P OS1 OS2)
+       P)
+
+  ;
   ; add-import
   ;
   (op (add-import Module Import) Module)
@@ -240,6 +323,11 @@
   (=-> #:vars ([S1 Symbol] [S2 Symbol] [M Module])
        ($apply-transform (rename-sort S1 S2) M)
        (rename-sort M S1 S2))
+
+  (op (rename-op Symbol Symbol) Transform)
+  (=-> #:vars ([O1 Symbol] [O2 Symbol] [M Module])
+       ($apply-transform (rename-op O1 O2) M)
+       (rename-op M O1 O2))
 
   ;
   ; Extended module
@@ -315,10 +403,11 @@
                            (transforms
                             (rename-sort 'Element 'Symbol)
                             (rename-sort 'List 'SortList)
-                            (rename-sort 'NonEmptyList 'SortList))))
+                            (rename-sort 'NonEmptyList 'SortList)
+                            (rename-op 'list 'sorts))))
            (sorts) (subsorts) (ops) (rules)))))
 
-(reduce (term sort-list (cons 'X (list 'A 'B))))
+(reduce (term sort-list (cons 'X (sorts 'A 'B))))
 
 (define sort-list-2
   (reduce
@@ -329,6 +418,7 @@
               (add-import (use (builtin-module 'symbol)))
               (rename-sort 'Element 'Symbol)
               (rename-sort 'List 'SortList)
-              (rename-sort 'NonEmptyList 'SortList))))))
+              (rename-sort 'NonEmptyList 'SortList)
+              (rename-op 'list 'sorts))))))
 
-(reduce (term sort-list-2 (cons 'X (list 'A 'B))))
+(reduce (term sort-list-2 (cons 'X (sorts 'A 'B))))

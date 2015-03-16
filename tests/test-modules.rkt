@@ -6,21 +6,21 @@
          (prefix-in operators: term-algebra/operators)
          (prefix-in modules: term-algebra/modules)
          (prefix-in api: term-algebra/api)
-         (prefix-in library: term-algebra/library))
+         term-algebra/library/boolean)
 
 (require/expose term-algebra/operators [op-set-ops
                                         operator-signatures])
 (require/expose term-algebra/meta [internal-module])
 
 (api:define-module test
-  (use library:boolean)
-  (include library:boolean))
+  (use boolean)
+  (include boolean))
 
 (define-test-suite module-tests
 
   (test-case "op-verification"
     (define ops1 (op-set-ops
-                  (modules:module-ops (internal-module library:boolean))))
+                  (modules:module-ops (internal-module boolean))))
     (define ops2 (op-set-ops (modules:module-ops (internal-module test))))
     (define sig-1 (list (set 'Boolean)))
     (define sig-n (set 'Boolean))
@@ -39,7 +39,7 @@
 
   (test-case "rule-verification"
     (define boolean-rules (modules:module-rules
-                           (internal-module library:boolean)))
+                           (internal-module boolean)))
     (define test-rules (modules:module-rules (internal-module test)))
     (check-equal? (length (hash-ref boolean-rules 'not))
                   2)

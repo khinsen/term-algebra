@@ -4,7 +4,7 @@
 
 (require rackunit
          term-algebra/api
-         term-algebra/library)
+         term-algebra/library/boolean)
 
 (define-syntax-rule (check-reduce module initial-term reduced-term)
   (check-equal? (reduce (term module initial-term))

@@ -70,7 +70,7 @@
       (error "undefined sort: " sort1)]
      [(not (has-vertex? dag sort2))
       (error "undefined sort: " sort2)]
-     [(has-edge? dag sort1 sort2)
+     [(has-edge? dag sort2 sort1)
       (when strict-checking
         (error "subsort relation already defined: " (cons sort1 sort2)))]
      [(is-subsort? sort2 sort1 graph)
@@ -80,7 +80,7 @@
       (error "both sorts from restricted import: " (cons sort1 sort2))]
      [else
       (begin
-        (add-directed-edge! dag sort1 sort2)
+        (add-directed-edge! dag sort2 sort1)
         (merge-connected-components cc sort1 sort2)
         (hash-set! origins (list sort1 sort2) origin))]))
   graph)
@@ -93,15 +93,16 @@
       (let ([origin (hash-ref source-origins sort)])
         (unless (hash-has-key? prior-imports origin)
           (add-sort sort origin unrestricted graph #f))))
-    (for ([subsort (in-edges (sort-graph-dag to-merge))])
-      (let ([origin (hash-ref source-origins subsort)])
+    (for ([inv-subsort (in-edges (sort-graph-dag to-merge))])
+      (let* ([subsort (reverse inv-subsort)]
+             [origin (hash-ref source-origins subsort)])
         (unless (hash-has-key? prior-imports origin)
           (add-subsort (first subsort) (second subsort)
                        origin unrestricted graph #f))))
     graph))
 
 (define (is-subsort? sort1 sort2 graph)
-  (fewest-vertices-path (sort-graph-dag graph) sort1 sort2))
+  (fewest-vertices-path (sort-graph-dag graph) sort2 sort1))
 
 (define (has-sort? sort graph)
   (has-vertex? (sort-graph-dag graph) sort))
@@ -122,25 +123,26 @@
   (hash-ref (sort-graph-cc graph) sort))
 
 (define (subsorts sort graph)
-  ; This is probably very inefficient!
-  (let ([tc (transitive-closure (sort-graph-dag graph))])
-    (for/set ([s (kind sort graph)]
-              #:when (hash-ref tc (list s sort)))
-      s)))
+  (define-values (dist pred) (bfs (sort-graph-dag graph) sort))
+  (set-add (for/set ([(sort psort) (in-hash pred)]
+                     #:when psort)
+             sort)
+           sort))
 
-(define (least-common-sort graph sort1 . other-sorts)
+(define (least-common-sort graph . sorts)
   ; In case of multiple equidistant common sorts, return an
   ; arbitrary one. The function is intended for use with argument
   ; sorts from an operator signature. Regularity guarantees that
   ; there is a unique least common sort.
   ; The implementation is not very efficient.
-  (define-values (dist _) (bfs (sort-graph-dag graph) sort1))
   (define-values (least-sort __)
     (for/fold ([least-sort #f]
                [min-distance #f])
-              ([(sort distance) (in-hash dist)]
-               #:when (andmap (λ (s) (is-subsort? s sort graph)) other-sorts))
-      (if (or (not min-distance) (< distance min-distance))
-          (values sort distance)
-          (values least-sort min-distance))))
+              ([sort (in-set (kind (car sorts) graph))]
+               #:when (andmap (λ (s) (is-subsort? s sort graph)) sorts))
+      (let ([distance (length (fewest-vertices-path (sort-graph-dag graph)
+                                                    sort (car sorts)))])
+        (if (or (not min-distance) (< distance min-distance))
+            (values sort distance)
+            (values least-sort min-distance)))))
   least-sort)

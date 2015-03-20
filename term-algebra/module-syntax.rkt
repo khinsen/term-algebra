@@ -2,7 +2,8 @@
 
 (provide define-module module
          define-unchecked-module unchecked-module
-         m-module)
+         m-module
+         (for-syntax import sort operator))
 
 (require term-algebra/term-syntax
          (prefix-in terms: term-algebra/terms)

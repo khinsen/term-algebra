@@ -44,7 +44,7 @@
     (define symbol-list
       (reduce
        (term module-transforms
-             (module ,list
+             (transformed-module ,list
                  (transforms
                   (module-name 'list-of-symbols)
                   (add-import (use (builtin-module 'symbol)))

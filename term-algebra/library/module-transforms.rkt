@@ -282,14 +282,14 @@
   ;
   ; Extended module
   ;
-  (op (module Module Transforms) Module)
+  (op (transformed-module Module Transforms) Module)
 
   (=-> #:vars ([M Module] [T Transform])
-       (module M (transforms T))
+       (transformed-module M (transforms T))
        ($apply-transform T M))
   (=-> #:vars ([M Module] [T Transform] [Ts Transform ...])
-       (module M (transforms T Ts))
-       (module ($apply-transform T M) (transforms Ts)))
+       (transformed-module M (transforms T Ts))
+       (transformed-module ($apply-transform T M) (transforms Ts)))
   
   ;
   ; Extended use and include

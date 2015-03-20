@@ -1,448 +1,133 @@
 #lang racket
 
-(require term-algebra/api
-         term-algebra/library/boolean)
+(provide module++ define-module++
+         unchecked-module++
+         define-unchecked-module++ )
 
-(define-module module-rewrite
-  (use m-module)
-  (use builtin:equality)
-  (use boolean)
+(require term-algebra/term-syntax
+         term-algebra/module-syntax
+         term-algebra/library/module-transforms
+         (prefix-in meta: term-algebra/meta)
+         (for-syntax term-algebra/module-syntax)
+         (for-syntax syntax/parse))
+
+(define (prepare-import module . transforms)
+  (cond
+    [(empty? transforms) (meta:module-hashcode module)]
+    [else
+     (meta:module-hashcode
+      (meta:reduce-vterm
+       (term module-transforms
+             (transformed-module ,module (transforms ,@transforms)))))]))
+
+(begin-for-syntax
+
+  (define-syntax-class module-transform
+    #:description "module transform specification"
+    #:attributes (transform)
+    (pattern ((~datum module-name) name:id)
+             #:with transform
+             #'(term module-transforms
+                     (module-name (quote name))))
+    (pattern ((~datum add-import) import-decl:extended-import)
+             #:with transform
+             #'(term module-transforms
+                     (add-import ,@import-decl.imports)))
+    (pattern ((~datum rename-sort) name1:id name2:id)
+             #:with transform
+             #'(term module-transforms
+                     (rename-sort (quote name1) (quote name2))))
+    (pattern ((~datum rename-op) name1:id name2:id)
+             #:with transform
+             #'(term module-transforms
+                     (rename-op (quote name1) (quote name2)))))
   
-  ;
-  ; Cons definitions for all lists - should perhaps be moved to m-module
-  ;
-  (op (cons Import ImportList) ImportList)
-  (=-> #:vars ([I Import] [Is Import ...])
-       (cons I (imports Is))
-       (imports I Is))
-  (op (cons Symbol SortList) SortList)
-  (=-> #:vars ([S Symbol] [Ss Symbol ...])
-       (cons S (sorts Ss))
-       (sorts S Ss))
-  (op (cons Subsort SubsortList) SubsortList)
-  (=-> #:vars ([S Subsort] [Ss Subsort ...])
-       (cons S (subsorts Ss))
-       (subsorts S Ss))
-  (op (cons Op OpList) OpList)
-  (=-> #:vars ([O Op] [Os Op ...])
-       (cons O (ops Os))
-       (ops O Os))
-  (op (cons Rule RuleList) RuleList)
-  (=-> #:vars ([R Rule] [Rs Rule ...])
-       (cons R (rules Rs))
-       (rules R Rs))
-  (op (cons Var VarList) VarList)
-  (=-> #:vars ([V Var] [Vs Var ...])
-       (cons V (vars Vs))
-       (vars V Vs))
-  (op (cons Term ArgList) ArgList)
-  (op (cons Pattern PatternArgList) PatternArgList)
-  (=-> #:vars ([A Pattern] [As Pattern ...])
-       (cons A (args As))
-       (args A As))
-  ; A bit different - only one op is list-like. Perhaps there should
-  ; be a subsort for fixed-arity domains.
-  (op (cons Symbol Domain) Domain)
-  (=-> #:vars ([S Symbol] [Ss Symbol ...])
-       (cons S (fixed-arity-domain Ss))
-       (fixed-arity-domain S Ss))
-
-  ;
-  ; rename-sort
-  ;
-  (op (rename-sort Module Symbol Symbol) Module)
-  (=-> #:vars ([Name Symbol] [Imports ImportList]
-               [Sorts SortList] [Subsorts SubsortList]
-               [Ops OpList] [Rules RuleList]
-               [S1 Symbol] [S2 Symbol])
-       (rename-sort (module Name Imports Sorts Subsorts Ops Rules) S1 S2)
-       (module Name Imports
-         (rename-sort Sorts S1 S2)
-         (rename-sort Subsorts S1 S2)
-         (rename-sort Ops S1 S2)
-         (rename-sort Rules S1 S2)))
-
-  ;
-  ; rename-sort: map-like application to lists
-  ;
-  (op (rename-sort SortList Symbol Symbol) SortList)
-  (=-> #:vars ([S1 Symbol] [S2 Symbol])
-       (rename-sort (sorts) S1 S2)
-       (sorts))
-  (=-> #:vars ([S Symbol] [S1 Symbol] [S2 Symbol] [Ss Symbol ...])
-       (rename-sort (sorts S Ss) S1 S2)
-       (cons (rename-sort S S1 S2) (rename-sort (sorts Ss) S1 S2)))
-
-  (op (rename-sort SubsortList Symbol Symbol) SubsortList)
-  (=-> #:vars ([S1 Symbol] [S2 Symbol])
-       (rename-sort (subsorts) S1 S2)
-       (subsorts))
-  (=-> #:vars ([S Subsort] [Ss Subsort ...] [S1 Symbol] [S2 Symbol])
-       (rename-sort (subsorts S Ss) S1 S2)
-       (cons (rename-sort S S1 S2) (rename-sort (subsorts Ss) S1 S2)))
-
-  (op (rename-sort OpList Symbol Symbol) OpList)
-  (=-> #:vars ([S1 Symbol] [S2 Symbol])
-       (rename-sort (ops) S1 S2)
-       (ops))
-  (=-> #:vars ([O Op] [Os Op ...] [S1 Symbol] [S2 Symbol])
-       (rename-sort (ops O Os) S1 S2)
-       (cons (rename-sort O S1 S2) (rename-sort (ops Os) S1 S2)))
-
-  (op (rename-sort RuleList Symbol Symbol) RuleList)
-  (=-> #:vars ([S1 Symbol] [S2 Symbol])
-       (rename-sort (rules) S1 S2)
-       (rules))
-  (=-> #:vars ([R Rule] [Rs Rule ...] [S1 Symbol] [S2 Symbol])
-       (rename-sort (rules R Rs) S1 S2)
-       (cons (rename-sort R S1 S2) (rename-sort (rules Rs) S1 S2)))
-
-  (op (rename-sort VarList Symbol Symbol) VarList)
-  (=-> #:vars ([S1 Symbol] [S2 Symbol])
-       (rename-sort (vars) S1 S2)
-       (vars))
-  (=-> #:vars ([V Var] [Vs Var ...] [S1 Symbol] [S2 Symbol])
-       (rename-sort (vars V Vs) S1 S2)
-       (cons (rename-sort V S1 S2) (rename-sort (vars Vs) S1 S2)))
-
-  ;
-  ; rename-sort: the operations on the leaves of the tree
-  ;
-  (op (rename-sort Subsort Symbol Symbol) Subsort)
-  (=-> #:vars ([SA Symbol] [SB Symbol] [S1 Symbol] [S2 Symbol])
-       (rename-sort (subsort SA SB) S1 S2)
-       (subsort (rename-sort SA S1 S2) (rename-sort SB S1 S2)))
+  (define-syntax-class extended-import
+    #:description "import declaration"
+    #:datum-literals (use include)
+    #:attributes (imports sorts subsorts ops rules)
+    (pattern (use module:id
+                  (~optional (~seq #:transforms mt:module-transform ...) 
+                             #:defaults ([(mt.transform 1) null])) ...)
+             #:with imports
+             #'(list (term m-module
+                           (use ,(prepare-import module mt.transform ...))))
+             #:with sorts #'(list)
+             #:with subsorts #'(list)
+             #:with ops #'(list)
+             #:with rules #'(list))
+    (pattern (include module:id
+                      (~optional (~seq #:transforms mt:module-transform ...) 
+                                 #:defaults ([(mt.transform 1) null])) ...)
+             #:with imports
+             #'(list (term m-module
+                           (include ,(prepare-import module mt.transform ...))))
+             #:with sorts #'(list)
+             #:with subsorts #'(list)
+             #:with ops #'(list)
+             #:with rules #'(list)))
   
-  (op (rename-sort Op Symbol Symbol) Op)
-  (=-> #:vars ([N Symbol] [D Domain] [S Symbol] [S1 Symbol] [S2 Symbol])
-       (rename-sort (op N D S) S1 S2)
-       (op N (rename-sort D S1 S2) (rename-sort S S1 S2)))
+  (define-syntax-class decl
+    #:description "declaration in a module"
+    #:attributes (imports sorts subsorts ops rules)
+    (pattern import-decl:extended-import
+             #:with imports #'import-decl.imports
+             #:with sorts #'(list)
+             #:with subsorts #'(list)
+             #:with ops #'(list)
+             #:with rules #'(list))
+    (pattern sort-decl:sort
+             #:with imports #'(list)
+             #:with sorts #'sort-decl.sorts
+             #:with subsorts #'sort-decl.subsorts
+             #:with ops #'(list)
+             #:with rules #'(list))
+    (pattern op-decl:operator
+             #:with imports #'(list)
+             #:with sorts #'(list)
+             #:with subsorts #'(list)
+             #:with ops #'op-decl.ops
+             #:with rules #'op-decl.rules)))
 
-  (op (rename-sort Domain Symbol Symbol) Domain)
-  (=-> #:vars ([S1 Symbol] [S2 Symbol])
-       (rename-sort (fixed-arity-domain) S1 S2)
-       (fixed-arity-domain))
-  (=-> #:vars ([S Symbol] [Ss Symbol ...] [S1 Symbol] [S2 Symbol])
-       (rename-sort (fixed-arity-domain S Ss) S1 S2)
-       (cons (rename-sort S S1 S2) (rename-sort (fixed-arity-domain Ss) S1 S2)))
-  (=-> #:vars ([S Symbol] [S1 Symbol] [S2 Symbol])
-       (rename-sort (var-arity-domain S) S1 S2)
-       (var-arity-domain (rename-sort S S1 S2)))
+(define-syntax (unchecked-module++ stx)
+  (syntax-parse stx
+    [(_ module-name:id
+        declaration:decl ...)
+     #'(term m-module
+             (module (quote module-name)
+               (imports ,@(append declaration.imports ...))
+               (sorts ,@(append declaration.sorts ...))
+               (subsorts ,@(append declaration.subsorts ...))
+               (ops ,@(append declaration.ops ...))
+               (rules ,@(append declaration.rules ...))))]))
 
-  (op (rename-sort Rule Symbol Symbol) Rule)
-  (=-> #:vars ([Vs VarList] [P1 Pattern] [P2 Pattern] [P3 Pattern]
-               [S1 Symbol] [S2 Symbol])
-       (rename-sort (=-> Vs P1 P2 P3) S1 S2)
-       (=-> (rename-sort Vs S1 S2) P1 P2 P3))
-  
-  (op (rename-sort Var Symbol Symbol) Var)
-  (=-> #:vars ([N Symbol] [S1 Symbol] [S2 Symbol])
-       (rename-sort (var N S1) S1 S2)
-       (var N S2))
-  (=-> #:vars ([N Symbol] [S1 Symbol] [S2 Symbol])
-       (rename-sort (svar N S1) S1 S2)
-       (svar N S2))
-  (=-> #:vars ([V Var] [S1 Symbol] [S2 Symbol])
-       (rename-sort V S1 S2)
-       V)
+(define-syntax (define-unchecked-module++ stx)
+  (syntax-parse stx
+    [(_ module-name:id decl ...)
+     #'(define module-name (unchecked-module++ module-name decl ...))]))
 
-  (op (rename-sort Symbol Symbol Symbol) Symbol)
-  (=-> #:vars ([S1 Symbol] [S2 Symbol]) (rename-sort S1 S1 S2) S2)
-  (=-> #:vars ([S Symbol] [S1 Symbol] [S2 Symbol]) (rename-sort S S1 S2) S)
-  
-  ;; ; remove-duplicates
-  ;; (op (remove-duplicates SortList) SortList)
-  ;; (=-> (remove-duplicates (sorts))
-  ;;      (sorts))
-  ;; (=-> #:vars ([S Symbol] [Ss Symbol ...])
-  ;;      (remove-duplicates (sorts S Ss))
-  ;;      #:if (contains? S (sorts Ss))
-  ;;      (remove-duplicates (sorts Ss)))
-  ;; (=-> #:vars ([S Symbol] [Ss Symbol ...])
-  ;;      (remove-duplicates (sorts S Ss))
-  ;;      (cons S (remove-duplicates (sorts Ss))))
+(define-syntax (module++ stx)
+  (syntax-parse stx
+    [(_ arg ...)
+     #'(meta:check-module (unchecked-module++ arg ...))]))
 
-  ;; (op (contains? Symbol SortList) Boolean)
-  ;; (=-> #:vars ([S Symbol])
-  ;;      (contains? S (sorts))
-  ;;      false)
-  ;; (=-> #:vars ([S Symbol] [Ss Symbol ...])
-  ;;      (contains? S (sorts S Ss))
-  ;;      true)
-  ;; (=-> #:vars ([S Symbol] [S1 Symbol] [Ss Symbol ...])
-  ;;      (contains? S (sorts S1 Ss))
-  ;;      (contains? S (sorts Ss)))
+(define-syntax (define-module++ stx)
+  (syntax-parse stx
+    [(_ module-name:id decl ...)
+     #'(define module-name (module++ module-name decl ...))]))
 
-  ;; (op (remove-duplicates SubsortList) SubsortList)
-  ;; (=-> (remove-duplicates (subsorts))
-  ;;      (subsorts))
-  ;; (=-> #:vars ([S1 Symbol] [S2 Symbol] [Ss Subsort ...])
-  ;;      (remove-duplicates (subsorts (subsort S1 S2) Ss))
-  ;;      #:if (or (contains? (subsort S1 S2) (subsorts Ss))
-  ;;               (== S1 S2))
-  ;;      (remove-duplicates (subsorts Ss)))
-  ;; (=-> #:vars ([S Subsort] [Ss Subsort ...])
-  ;;      (remove-duplicates (subsorts S Ss))
-  ;;      (cons S (remove-duplicates (subsorts Ss))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  ;; (op (contains? Subsort SubsortList) Boolean)
-  ;; (=-> #:vars ([S Subsort])
-  ;;      (contains? S (subsorts))
-  ;;      false)
-  ;; (=-> #:vars ([S Subsort] [Ss Subsort ...])
-  ;;      (contains? S (subsorts S Ss))
-  ;;      true)
-  ;; (=-> #:vars ([S Subsort] [S1 Subsort] [Ss Subsort ...])
-  ;;      (contains? S (subsorts S1 Ss))
-  ;;      (contains? S (subsorts Ss)))
-
-  ;
-  ; rename-op
-  ;
-  (op (rename-op Module Symbol Symbol) Module)
-  (=-> #:vars ([Name Symbol] [Imports ImportList]
-               [Sorts SortList] [Subsorts SubsortList]
-               [Ops OpList] [Rules RuleList]
-               [OS1 Symbol] [OS2 Symbol])
-       (rename-op (module Name Imports Sorts Subsorts Ops Rules) OS1 OS2)
-       (module Name Imports Sorts Subsorts
-         (rename-op Ops OS1 OS2)
-         (rename-op Rules OS1 OS2)))
-
-  ;
-  ; rename-op: map-like application to lists
-  ;
-  (op (rename-op OpList Symbol Symbol) OpList)
-  (=-> #:vars ([OS1 Symbol] [OS2 Symbol])
-       (rename-op (ops) OS1 OS2)
-       (ops))
-  (=-> #:vars ([O Op] [Os Op ...] [OS1 Symbol] [OS2 Symbol])
-       (rename-op (ops O Os) OS1 OS2)
-       (cons (rename-op O OS1 OS2) (rename-op (ops Os) OS1 OS2)))
-
-  (op (rename-op RuleList Symbol Symbol) RuleList)
-  (=-> #:vars ([OS1 Symbol] [OS2 Symbol])
-       (rename-op (rules) OS1 OS2)
-       (rules))
-  (=-> #:vars ([R Rule] [Rs Rule ...] [OS1 Symbol] [OS2 Symbol])
-       (rename-op (rules R Rs) OS1 OS2)
-       (cons (rename-op R OS1 OS2) (rename-op (rules Rs) OS1 OS2)))
-
-  (op (rename-op PatternArgList Symbol Symbol) PatternArgList)
-  (op (rename-op ArgList Symbol Symbol) ArgList)
-  (=-> #:vars ([OS1 Symbol] [OS2 Symbol])
-       (rename-op (args) OS1 OS2)
-       (args))
-  (=-> #:vars ([A Pattern] [As Pattern ...] [OS1 Symbol] [OS2 Symbol])
-       (rename-op (args A As) OS1 OS2)
-       (cons (rename-op A OS1 OS2) (rename-op (args As) OS1 OS2)))
-
-  ;
-  ; rename-op: the operations on the leaves of the tree
-  ;
-  (op (rename-op Op Symbol Symbol) Op)
-  (=-> #:vars ([D Domain] [S Symbol] [OS1 Symbol] [OS2 Symbol])
-       (rename-op (op OS1 D S) OS1 OS2)
-       (op OS2 D S))
-  (=-> #:vars ([N Symbol] [D Domain] [S Symbol] [OS1 Symbol] [OS2 Symbol])
-       (rename-op (op N D S) OS1 OS2)
-       (op N D S))
-
-  (op (rename-op Rule Symbol Symbol) Rule)
-  (=-> #:vars ([Vs VarList] [P1 Pattern] [P2 Pattern] [P3 Pattern]
-               [OS1 Symbol] [OS2 Symbol])
-       (rename-op (=-> Vs P1 P2 P3) OS1 OS2)
-       (=-> Vs (rename-op P1 OS1 OS2)
-               (rename-op P2 OS1 OS2)
-               (rename-op P3 OS1 OS2)))
-
-  (op (rename-op Pattern Symbol Symbol) Pattern)
-  (op (rename-op Term Symbol Symbol) Term)
-  (=-> #:vars ([A PatternArgList] [OS1 Symbol] [OS2 Symbol])
-       (rename-op (pattern OS1 A) OS1 OS2)
-       (pattern OS2 (rename-op A OS1 OS2)))
-  (=-> #:vars ([OS Symbol] [A PatternArgList] [OS1 Symbol] [OS2 Symbol])
-       (rename-op (pattern OS A) OS1 OS2)
-       (pattern OS (rename-op A OS1 OS2)))
-  (=-> #:vars ([A ArgList] [OS1 Symbol] [OS2 Symbol])
-       (rename-op (term OS1 A) OS1 OS2)
-       (term OS2 (rename-op A OS1 OS2)))
-  (=-> #:vars ([OS Symbol] [A ArgList] [OS1 Symbol] [OS2 Symbol])
-       (rename-op (term OS A) OS1 OS2)
-       (term OS (rename-op A OS1 OS2)))
-  (=-> #:vars ([P Pattern] [OS1 Symbol] [OS2 Symbol])
-       (rename-op P OS1 OS2)
-       P)
-
-  ;
-  ; add-import
-  ;
-  (op (add-import Module Import) Module)
-  (=-> #:vars ([Name Symbol] [Imports ImportList]
-               [Sorts SortList] [Subsorts SubsortList]
-               [Ops OpList] [Rules RuleList]
-               [I Import])
-       (add-import (module Name Imports  Sorts Subsorts Ops Rules) I)
-       (module Name (cons I Imports) Sorts Subsorts Ops Rules))
-
-  ;
-  ; module-name
-  ;
-  (op (module-name Module Symbol) Module)
-  (=-> #:vars ([Name Symbol] [Imports ImportList]
-               [Sorts SortList] [Subsorts SubsortList]
-               [Ops OpList] [Rules RuleList]
-               [NN Symbol])
-       (module-name (module Name Imports  Sorts Subsorts Ops Rules) NN)
-       (module NN Imports Sorts Subsorts Ops Rules))
-)
-
-(define-module module-rewrite+
-
-  (include module-rewrite)
-
-  (sorts Transform Transforms)
-
-  ;
-  ; Transforms and their application
-  ;
-  (op (transforms Transform ...) Transforms)
-  (op ($apply-transform Transform Module) Module)
-
-  (op (module-name Symbol) Transform)
-  (=-> #:vars ([N Symbol] [M Module])
-       ($apply-transform (module-name N) M)
-       (module-name M N))
-
-  (op (add-import Import) Transform)
-  (=-> #:vars ([I Import] [M Module])
-       ($apply-transform (add-import I) M)
-       (add-import M I))
-
-  (op (rename-sort Symbol Symbol) Transform)
-  (=-> #:vars ([S1 Symbol] [S2 Symbol] [M Module])
-       ($apply-transform (rename-sort S1 S2) M)
-       (rename-sort M S1 S2))
-
-  (op (rename-op Symbol Symbol) Transform)
-  (=-> #:vars ([O1 Symbol] [O2 Symbol] [M Module])
-       ($apply-transform (rename-op O1 O2) M)
-       (rename-op M O1 O2))
-
-  ;
-  ; Extended module
-  ;
-  (op (module Module Transforms) Module)
-
-  (=-> #:vars ([M Module] [T Transform])
-       (module M (transforms T))
-       ($apply-transform T M))
-  (=-> #:vars ([M Module] [T Transform] [Ts Transform ...])
-       (module M (transforms T Ts))
-       (module ($apply-transform T M) (transforms Ts)))
-  
-  ;
-  ; Extended use and include
-  ;
-  (op (use Module Transforms) Import)
-  (op (include Module Transforms) Import)
-
-  (=-> #:vars ([M Module] [T Transform])
-       (use M (transforms T))
-       (use ($apply-transform T M)))
-  (=-> #:vars ([M Module] [T Transform] [Ts Transform ...])
-       (use M (transforms T Ts))
-       (use ($apply-transform T M) (transforms Ts)))
-  (=-> #:vars ([M Module] [T Transform])
-       (include M (transforms T))
-       (include ($apply-transform T M)))
-  (=-> #:vars ([M Module] [T Transform] [Ts Transform ...])
-       (include M (transforms T Ts))
-       (include ($apply-transform T M) (transforms Ts)))
-
-  
-)
-
-(define-module test
-  (sort A)
-  (op (foo A) A)
-  (op bar A))
-
-(define rw (term module-rewrite (rename-sort ,test 'A 'B)))
-(reduce rw)
-
-
-(define-module list
-  
-  (sorts Element List NonEmptyList)
-  (subsorts [NonEmptyList List])
-  
-  (op (list Element ...) NonEmptyList)
-  (op (list) List)
-
-  (op (head NonEmptyList) Element)
-  (=-> #:vars ([E Element] [ES Element ...])
-       (head (list E ES))
-       E)
-  (op (tail NonEmptyList) List)
-  (=-> #:vars ([E Element] [ES Element ...])
-       (tail (list E ES))
-       (list ES))
-  
-  (op (cons Element List) NonEmptyList)
-  (=-> #:vars ([E Element] [ES Element ...])
-       (cons E (list ES))
-       (list E ES)))
-
-(define sort-list
-  (reduce
-   (term module-rewrite+
-         (module 'list-of-sorts
-             (imports (use (builtin-module 'symbol))
-                      (use ,list
-                           (transforms
-                            (rename-sort 'Element 'Symbol)
-                            (rename-sort 'List 'SortList)
-                            (rename-sort 'NonEmptyList 'SortList)
-                            (rename-op 'list 'sorts))))
-           (sorts) (subsorts) (ops) (rules)))))
-
-(reduce (term sort-list (cons 'X (sorts 'A 'B))))
-
-(define sort-list-2
-  (reduce
-   (term module-rewrite+
-         (module ,list
-             (transforms
-              (module-name 'list-of-sorts)
-              (add-import (use (builtin-module 'symbol)))
-              (rename-sort 'Element 'Symbol)
-              (rename-sort 'List 'SortList)
-              (rename-sort 'NonEmptyList 'SortList)
-              (rename-op 'list 'sorts))))))
-
-(reduce (term sort-list-2 (cons 'X (sorts 'A 'B))))
-
-
-(define-module list-with-map
-  
-  (include list)
-
-  (sorts Result ResultList)
-
-  (op (result-list Result ...) ResultList)
-  (op (result-list) ResultList)
-  (op (cons Result ResultList) ResultList)
-  (=-> #:vars ([R Result] [Rs Result ...])
-       (cons R (result-list Rs))
-       (result-list R Rs))
-  
-  (op (f Element) Result)
-
-  (op (f List) ResultList)
-  (=-> (f (list))
-       (result-list))
-  (=-> #:vars ([E Element] [Es Element ...])
-       (f (list E Es))
-       (cons (f E) (f (list Es))))
-  )
+(module+ test
+  (require term-algebra/api
+           term-algebra/library/list)
+  (define-module++ test1
+    (include list
+             #:transforms (add-import (use builtin:string))
+                          (rename-sort Element String)
+                          (rename-sort List StringList)
+                          (rename-sort NonEmptyList NEStringList)
+                          (rename-op list string-list))
+    (op bar NEStringList)
+    (=-> bar (string-list "a" "b" "c")))
+  (meta:reduce-vterm (term test1 (tail bar))))

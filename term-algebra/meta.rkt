@@ -2,8 +2,7 @@
 
 (provide m-term m-pattern m-module
          meta-up meta-down
-         make-vterm
-         (struct-out vterm)
+         make-vterm (struct-out vterm) (struct-out module-vterm)
          check-module module-hashcode)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -125,10 +124,12 @@
 (define m-module-ops (modules:module-ops m-module))
 
 (define (make-vterm module term)
-  (if (modules:imports? module m-module)
+  (if (and (modules:imports? module m-module)
+           (member (terms:term-op term) '(module builtin-module)))
       (module-vterm module (terms:sort-of term) term #f)
       (vterm module (terms:sort-of term) term)))
 
+; used in test-modules.rkt
 (define (internal-module m-vterm)
   (unless (module-vterm? m-vterm)
     (error "Not a module: " m-vterm))

@@ -36,5 +36,10 @@ result [D,B]: foo(d)
 
 * Details to be defined at some point
 ** Which symbols are legal identifiers?
-- currently 'quote' cannot be used as an identifier because of the Lisp-liks syntax for quoted symbols
+- currently 'quote', 'unquote', and 'unquote-splicing' cannot be used as identifiers because of the Lisp-liks syntax for quoted symbols and unquotes
 ** How is the module hashcode computed?
+
+
+* To-do list
+** Implement strict-checking for rules
+In non-strict mode, extraneous variable declarations should be allowed.

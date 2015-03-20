@@ -4,7 +4,7 @@
          define-unchecked-module unchecked-module
          term meta-term
          meta-up meta-down
-         m-term m-pattern m-module
+         m-term m-module
          reduce
          ; builtin modules:
          builtin:any
@@ -12,7 +12,8 @@
          builtin:string builtin:symbol
          builtin:natural builtin:integer builtin:rational)
 
-(require term-algebra/syntax
+(require term-algebra/term-syntax
+         term-algebra/module-syntax
          (only-in term-algebra/meta meta-up meta-down)
          (prefix-in terms: term-algebra/terms)
          (prefix-in modules: term-algebra/modules)
@@ -25,23 +26,6 @@
   (let ([mod (meta:vterm-module vterm)]
         [term (meta:vterm-term vterm)])
     (meta:make-vterm mod (rewrite:reduce term mod))))
-
-; Meta modules
-
-(define m-term
-  (meta:check-module
-   (meta:make-vterm meta:m-module
-                    (terms:term 'builtin-module (list 'm-term) 'Module))))
-
-(define m-pattern
-  (meta:check-module
-   (meta:make-vterm meta:m-module
-                    (terms:term 'builtin-module (list 'm-pattern) 'Module))))
-
-(define m-module
-  (meta:check-module
-   (meta:make-vterm meta:m-module
-                    (terms:term 'builtin-module (list 'm-module) 'Module))))
 
 ; Builtin modules
 

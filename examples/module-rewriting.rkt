@@ -1,12 +1,12 @@
 #lang racket
 
 (require term-algebra/api
-         (prefix-in library: term-algebra/library))
+         term-algebra/library/boolean)
 
 (define-module module-rewrite
   (use m-module)
   (use builtin:equality)
-  (use library:boolean)
+  (use boolean)
   
   ;
   ; Cons definitions for all lists - should perhaps be moved to m-module
@@ -368,7 +368,7 @@
   (op (foo A) A)
   (op bar A))
 
-(define rw (term module-rewrite (rename-sort [[test]] 'A 'B)))
+(define rw (term module-rewrite (rename-sort ,test 'A 'B)))
 (reduce rw)
 
 
@@ -399,7 +399,7 @@
    (term module-rewrite+
          (module 'list-of-sorts
              (imports (use (builtin-module 'symbol))
-                      (use [[list]]
+                      (use ,list
                            (transforms
                             (rename-sort 'Element 'Symbol)
                             (rename-sort 'List 'SortList)
@@ -412,7 +412,7 @@
 (define sort-list-2
   (reduce
    (term module-rewrite+
-         (module [[list]]
+         (module ,list
              (transforms
               (module-name 'list-of-sorts)
               (add-import (use (builtin-module 'symbol)))
@@ -422,3 +422,27 @@
               (rename-op 'list 'sorts))))))
 
 (reduce (term sort-list-2 (cons 'X (sorts 'A 'B))))
+
+
+(define-module list-with-map
+  
+  (include list)
+
+  (sorts Result ResultList)
+
+  (op (result-list Result ...) ResultList)
+  (op (result-list) ResultList)
+  (op (cons Result ResultList) ResultList)
+  (=-> #:vars ([R Result] [Rs Result ...])
+       (cons R (result-list Rs))
+       (result-list R Rs))
+  
+  (op (f Element) Result)
+
+  (op (f List) ResultList)
+  (=-> (f (list))
+       (result-list))
+  (=-> #:vars ([E Element] [Es Element ...])
+       (f (list E Es))
+       (cons (f E) (f (list Es))))
+  )

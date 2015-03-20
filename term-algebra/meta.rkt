@@ -2,7 +2,7 @@
 
 (provide m-term m-pattern m-module
          meta-up meta-down
-         make-vterm (struct-out vterm) (struct-out module-vterm)
+         make-vterm reduce-vterm (struct-out vterm) (struct-out module-vterm)
          check-module module-hashcode)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -11,6 +11,7 @@
          (prefix-in modules: term-algebra/modules)
          (prefix-in builtin: term-algebra/builtin)
          (prefix-in rules: term-algebra/rules)
+         (prefix-in rewrite: term-algebra/rewrite)
          (for-syntax syntax/parse))
 
 ;
@@ -128,6 +129,12 @@
            (member (terms:term-op term) '(module builtin-module)))
       (module-vterm module (terms:sort-of term) term #f)
       (vterm module (terms:sort-of term) term)))
+
+(define (reduce-vterm vterm)
+  (let ([mod (vterm-module vterm)]
+        [term (vterm-term vterm)])
+    (make-vterm mod (rewrite:reduce term mod))))
+
 
 ; used in test-modules.rkt
 (define (internal-module m-vterm)

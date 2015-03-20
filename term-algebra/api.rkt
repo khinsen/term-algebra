@@ -5,7 +5,7 @@
          term meta-term
          meta-up meta-down
          m-term m-module
-         reduce
+         (rename-out [meta:reduce-vterm reduce])
          ; builtin modules:
          builtin:any
          builtin:truth builtin:equality
@@ -17,15 +17,7 @@
          (only-in term-algebra/meta meta-up meta-down)
          (prefix-in terms: term-algebra/terms)
          (prefix-in modules: term-algebra/modules)
-         (prefix-in meta: term-algebra/meta)
-         (prefix-in rewrite: term-algebra/rewrite))
-
-; Reduce a validated term
-
-(define (reduce vterm)
-  (let ([mod (meta:vterm-module vterm)]
-        [term (meta:vterm-term vterm)])
-    (meta:make-vterm mod (rewrite:reduce term mod))))
+         (prefix-in meta: term-algebra/meta))
 
 ; Builtin modules
 

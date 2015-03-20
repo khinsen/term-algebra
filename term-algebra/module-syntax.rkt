@@ -174,7 +174,7 @@
         sort-decl:sort ...
         op-decl:operator ...)
      #'(term m-module
-             (module 'module-name
+             (module (quote module-name)
                (imports ,@(append import-decl.imports ...))
                (sorts ,@(append sort-decl.sorts ...))
                (subsorts ,@(append sort-decl.subsorts ...))

@@ -1,14 +1,16 @@
 #lang racket
 
-(provide module++ define-module++
-         unchecked-module++
-         define-unchecked-module++ )
+(provide module define-module
+         unchecked-module define-unchecked-module)
 
 (require term-algebra/term-syntax
-         term-algebra/module-syntax
          term-algebra/library/module-transforms
          (prefix-in meta: term-algebra/meta)
-         (for-syntax term-algebra/module-syntax)
+         (only-in term-algebra/basic-module-syntax
+                  import sort operator)
+         (only-in term-algebra/basic-api m-module)
+         ;; (for-syntax (only-in term-algebra/basic-module-syntax
+         ;;                      import sort operator))
          (for-syntax syntax/parse))
 
 (define (prepare-import module . transforms)
@@ -89,7 +91,7 @@
              #:with ops #'op-decl.ops
              #:with rules #'op-decl.rules)))
 
-(define-syntax (unchecked-module++ stx)
+(define-syntax (unchecked-module stx)
   (syntax-parse stx
     [(_ module-name:id
         declaration:decl ...)
@@ -101,33 +103,17 @@
                (ops ,@(append declaration.ops ...))
                (rules ,@(append declaration.rules ...))))]))
 
-(define-syntax (define-unchecked-module++ stx)
+(define-syntax (define-unchecked-module stx)
   (syntax-parse stx
     [(_ module-name:id decl ...)
-     #'(define module-name (unchecked-module++ module-name decl ...))]))
+     #'(define module-name (unchecked-module module-name decl ...))]))
 
-(define-syntax (module++ stx)
+(define-syntax (module stx)
   (syntax-parse stx
     [(_ arg ...)
-     #'(meta:check-module (unchecked-module++ arg ...))]))
+     #'(meta:check-module (unchecked-module arg ...))]))
 
-(define-syntax (define-module++ stx)
+(define-syntax (define-module stx)
   (syntax-parse stx
     [(_ module-name:id decl ...)
-     #'(define module-name (module++ module-name decl ...))]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(module+ test
-  (require term-algebra/api
-           term-algebra/library/list)
-  (define-module++ test1
-    (include list
-             #:transforms (add-import (use builtin:string))
-                          (rename-sort Element String)
-                          (rename-sort List StringList)
-                          (rename-sort NonEmptyList NEStringList)
-                          (rename-op list string-list))
-    (op bar NEStringList)
-    (=-> bar (string-list "a" "b" "c")))
-  (meta:reduce-vterm (term test1 (tail bar))))
+     #'(define module-name (module module-name decl ...))]))

@@ -10,6 +10,7 @@
          "test-modules.rkt"
          "test-library.rkt"
          "test-peano-numbers.rkt"
+         "test-extended-syntax.rkt"
          )
 
 (provide all-tests)
@@ -25,6 +26,7 @@
           module-tests
           library-tests
           peano-number-tests
+          extended-syntax-tests
           )))
 
 (module* main #f

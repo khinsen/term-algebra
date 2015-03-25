@@ -5,7 +5,7 @@
 (require rackunit
          (prefix-in operators: term-algebra/operators)
          (prefix-in modules: term-algebra/modules)
-         (prefix-in api: term-algebra/api)
+         (prefix-in api: term-algebra/basic-api)
          term-algebra/library/boolean)
 
 (require/expose term-algebra/operators [op-set-ops

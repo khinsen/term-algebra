@@ -3,7 +3,7 @@
 (provide peano-number-tests)
 
 (require rackunit
-         term-algebra/api)
+         term-algebra/basic-api)
 
 (define-syntax-rule (check-reduce module initial-term reduced-term)
   (check-equal? (reduce (term module initial-term))

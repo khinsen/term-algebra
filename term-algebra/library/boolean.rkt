@@ -2,7 +2,7 @@
 
 (provide boolean)
 
-(require term-algebra/api)
+(require term-algebra/basic-api)
 
 (define-module boolean
 

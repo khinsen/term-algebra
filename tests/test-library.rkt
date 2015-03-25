@@ -3,7 +3,7 @@
 (provide library-tests)
 
 (require rackunit
-         term-algebra/api
+         term-algebra/basic-api
          term-algebra/library/boolean
          term-algebra/library/list
          term-algebra/library/module-transforms)

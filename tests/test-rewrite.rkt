@@ -3,7 +3,7 @@
 (provide rewrite-tests)
 
 (require rackunit
-         term-algebra/api)
+         term-algebra/basic-api)
 
 (define-module boolean
 

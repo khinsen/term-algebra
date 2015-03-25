@@ -13,7 +13,7 @@
          builtin:natural builtin:integer builtin:rational)
 
 (require term-algebra/term-syntax
-         term-algebra/module-syntax
+         term-algebra/basic-module-syntax
          (only-in term-algebra/meta meta-up meta-down)
          (prefix-in terms: term-algebra/terms)
          (prefix-in modules: term-algebra/modules)

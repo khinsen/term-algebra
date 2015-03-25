@@ -2,7 +2,7 @@
 
 (provide list)
 
-(require term-algebra/api)
+(require term-algebra/basic-api)
 
 (define-module list
 

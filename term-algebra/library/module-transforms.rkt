@@ -2,7 +2,7 @@
 
 (provide module-transforms)
 
-(require term-algebra/api)
+(require term-algebra/basic-api)
 
 (define-module module-transforms
 

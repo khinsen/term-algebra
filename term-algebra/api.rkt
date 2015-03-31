@@ -1,7 +1,7 @@
 #lang racket
 
-(provide define-module module
-         define-unchecked-module unchecked-module
+(provide define-section section
+         define-unchecked-section unchecked-section
          term meta-term
          meta-up meta-down
          m-term m-module

@@ -4,14 +4,14 @@
 
 (require rackunit
          term-algebra/api
-         (rename-in term-algebra/library/list [list list-module]))
+         (rename-in term-algebra/library/list [list list-section]))
 
 (define-syntax-rule (check-reduce module initial-term reduced-term)
   (check-equal? (reduce (term module initial-term))
                 (term module reduced-term)))
 
-(define-module test
-        (include list-module
+(define-section test
+        (include list-section
                  #:transforms (add-import (use builtin:string))
                  (rename-sort Element String)
                  (rename-sort List StringList)

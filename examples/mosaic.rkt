@@ -139,22 +139,19 @@
   (op (dummy-atom String String) Dummy)
   (op (cg-particle String String) CGParticle)
 
+  ; Selector definitions
+  (vars [L String]
+        [aString String]
+        [anElementSymbol ElementSymbol]
+        [aNonZeroNatural NonZeroNatural])
   (op (.label Atom) String)
-  (=-> #:vars ([L String]
-               [_2 String])
-       (.label (atom L _2))
+  (=-> (.label (atom L aString))
        L)
-  (=-> #:vars ([L String]
-               [_2 ElementSymbol])
-       (.label (atom L _2))
+  (=-> (.label (atom L anElementSymbol))
        L)
-  (=-> #:vars ([L String]
-               [_2 String] [_3 NonZeroNatural])
-       (.label (atom L _2 _3))
+  (=-> (.label (atom L aString aNonZeroNatural))
        L)
-  (=-> #:vars ([L String]
-               [_2 ElementSymbol] [_3 NonZeroNatural])
-       (.label (atom L _2 _3))
+  (=-> (.label (atom L anElementSymbol aNonZeroNatural))
        L))
 
 (define-section fragments

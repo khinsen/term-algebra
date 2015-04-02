@@ -6,6 +6,7 @@
 (require term-algebra/term-syntax
          term-algebra/library/module-transforms
          (prefix-in meta: term-algebra/meta)
+         (prefix-in terms: term-algebra/terms)
          (only-in term-algebra/basic-api m-module)
          (for-syntax syntax/parse))
 
@@ -17,6 +18,33 @@
       (meta:reduce-vterm
        (term module-transforms
              (transformed-module ,module (transforms ,@transforms)))))]))
+
+(define (combined-var-symbols section-var-symbols rule-var-symbols)
+  (if (set-empty?
+       (set-intersect section-var-symbols rule-var-symbols))
+      (set-union section-var-symbols rule-var-symbols)
+      (error "Redefinition of variable(s)")))
+
+(define (used-section-vars left-pattern section-vars)
+
+  (define (collect-var-refs term)
+    (cond
+      [(not (terms:term? term))
+       (set)]
+      [(equal? (terms:term-op term) 'var-ref)
+       (set (first (terms:term-args term)))]
+      [else
+       (foldl set-union
+              (set)
+              (map collect-var-refs (terms:term-args term)))]))
+
+  (define (var-symbol v)
+    (first (terms:term-args (meta:vterm-term v))))
+
+  (let ([used-var-symbols (collect-var-refs (meta:vterm-term left-pattern))])
+    (filter (λ (v) (set-member? used-var-symbols
+                                (var-symbol v)))
+            section-vars)))
 
 (begin-for-syntax
 
@@ -97,6 +125,41 @@
              #:with ops #'empty
              #:with rules #'empty))
   
+  (define-syntax-class operator
+    #:description "operator"
+    #:attributes (imports sorts subsorts ops rules)
+    (pattern ((~datum op) op-name:id range-sort:id)
+             #:with ops
+             #'(list (term m-module
+                           (op (quote op-name)
+                               (fixed-arity-domain)
+                               (quote range-sort))))
+             #:with rules #'empty
+             #:with imports #'empty
+             #:with sorts #'empty
+             #:with subsorts #'empty)
+    (pattern ((~datum op) (op-name:id arg-sort:id (~datum ...))
+              range-sort:id)
+             #:with ops
+             #'(list (term m-module
+                           (op (quote op-name)
+                               (var-arity-domain (quote arg-sort))
+                               (quote range-sort))))
+             #:with rules #'empty
+             #:with imports #'empty
+             #:with sorts #'empty
+             #:with subsorts #'empty)
+    (pattern ((~datum op) (op-name:id arg-sort:id ...) range-sort:id)
+             #:with ops
+             #'(list (term m-module
+                           (op (quote op-name)
+                               (fixed-arity-domain (quote arg-sort) ...)
+                               (quote range-sort))))
+             #:with rules #'empty
+             #:with imports #'empty
+             #:with sorts #'empty
+             #:with subsorts #'empty))
+
   (define-syntax-class atom
     #:description "atomic term"
     #:attributes (value)
@@ -137,116 +200,108 @@
     #:description "variable list in a rule"
     #:attributes (value symbols)
     (pattern (~seq #:var v:variable)
-             #:with value #'(term m-module (vars ,v.var))
+             #:with value #'(list v.var)
              #:with symbols #'(set (quote v.var-symbol)))
     (pattern (~seq #:vars (v:variable ...))
-             #:with value #'(term m-module (vars ,v.var ...))
+             #:with value #'(list v.var ...)
              #:with symbols #'(set (quote v.var-symbol) ...)))
-
-  (define-syntax-class operator
-    #:description "operator"
-    #:attributes (imports sorts subsorts ops rules)
-    (pattern ((~datum op) op-name:id range-sort:id)
-             #:with ops
-             #'(list (term m-module
-                           (op (quote op-name)
-                               (fixed-arity-domain)
-                               (quote range-sort))))
-             #:with rules #'empty
-             #:with imports #'empty
-             #:with sorts #'empty
-             #:with subsorts #'empty)
-    (pattern ((~datum op) (op-name:id arg-sort:id (~datum ...))
-              range-sort:id)
-             #:with ops
-             #'(list (term m-module
-                           (op (quote op-name)
-                               (var-arity-domain (quote arg-sort))
-                               (quote range-sort))))
-             #:with rules #'empty
-             #:with imports #'empty
-             #:with sorts #'empty
-             #:with subsorts #'empty)
-    (pattern ((~datum op) (op-name:id arg-sort:id ...) range-sort:id)
-             #:with ops
-             #'(list (term m-module
-                           (op (quote op-name)
-                               (fixed-arity-domain (quote arg-sort) ...)
-                               (quote range-sort))))
-             #:with rules #'empty
-             #:with imports #'empty
-             #:with sorts #'empty
-             #:with subsorts #'empty))
 
   (define-syntax-class rule
     #:description "rule"
-    #:attributes (imports sorts subsorts ops rules)
+    #:attributes (imports sorts subsorts ops rules mvars)
+    (pattern ((~datum vars) v:variable ...)
+             #:with imports #'empty
+             #:with sorts #'empty
+             #:with subsorts #'empty
+             #:with ops #'empty
+             #:with rules #'empty
+             #:with mvars
+             #'(if (ormap (λ (s) (set-member? section-var-symbols s))
+                          (list (quote v.var-symbol) ...))
+                   (error "Redefinition of variable(s)")
+                   (set!-values
+                    (section-vars section-var-symbols)
+                    (values (append (list v.var ...)
+                                    section-vars)
+                            (set-union (set (quote v.var-symbol) ...)
+                                       section-var-symbols)))))
     (pattern ((~datum =->)
-              (~optional vars:variable-list
-                         #:defaults ([vars.value #'(term m-module (vars))]
-                                     [vars.symbols #'(set)]))
+              (~optional rule-vars:variable-list
+                         #:defaults ([rule-vars.value #'empty]
+                                     [rule-vars.symbols #'(set)]))
               (~var left (term-pattern #'var-symbols))
               (~optional (~seq #:if (~var cond (term-pattern #'var-symbols)))
                          #:defaults ([cond.value #'(term m-module no-condition)]))
               (~var right (term-pattern #'var-symbols)))
              #:with ops #'empty
              #:with rules
-             #'(let ([var-symbols vars.symbols])
+             #'(let* ([var-symbols (combined-var-symbols
+                                    section-var-symbols rule-vars.symbols)]
+                      [used-vars (used-section-vars left.value section-vars)])
                  (list (term m-module
-                             (=-> ,vars.value
+                             (=-> (vars ,@used-vars ,@rule-vars.value)
                                   ,left.value ,cond.value ,right.value))))
+             #:with mvars #'(void)
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty)
     (pattern ((~datum =->)
-              (~optional vars:variable-list
-                         #:defaults ([vars.value #'(term m-module (vars))]
-                                     [vars.symbols #'(set)]))
+              (~optional rule-vars:variable-list
+                         #:defaults ([rule-vars.value #'empty]
+                                     [rule-vars.symbols #'(set)]))
               (~var left (term-pattern #'var-symbols))
               (~seq #:cond [(~var cond (term-pattern #'var-symbols))
-                            (~var cright (term-pattern #'var-symbols))] ...
-                            [#:else (~var right (term-pattern #'var-symbols))]))
+                            (~var right (term-pattern #'var-symbols))] ...
+                            [#:else (~var else (term-pattern #'var-symbols))]))
              #:with ops #'empty
              #:with rules
-             #'(let ([var-symbols vars.symbols])
+             
+             #'(let* ([var-symbols (combined-var-symbols
+                                    section-var-symbols rule-vars.symbols)]
+                      [used-vars (used-section-vars left.value section-vars)])
                  (list (term m-module
-                             (=-> ,vars.value
-                                  ,left.value ,cond.value ,cright.value))
+                             (=-> (vars ,@used-vars ,@rule-vars.value)
+                                  ,left.value ,cond.value ,right.value))
                        ...
                        (term m-module
-                             (=-> ,vars.value
-                                  ,left.value no-condition ,right.value))))
+                             (=-> (vars ,@used-vars ,@rule-vars.value)
+                                  ,left.value no-condition ,else.value))))
+             #:with mvars #'(void)
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty))
 
   (define-syntax-class decl
     #:description "declaration in a module"
-    #:attributes (imports sorts subsorts ops rules)
+    #:attributes (imports sorts subsorts ops rules mvars)
     (pattern import-decl:extended-import
              #:with imports #'import-decl.imports
              #:with sorts #'(list)
              #:with subsorts #'(list)
              #:with ops #'(list)
+             #:with mvars #'(void)
              #:with rules #'(list))
     (pattern sort-decl:sort
              #:with imports #'(list)
              #:with sorts #'sort-decl.sorts
              #:with subsorts #'sort-decl.subsorts
              #:with ops #'(list)
+             #:with mvars #'(void)
              #:with rules #'(list))
     (pattern op-decl:operator
              #:with imports #'(list)
              #:with sorts #'(list)
              #:with subsorts #'(list)
              #:with ops #'op-decl.ops
+             #:with mvars #'(void)
              #:with rules #'(list))
     (pattern rule-decl:rule
              #:with imports #'(list)
              #:with sorts #'(list)
              #:with subsorts #'(list)
              #:with ops #'(list)
-             #:with rules #'rule-decl.rules)))
+             #:with rules #'rule-decl.rules
+             #:with mvars #'rule-decl.mvars)))
 
 (define-syntax (unchecked-section stx)
   (syntax-parse stx
@@ -258,7 +313,10 @@
                (sorts ,@(append declaration.sorts ...))
                (subsorts ,@(append declaration.subsorts ...))
                (ops ,@(append declaration.ops ...))
-               (rules ,@(append declaration.rules ...))))]))
+               (rules ,@(let ([section-vars empty]
+                              [section-var-symbols (set)])
+                          declaration.mvars ...
+                          (append declaration.rules ...)))))]))
 
 (define-syntax (define-unchecked-section stx)
   (syntax-parse stx

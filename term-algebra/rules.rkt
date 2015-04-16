@@ -42,7 +42,7 @@
     (rule pattern condition replacement)))
 
 ;
-; Manage complete rule lists as used in modules
+; Manage complete rule lists as used in nodes
 ;
 (define (empty-rules)
   (make-hash))

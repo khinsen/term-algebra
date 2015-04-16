@@ -7,10 +7,10 @@
          (prefix-in operators: term-algebra/operators)
          (prefix-in terms: term-algebra/terms)
          (prefix-in builtin: term-algebra/builtin)
-         (only-in term-algebra/modules
-                   define-builtin-module module-ops))
+         (only-in term-algebra/nodes
+                   define-builtin-node node-ops))
 
-(define-builtin-module test-terms
+(define-builtin-node test-terms
   (use builtin:string)
   (use builtin:symbol)
   (sorts A B C X Y Z)
@@ -25,7 +25,7 @@
   (op (bar A ...) Z)
   (op (bar X Y) Z))
 
-(define test-ops (module-ops test-terms))
+(define test-ops (node-ops test-terms))
 (define anA (terms:make-term 'anA empty test-ops))
 (define aB (terms:make-term 'aB empty test-ops))
 (define aC (terms:make-term 'aC empty test-ops))

@@ -1,12 +1,12 @@
 #lang racket
 
-(provide module-transforms)
+(provide node-transforms)
 
 (require term-algebra/basic-api)
 
-(define-module module-transforms
+(define-node node-transforms
 
-  (use m-module)
+  (use builtin:node)
   (use builtin:equality)
   
   (sorts Transform Transforms)
@@ -53,13 +53,13 @@
   ;
   ; rename-sort
   ;
-  (op (rename-sort Module Symbol Symbol) Module)
+  (op (rename-sort Node Symbol Symbol) Node)
   (=-> #:vars ([Name Symbol] [Imports ImportList]
                [Sorts SortList] [Subsorts SubsortList]
                [Ops OpList] [Rules RuleList]
                [S1 Symbol] [S2 Symbol])
-       (rename-sort (module Name Imports Sorts Subsorts Ops Rules) S1 S2)
-       (module Name Imports
+       (rename-sort (node Name Imports Sorts Subsorts Ops Rules) S1 S2)
+       (node Name Imports
          (rename-sort Sorts S1 S2)
          (rename-sort Subsorts S1 S2)
          (rename-sort Ops S1 S2)
@@ -156,13 +156,13 @@
   ;
   ; rename-op
   ;
-  (op (rename-op Module Symbol Symbol) Module)
+  (op (rename-op Node Symbol Symbol) Node)
   (=-> #:vars ([Name Symbol] [Imports ImportList]
                [Sorts SortList] [Subsorts SubsortList]
                [Ops OpList] [Rules RuleList]
                [OS1 Symbol] [OS2 Symbol])
-       (rename-op (module Name Imports Sorts Subsorts Ops Rules) OS1 OS2)
-       (module Name Imports Sorts Subsorts
+       (rename-op (node Name Imports Sorts Subsorts Ops Rules) OS1 OS2)
+       (node Name Imports Sorts Subsorts
          (rename-op Ops OS1 OS2)
          (rename-op Rules OS1 OS2)))
 
@@ -234,78 +234,78 @@
   ;
   ; add-import
   ;
-  (op (add-import Module Import) Module)
+  (op (add-import Node Import) Node)
   (=-> #:vars ([Name Symbol] [Imports ImportList]
                [Sorts SortList] [Subsorts SubsortList]
                [Ops OpList] [Rules RuleList]
                [I Import])
-       (add-import (module Name Imports  Sorts Subsorts Ops Rules) I)
-       (module Name (cons I Imports) Sorts Subsorts Ops Rules))
+       (add-import (node Name Imports  Sorts Subsorts Ops Rules) I)
+       (node Name (cons I Imports) Sorts Subsorts Ops Rules))
 
   ;
-  ; module-name
+  ; node-name
   ;
-  (op (module-name Module Symbol) Module)
+  (op (node-name Node Symbol) Node)
   (=-> #:vars ([Name Symbol] [Imports ImportList]
                [Sorts SortList] [Subsorts SubsortList]
                [Ops OpList] [Rules RuleList]
                [NN Symbol])
-       (module-name (module Name Imports  Sorts Subsorts Ops Rules) NN)
-       (module NN Imports Sorts Subsorts Ops Rules))
+       (node-name (node Name Imports  Sorts Subsorts Ops Rules) NN)
+       (node NN Imports Sorts Subsorts Ops Rules))
 
   ;
   ; Transforms and their application
   ;
   (op (transforms Transform ...) Transforms)
-  (op ($apply-transform Transform Module) Module)
+  (op ($apply-transform Transform Node) Node)
 
-  (op (module-name Symbol) Transform)
-  (=-> #:vars ([N Symbol] [M Module])
-       ($apply-transform (module-name N) M)
-       (module-name M N))
+  (op (node-name Symbol) Transform)
+  (=-> #:vars ([N Symbol] [M Node])
+       ($apply-transform (node-name N) M)
+       (node-name M N))
 
   (op (add-import Import) Transform)
-  (=-> #:vars ([I Import] [M Module])
+  (=-> #:vars ([I Import] [M Node])
        ($apply-transform (add-import I) M)
        (add-import M I))
 
   (op (rename-sort Symbol Symbol) Transform)
-  (=-> #:vars ([S1 Symbol] [S2 Symbol] [M Module])
+  (=-> #:vars ([S1 Symbol] [S2 Symbol] [M Node])
        ($apply-transform (rename-sort S1 S2) M)
        (rename-sort M S1 S2))
 
   (op (rename-op Symbol Symbol) Transform)
-  (=-> #:vars ([O1 Symbol] [O2 Symbol] [M Module])
+  (=-> #:vars ([O1 Symbol] [O2 Symbol] [M Node])
        ($apply-transform (rename-op O1 O2) M)
        (rename-op M O1 O2))
 
   ;
-  ; Extended module
+  ; Extended node
   ;
-  (op (transformed-module Module Transforms) Module)
+  (op (transformed-node Node Transforms) Node)
 
-  (=-> #:vars ([M Module] [T Transform])
-       (transformed-module M (transforms T))
+  (=-> #:vars ([M Node] [T Transform])
+       (transformed-node M (transforms T))
        ($apply-transform T M))
-  (=-> #:vars ([M Module] [T Transform] [Ts Transform ...])
-       (transformed-module M (transforms T Ts))
-       (transformed-module ($apply-transform T M) (transforms Ts)))
+  (=-> #:vars ([M Node] [T Transform] [Ts Transform ...])
+       (transformed-node M (transforms T Ts))
+       (transformed-node ($apply-transform T M) (transforms Ts)))
   
   ;
   ; Extended use and include
   ;
-  (op (use Module Transforms) Import)
-  (op (include Module Transforms) Import)
+  (op (use Node Transforms) Import)
+  (op (include Node Transforms) Import)
 
-  (=-> #:vars ([M Module] [T Transform])
+  (=-> #:vars ([M Node] [T Transform])
        (use M (transforms T))
        (use ($apply-transform T M)))
-  (=-> #:vars ([M Module] [T Transform] [Ts Transform ...])
+  (=-> #:vars ([M Node] [T Transform] [Ts Transform ...])
        (use M (transforms T Ts))
        (use ($apply-transform T M) (transforms Ts)))
-  (=-> #:vars ([M Module] [T Transform])
+  (=-> #:vars ([M Node] [T Transform])
        (include M (transforms T))
        (include ($apply-transform T M)))
-  (=-> #:vars ([M Module] [T Transform] [Ts Transform ...])
+  (=-> #:vars ([M Node] [T Transform] [Ts Transform ...])
        (include M (transforms T Ts))
        (include ($apply-transform T M) (transforms Ts))))

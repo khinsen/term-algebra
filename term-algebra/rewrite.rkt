@@ -4,22 +4,22 @@
 
 (require (prefix-in terms: term-algebra/terms)
          (prefix-in rules: term-algebra/rules)
-         (prefix-in modules: term-algebra/modules)
+         (prefix-in nodes: term-algebra/nodes)
          (prefix-in builtin: term-algebra/builtin))
 
 (define true-term
-  (modules:make-term 'true empty builtin:truth))
+  (nodes:make-term 'true empty builtin:truth))
 (define false-term
-  (modules:make-term 'false empty builtin:truth))
+  (nodes:make-term 'false empty builtin:truth))
 
 ; Term rewriting
 
-(define (rewrite-head-once a-term module)
+(define (rewrite-head-once a-term node)
   (let* ([key (if (terms:term? a-term)
                   (terms:term-op a-term)
                   (terms:sort-of a-term))]
-         [rules (hash-ref (modules:module-rules module) key empty)]
-         [ops (modules:module-ops module)])
+         [rules (hash-ref (nodes:node-rules node) key empty)]
+         [ops (nodes:node-ops node)])
     (or (for/fold ([rewritten-term #f])
                   ([rule-with-origin rules])
           #:break rewritten-term
@@ -37,28 +37,28 @@
                       (if condition
                           (and (equal? (reduce (terms:substitute condition
                                                                  s ops)
-                                               module)
+                                               node)
                                        true-term)
                                (terms:substitute value s ops))
                           (terms:substitute value s ops))
                       #f)))))
         a-term)))
 
-(define (rewrite-leftmost-innermost a-term module)
+(define (rewrite-leftmost-innermost a-term node)
   (if (terms:term? a-term)
       (let* ([args (terms:term-args a-term)]
-             [reduced-args (map (λ (arg) (reduce arg module)) args)]
+             [reduced-args (map (λ (arg) (reduce arg node)) args)]
              [with-reduced-args (if (andmap eq? args reduced-args)
                                     a-term
                                     (terms:make-term (terms:term-op a-term)
                                                      reduced-args
-                                                     (modules:module-ops module)))])
-        (rewrite-head-once with-reduced-args module))
-      (rewrite-head-once a-term module)))
+                                                     (nodes:node-ops node)))])
+        (rewrite-head-once with-reduced-args node))
+      (rewrite-head-once a-term node)))
 
-(define (reduce a-term module)
+(define (reduce a-term node)
   (let loop ([a-term a-term])
-    (let* ([rewritten-term (rewrite-leftmost-innermost a-term module)])
+    (let* ([rewritten-term (rewrite-leftmost-innermost a-term node)])
       (if (eq? rewritten-term a-term)
           a-term
           (loop rewritten-term)))))

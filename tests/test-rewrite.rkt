@@ -5,7 +5,7 @@
 (require rackunit
          term-algebra/basic-api)
 
-(define-module boolean
+(define-node boolean
 
   (use builtin:truth)
 
@@ -23,7 +23,7 @@
   (=-> #:var [Xs Boolean ...] (or true Xs) true)
   (=-> #:var [Xs Boolean ...] (or false  Xs) (or Xs)))
 
-(define-module test
+(define-node test
   (use builtin:equality)
   (sort A)
   (op (foo A A) A)

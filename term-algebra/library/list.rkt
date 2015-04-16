@@ -4,7 +4,7 @@
 
 (require term-algebra/basic-api)
 
-(define-module list
+(define-node list
 
   (use builtin:equality)
   

@@ -2,7 +2,7 @@
 
 (require term-algebra/api)
 
-(define-section elements
+(define-node elements
   (sort ElementSymbol)
   (op Ac ElementSymbol)
   (op Ag ElementSymbol)
@@ -118,7 +118,7 @@
   (op Zn ElementSymbol)
   (op Zr ElementSymbol))
 
-(define-section atoms
+(define-node atoms
 
   (use builtin:string)
   (use builtin:integer)
@@ -154,7 +154,7 @@
   (=-> (.label (atom L anElementSymbol aNonZeroNatural))
        L))
 
-(define-section fragments
+(define-node fragments
 
   (use builtin:equality)
   (use atoms)
@@ -187,7 +187,7 @@
        #:cond [(== (.label A) L)  A]
               [#:else (lookup-in-atoms (atoms AS) L)]))
 
-(define-section water
+(define-node water
   (use fragments)
   (op (water String) Fragment)
   (=-> #:var [L String]

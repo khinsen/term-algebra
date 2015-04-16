@@ -7,7 +7,7 @@
          "test-meta.rkt"
          "test-rewrite.rkt"
          "test-builtin.rkt"
-         "test-modules.rkt"
+         "test-nodes.rkt"
          "test-library.rkt"
          "test-peano-numbers.rkt"
          "test-extended-syntax.rkt"
@@ -23,7 +23,7 @@
           meta-tests
           rewrite-tests
           builtin-tests
-          module-tests
+          node-tests
           library-tests
           peano-number-tests
           extended-syntax-tests

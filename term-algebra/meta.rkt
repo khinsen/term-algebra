@@ -1,23 +1,23 @@
 #lang racket
 
-(provide m-term m-pattern m-module
+(provide n-term n-pattern n-node
          meta-up meta-down
-         make-vterm reduce-vterm (struct-out vterm) (struct-out module-vterm)
-         check-module module-hashcode)
+         make-vterm reduce-vterm (struct-out vterm) (struct-out node-vterm)
+         check-node node-hashcode)
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
          (prefix-in terms: term-algebra/terms)
-         (prefix-in modules: term-algebra/modules)
+         (prefix-in nodes: term-algebra/nodes)
          (prefix-in builtin: term-algebra/builtin)
          (prefix-in rules: term-algebra/rules)
          (prefix-in rewrite: term-algebra/rewrite)
          (for-syntax syntax/parse))
 
 ;
-; The data structure for a term validated with reference to a module
+; The data structure for a term validated with reference to a node
 ;
-(struct vterm (module sort term)
+(struct vterm (node sort term)
         #:transparent
         #:property prop:custom-write
         (lambda (vterm port mode)
@@ -37,23 +37,23 @@
                        (write-string ")" port))))]
               [else
                (print term port)]))
-          (let* ([mod (vterm-module vterm)]
-                 [ops (modules:module-ops mod)]
+          (let* ([mod (vterm-node vterm)]
+                 [ops (nodes:node-ops mod)]
                  [term (vterm-term vterm)])
-            (write (modules:module-name mod) port)
+            (write (nodes:node-name mod) port)
             (write-string ":" port)
             (write (vterm-sort vterm) port)
             (write-string ":" port)
             (write-term term ops port))))
 
-; A specialized version for module terms that caches the
+; A specialized version for node terms that caches the
 ; internal representation
-(struct module-vterm vterm ([internal #:mutable]))
+(struct node-vterm vterm ([internal #:mutable]))
 
 ;
-; The meta-representation of terms and modules as terms
+; The meta-representation of terms and nodes as terms
 ;
-(modules:define-builtin-module m-term
+(nodes:define-builtin-node n-term
 
   (use builtin:rational)
   (use builtin:string)
@@ -66,9 +66,9 @@
   (op (args Term ...) ArgList)
   (op (args) ArgList))
 
-(modules:define-builtin-module m-pattern
+(nodes:define-builtin-node n-pattern
 
-  (include m-term)
+  (include n-term)
 
   (sorts Pattern PatternArgList)
   (subsorts [Term Pattern] [ArgList PatternArgList])
@@ -77,26 +77,26 @@
   (op (pattern Symbol PatternArgList) Pattern)
   (op (args Pattern ...) PatternArgList))
 
-(modules:define-builtin-module m-module
+(nodes:define-builtin-node n-node
 
-  (include m-pattern)
+  (include n-pattern)
 
-  (sorts Module
+  (sorts Node
          ImportList Import
          SortList SubsortList Subsort
          OpList Op Domain
          RuleList Rule VarList Var)
 
-  (op (builtin-module Symbol) Module)
+  (op (builtin-node Symbol) Node)
 
-  (op (module Symbol ImportList SortList SubsortList OpList RuleList) Module)
+  (op (node Symbol ImportList SortList SubsortList OpList RuleList) Node)
 
   (op (imports Import ...) ImportList)
   (op (imports) ImportList)
   (op (use String) Import)
-  (op (use Module) Import)
+  (op (use Node) Import)
   (op (include String) Import)
-  (op (include Module) Import)
+  (op (include Node) Import)
 
   (op (sorts Symbol ...) SortList)
   (op (sorts) SortList)
@@ -121,26 +121,26 @@
   (op (svar Symbol Symbol) Var)
   (op no-condition Pattern))
 
-(define m-term-ops (modules:module-ops m-term))
-(define m-module-ops (modules:module-ops m-module))
+(define n-term-ops (nodes:node-ops n-term))
+(define n-node-ops (nodes:node-ops n-node))
 
-(define (make-vterm module term)
-  (if (and (modules:imports? module m-module)
-           (member (terms:term-op term) '(module builtin-module)))
-      (module-vterm module (terms:sort-of term) term #f)
-      (vterm module (terms:sort-of term) term)))
+(define (make-vterm node term)
+  (if (and (nodes:imports? node n-node)
+           (member (terms:term-op term) '(node builtin-node)))
+      (node-vterm node (terms:sort-of term) term #f)
+      (vterm node (terms:sort-of term) term)))
 
 (define (reduce-vterm vterm)
-  (let ([mod (vterm-module vterm)]
+  (let ([mod (vterm-node vterm)]
         [term (vterm-term vterm)])
     (make-vterm mod (rewrite:reduce term mod))))
 
 
-; used in test-modules.rkt
-(define (internal-module m-vterm)
-  (unless (module-vterm? m-vterm)
-    (error "Not a module: " m-vterm))
-  (module-vterm-internal m-vterm))
+; used in test-nodes.rkt
+(define (internal-node m-vterm)
+  (unless (node-vterm? m-vterm)
+    (error "Not a node: " m-vterm))
+  (node-vterm-internal m-vterm))
 
 (define (meta-up* a-term)
   (cond
@@ -150,12 +150,12 @@
                             (terms:make-term 'args
                                              (map meta-up*
                                                   (terms:term-args a-term))
-                                             m-term-ops))
-                      m-term-ops)]
+                                             n-term-ops))
+                      n-term-ops)]
     [else a-term]))
 
-(define (meta-up vterm-or-module)
-  (make-vterm m-term (meta-up* (vterm-term vterm-or-module))))
+(define (meta-up vterm-or-node)
+  (make-vterm n-term (meta-up* (vterm-term vterm-or-node))))
 
 ;
 ; Parse meta-terms into concrete terms
@@ -172,11 +172,11 @@
       [(_ an-op)
        #'(struct* terms:term ([op (==  an-op equal?)] [args (list)]))])))
 
-(define (term-from-meta module op-symbol args)
-  (terms:make-term op-symbol (map (λ (arg) (meta-down* module arg)) args)
-                   (modules:module-ops module)))
+(define (term-from-meta node op-symbol args)
+  (terms:make-term op-symbol (map (λ (arg) (meta-down* node arg)) args)
+                   (nodes:node-ops node)))
 
-(define (module-from-meta meta-terms strict-checking)
+(define (node-from-meta meta-terms strict-checking)
 
   (define (subsort-list subsort-terms)
     (for/list ([ss subsort-terms])
@@ -196,24 +196,24 @@
 
   (define (import-list import-terms)
 
-    (define (internal-module module-or-hashcode)
+    (define (internal-node node-or-hashcode)
       (cond
-        [(string? module-or-hashcode)
-         (modules:lookup-module-hash module-or-hashcode)]
-        [(and (terms:term? module-or-hashcode)
-              (equal? (terms:term-sort module-or-hashcode) 'Module))
-         (module-from-meta module-or-hashcode strict-checking)]
-        [else (error "Not a valid module " module-or-hashcode)]))
+        [(string? node-or-hashcode)
+         (nodes:lookup-node-hash node-or-hashcode)]
+        [(and (terms:term? node-or-hashcode)
+              (equal? (terms:term-sort node-or-hashcode) 'Node))
+         (node-from-meta node-or-hashcode strict-checking)]
+        [else (error "Not a valid node " node-or-hashcode)]))
 
     (for/list ([import import-terms])
       (match import
-        [(mterm 'use (list module-or-hashcode))
-         (cons (internal-module module-or-hashcode) #t)]
-        [(mterm 'include (list module-or-hashcode))
-         (cons (internal-module module-or-hashcode) #f)]
+        [(mterm 'use (list node-or-hashcode))
+         (cons (internal-node node-or-hashcode) #t)]
+        [(mterm 'include (list node-or-hashcode))
+         (cons (internal-node node-or-hashcode) #f)]
         [_ (error "Invalid import term " import)])))
 
-  (define (rule-list module rule-terms)
+  (define (rule-list node rule-terms)
 
     (define (var-hash var-terms)
       (for/fold ([vars (hash)])
@@ -225,13 +225,13 @@
            (hash-set vars var (cons sort #t))]
           [_ (error "Invalid var term " var-term)])))
 
-    (define (pattern-from-meta module vars meta-term)
+    (define (pattern-from-meta node vars meta-term)
       (match meta-term
         [(or (mterm 'term (list op (mterm 'args args)))
              (mterm 'pattern (list op (mterm 'args args))))
          (let* ([args (map (λ (arg)
-                             (pattern-from-meta module vars arg)) args)])
-           (terms:make-pattern op args (modules:module-ops module)))]
+                             (pattern-from-meta node vars arg)) args)])
+           (terms:make-pattern op args (nodes:node-ops node)))]
         [(mterm 'var-ref (list var-name))
          (let ([var-spec (hash-ref vars var-name)])
            (if (cdr var-spec)
@@ -239,84 +239,84 @@
                (terms:var var-name (car var-spec))))]
         [(mterm 'no-condition empty)
          #f]
-        [_ (terms:make-special-term meta-term (modules:module-ops module))]))
+        [_ (terms:make-special-term meta-term (nodes:node-ops node))]))
 
     (for/list ([rule rule-terms])
       (match rule
         [(mterm '=-> (list (mterm 'vars vars) pattern condition replacement))
          (let* ([vars (var-hash vars)]
-                [rule-pattern (pattern-from-meta module vars pattern)]
-                [rule-condition (pattern-from-meta module vars condition)]
-                [rule-replacement (pattern-from-meta module vars replacement)])
-           (rules:make-rule (modules:module-ops module)
+                [rule-pattern (pattern-from-meta node vars pattern)]
+                [rule-condition (pattern-from-meta node vars condition)]
+                [rule-replacement (pattern-from-meta node vars replacement)])
+           (rules:make-rule (nodes:node-ops node)
                             vars rule-pattern rule-condition rule-replacement))]
         [_ (error "Invalid rule term " rule)])))
 
   (match meta-terms
-    [(mterm 'module (list name
+    [(mterm 'node (list name
                           (mterm 'imports import-terms)
                           (mterm 'sorts sort-symbols)
                           (mterm 'subsorts subsort-terms)
                           (mterm 'ops operator-terms)
                           (mterm 'rules rule-terms)))
-     (let* ([mod (modules:make-module name meta-terms
+     (let* ([mod (nodes:make-node name meta-terms
                                       (import-list import-terms)
                                       sort-symbols (subsort-list subsort-terms)
                                       (op-list operator-terms)
                                       empty empty strict-checking)]
-            [rules (modules:module-rules mod)]
-            [hashcode (modules:module-hashcode mod)])
+            [rules (nodes:node-rules mod)]
+            [hashcode (nodes:node-hashcode mod)])
        (for ([rule (rule-list mod rule-terms)])
          (let ([pattern (rules:rule-pattern rule)]
-               [imports (modules:module-imports mod)])
+               [imports (nodes:node-imports mod)])
            (when (and (terms:term? pattern)
                       (hash-ref imports 
                                 (terms:op-origin pattern
-                                                 (modules:module-ops mod))
+                                                 (nodes:node-ops mod))
                                 #f))
              (error (format "Cannot add rule for operator ~s imported in restricted mode"
                             (terms:term-op pattern)))))
          (rules:add-rule! rule hashcode  rules))
        mod)]
-    [(mterm 'builtin-module (list name))
-     (or (builtin:lookup-module name)
+    [(mterm 'builtin-node (list name))
+     (or (builtin:lookup-node name)
          (case name
-           ['m-term m-term]
-           ['m-pattern m-pattern]
-           ['m-module m-module]
-           [else (error "Unknown builtin module: " name)]))]
-    [_ (error "Invalid meta module " meta-terms)]))
+           ['term n-term]
+           ['pattern n-pattern]
+           ['node n-node]
+           [else (error "Unknown builtin node: " name)]))]
+    [_ (error "Invalid meta node " meta-terms)]))
 
-(define (meta-down* module a-term)
+(define (meta-down* node a-term)
   (match a-term
     [(mterm 'term (list op-symbol (mterm 'args args)))
-     (term-from-meta module op-symbol args)]
+     (term-from-meta node op-symbol args)]
     [(terms:term _ _ _)
      (error "Invalid meta-term " a-term)]
-    [_ (terms:make-special-term a-term (modules:module-ops module))]))
+    [_ (terms:make-special-term a-term (nodes:node-ops node))]))
 
-(define (meta-down module a-term)
-  (unless (module-vterm? module)
-    (error (format "Not a module: ~s" module)))
+(define (meta-down node a-term)
+  (unless (node-vterm? node)
+    (error (format "Not a node: ~s" node)))
   (unless (vterm? a-term)
     (error (format "Not a term: ~s" a-term)))
-  (let ([int-mod (module-vterm-internal (compile-module module #f))])
+  (let ([int-mod (node-vterm-internal (compile-node node #f))])
     (make-vterm int-mod (meta-down* int-mod (vterm-term a-term)))))
 
-(define (compile-module module-term strict-checking)
-  (unless (module-vterm? module-term)
-    (error (format "Not a module: ~s" module-term)))
-  (unless (module-vterm-internal module-term)
-    (set-module-vterm-internal! module-term
-                                (module-from-meta (vterm-term module-term)
+(define (compile-node node-term strict-checking)
+  (unless (node-vterm? node-term)
+    (error (format "Not a node: ~s" node-term)))
+  (unless (node-vterm-internal node-term)
+    (set-node-vterm-internal! node-term
+                                (node-from-meta (vterm-term node-term)
                                                   strict-checking)))
-  module-term)
+  node-term)
 
-(define (module-hashcode module)
-  (modules:module-hashcode
-   (if (module-vterm? module)
-       (module-vterm-internal (compile-module module #f))
-       module)))
+(define (node-hashcode node)
+  (nodes:node-hashcode
+   (if (node-vterm? node)
+       (node-vterm-internal (compile-node node #f))
+       node)))
 
-(define (check-module module-term)
-  (compile-module module-term #t))
+(define (check-node node-term)
+  (compile-node node-term #t))

@@ -4,7 +4,7 @@
 
 (require term-algebra/basic-api)
 
-(define-module boolean
+(define-node boolean
 
   (use builtin:truth)
  

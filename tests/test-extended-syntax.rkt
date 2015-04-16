@@ -4,14 +4,14 @@
 
 (require rackunit
          term-algebra/api
-         (rename-in term-algebra/library/list [list list-section]))
+         (rename-in term-algebra/library/list [list list-node]))
 
-(define-syntax-rule (check-reduce module initial-term reduced-term)
-  (check-equal? (reduce (term module initial-term))
-                (term module reduced-term)))
+(define-syntax-rule (check-reduce node initial-term reduced-term)
+  (check-equal? (reduce (term node initial-term))
+                (term node reduced-term)))
 
-(define-section test-include
-  (include list-section
+(define-node test-include
+  (include list-node
            #:transforms (add-import (use builtin:string))
            (rename-sort Element String)
            (rename-sort List StringList)
@@ -20,7 +20,7 @@
   (op bar NEStringList)
   (=-> bar (string-list "a" "b" "c")))
 
-(define-section test-cond
+(define-node test-cond
   (use builtin:equality)
   (sort A)
   (op (foo A) A)
@@ -31,7 +31,7 @@
        #:cond [(== AA bar) bar]
               [#:else baz]))
 
-(define-section test-vars
+(define-node test-vars
   (use builtin:equality)
   (sort A)
   (op (foo A) A)
@@ -57,7 +57,7 @@
   (test-exn "redefinition 1"
       #rx"Redefinition of variable\\(s\\)"
       (lambda ()
-        (define-section redef1
+        (define-node redef1
           (sort Foo)
           (vars [aFoo Foo])
           (vars [aFoo Foo]))
@@ -65,7 +65,7 @@
   (test-exn "redefinition 2"
       #rx"Redefinition of variable\\(s\\)"
       (lambda ()
-        (define-section redef1
+        (define-node redef1
           (sort Foo)
           (op (foo Foo) Foo)
           (op bar Foo)

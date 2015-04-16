@@ -5,7 +5,7 @@
 (require rackunit
          term-algebra/basic-api)
 
-(define-module test
+(define-node test
   (use builtin:equality)
   (sorts A B)
   (subsort A B)
@@ -19,7 +19,7 @@
     (define a-term (term test (foo aB)))
     (check-equal? (meta-up a-term)
                   (meta-term (foo aB)))
-    (check-equal? (meta-down m-term (meta-up (meta-up a-term)))
+    (check-equal? (meta-down builtin:term (meta-up (meta-up a-term)))
                   (meta-up a-term))
     (check-equal? (meta-down test (meta-up a-term))
                   a-term))
@@ -27,7 +27,7 @@
   (test-exn "variable-not-in-pattern-1"
       #rx"Term.*contains variables that are not in the rule pattern"
     (lambda ()
-      (define-module test2
+      (define-node test2
         (include test)
         (=-> #:vars ([X A] [Y B]) (foo X) Y))
       (void)))
@@ -35,7 +35,7 @@
   (test-exn "variable-not-in-pattern-2"
       #rx"Condition.*contains variables that are not in the rule pattern"
     (lambda ()
-      (define-module test2
+      (define-node test2
         (include test)
         (=-> #:vars ([X A] [Y B]) (foo X) #:if (== X Y) X))
       (void)))
@@ -43,7 +43,7 @@
   (test-exn "condition-not-boolean"
       #rx"Condition.*not of sort Boolean"
     (lambda ()
-      (define-module test2
+      (define-node test2
         (include test)
         (=-> #:var [X A] (foo X) #:if X X))
       (void)))
@@ -51,7 +51,7 @@
   (test-exn "undefined-operator-in-rule"
       #rx"Undefined operator.*"
     (lambda ()
-      (define-module test2
+      (define-node test2
         (include test)
         (=-> #:var [X A] (bar X) (foo X)))
       (void)))
@@ -59,7 +59,7 @@
   (test-exn "too-many-vars"
       #rx"Var list contains variables .* that are not used in the rule"
     (lambda ()
-      (define-module test
+      (define-node test
         (use builtin:truth)
         (=-> #:var [X Boolean] true false))
       (void)))
@@ -67,7 +67,7 @@
   (test-exn "svar-in-wrong-position"
       #rx"svar allowed only as last argument"
     (lambda ()
-      (define-module test
+      (define-node test
         (sort A)
         (op (foo A ...) A)
         (=-> #:vars ([X A] [Y A ...])
@@ -76,7 +76,7 @@
       (void)))
   (test-not-exn "svar-in-right-position"
     (lambda ()
-      (define-module test
+      (define-node test
         (sort A)
         (op (foo A ...) A)
         (=-> #:vars ([X A] [Y A ...])
@@ -87,13 +87,13 @@
   (test-exn "no-rule-for-imported-op"
       #rx"Cannot add rule for operator .* imported in restricted mode"
     (lambda ()
-      (define-module test
+      (define-node test
         (use builtin:truth)
         (=-> true false))
       (void)))
   (test-not-exn "rule-for-imported-op"
     (lambda ()
-      (define-module test
+      (define-node test
         (include builtin:truth)
         (=-> true false))
       (void)))
@@ -101,27 +101,27 @@
   (test-exn "sort redefinition"
       #rx"sort already defined.*"
     (lambda ()
-      (define-module test
+      (define-node test
         (sorts a b b c))
       (void)))
   (test-exn "equal-sorts-in-subsort"
       #rx"sorts are equal.*"
     (lambda ()
-      (define-module test
+      (define-node test
         (sorts a b)
         (subsorts [a a]))
       (void)))
   (test-exn "double subsort definition"
       #rx"subsort relation already defined.*"
     (lambda ()
-      (define-module test
+      (define-node test
         (sorts a b)
         (subsorts [a b] [a b]))
       (void)))
   (test-exn "double-definition"
       #rx"Signature .* already defined"
     (lambda ()
-      (define-module test
+      (define-node test
         (sorts A B C X Y Z)
         (subsorts [A C] [B C] [X Y] [X Z])
         (op (foo A) X)

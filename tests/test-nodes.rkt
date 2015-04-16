@@ -1,27 +1,27 @@
 #lang racket
 
-(provide module-tests)
+(provide node-tests)
 
 (require rackunit
          (prefix-in operators: term-algebra/operators)
-         (prefix-in modules: term-algebra/modules)
+         (prefix-in nodes: term-algebra/nodes)
          (prefix-in api: term-algebra/basic-api)
          term-algebra/library/boolean)
 
 (require/expose term-algebra/operators [op-set-ops
                                         operator-signatures])
-(require/expose term-algebra/meta [internal-module])
+(require/expose term-algebra/meta [internal-node])
 
-(api:define-module test
+(api:define-node test
   (use boolean)
   (include boolean))
 
-(define-test-suite module-tests
+(define-test-suite node-tests
 
   (test-case "op-verification"
     (define ops1 (op-set-ops
-                  (modules:module-ops (internal-module boolean))))
-    (define ops2 (op-set-ops (modules:module-ops (internal-module test))))
+                  (nodes:node-ops (internal-node boolean))))
+    (define ops2 (op-set-ops (nodes:node-ops (internal-node test))))
     (define sig-1 (list (set 'Boolean)))
     (define sig-n (set 'Boolean))
     (check-equal? (hash-count ops1) 6)
@@ -38,9 +38,9 @@
                            (hash-ref (hash-ref ops2 'and ) sig-n))) 1))
 
   (test-case "rule-verification"
-    (define boolean-rules (modules:module-rules
-                           (internal-module boolean)))
-    (define test-rules (modules:module-rules (internal-module test)))
+    (define boolean-rules (nodes:node-rules
+                           (internal-node boolean)))
+    (define test-rules (nodes:node-rules (internal-node test)))
     (check-equal? (length (hash-ref boolean-rules 'not))
                   2)
     (check-equal? (length (hash-ref boolean-rules 'and))
@@ -60,4 +60,4 @@
 
 (module* main #f
   (require rackunit/text-ui)
-  (run-tests module-tests))
+  (run-tests node-tests))

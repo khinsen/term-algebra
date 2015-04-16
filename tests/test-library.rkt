@@ -6,11 +6,11 @@
          term-algebra/basic-api
          term-algebra/library/boolean
          term-algebra/library/list
-         term-algebra/library/module-transforms)
+         term-algebra/library/node-transforms)
 
-(define-syntax-rule (check-reduce module initial-term reduced-term)
-  (check-equal? (reduce (term module initial-term))
-                (term module reduced-term)))
+(define-syntax-rule (check-reduce node initial-term reduced-term)
+  (check-equal? (reduce (term node initial-term))
+                (term node reduced-term)))
 
 (define-test-suite library-tests
 
@@ -43,11 +43,11 @@
 
     (define symbol-list
       (reduce
-       (term module-transforms
-             (transformed-module ,list
+       (term node-transforms
+             (transformed-node ,list
                  (transforms
-                  (module-name 'list-of-symbols)
-                  (add-import (use (builtin-module 'symbol)))
+                  (node-name 'list-of-symbols)
+                  (add-import (use (builtin-node 'symbol)))
                   (rename-sort 'Element 'Symbol)
                   (rename-sort 'List 'SymbolList)
                   (rename-sort 'NonEmptyList 'NESymbolList)

@@ -1,14 +1,14 @@
 #lang racket
 
-(provide term meta-term m-term)
+(provide term meta-term n-term)
 
-(require (prefix-in modules: term-algebra/modules)
+(require (prefix-in nodes: term-algebra/nodes)
          (prefix-in terms: term-algebra/terms)
          (prefix-in meta: term-algebra/meta)
          (for-syntax syntax/parse))
 
 (define (tterm op args)
-  (terms:make-term op args (modules:module-ops meta:m-term)))
+  (terms:make-term op args (nodes:node-ops meta:n-term)))
 
 (define (unwrap-vterm vterm)
   (cond
@@ -20,10 +20,10 @@
      vterm]
     [else (error "illegal term " vterm)]))
 
-(define m-term
-  (meta:check-module
-   (meta:make-vterm meta:m-module
-                    (terms:term 'builtin-module (list 'm-term) 'Module))))
+(define n-term
+  (meta:check-node
+   (meta:make-vterm meta:n-node
+                    (terms:term 'builtin-node (list 'term) 'Node))))
 
 (begin-for-syntax
   
@@ -61,9 +61,9 @@
 (define-syntax (meta-term stx)
   (syntax-parse stx
     [(_  expr:term)
-     #'(meta:make-vterm meta:m-term expr.value)]))
+     #'(meta:make-vterm meta:n-term expr.value)]))
 
 (define-syntax (term stx)
   (syntax-parse stx
-    [(_ module:expr expr:term)
-     #'(meta:meta-down module (meta-term expr))]))
+    [(_ node:expr expr:term)
+     #'(meta:meta-down node (meta-term expr))]))

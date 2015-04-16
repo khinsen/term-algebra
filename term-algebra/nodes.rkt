@@ -1,9 +1,9 @@
 #lang racket
 
-(provide (struct-out module)
-         define-builtin-module
-         lookup-module-hash
-         make-module
+(provide (struct-out node)
+         define-builtin-node
+         lookup-node-hash
+         make-node
          make-term
          imports?)
 
@@ -14,37 +14,37 @@
          (for-syntax syntax/parse))
 
 ;
-; The data structure for the internal module representation
+; The data structure for the internal node representation
 ;
-(struct module (name ops rules imports hashcode)
+(struct node (name ops rules imports hashcode)
         #:transparent)
 
 ;
-; The module registry
+; The node registry
 ;
-(define *modules* (make-hash))
+(define *nodes* (make-hash))
 
-(define (register-module module)
-  (hash-set! *modules* (module-hashcode module) (make-weak-box module)))
+(define (register-node node)
+  (hash-set! *nodes* (node-hashcode node) (make-weak-box node)))
 
-(define (lookup-module-hash hash)
-  (weak-box-value (hash-ref *modules* hash (make-weak-box #f))))
+(define (lookup-node-hash hash)
+  (weak-box-value (hash-ref *nodes* hash (make-weak-box #f))))
 
 ;
-; Macro for defining builtin modules
+; Macro for defining builtin nodes
 ;
-(define-syntax (define-builtin-module stx)
+(define-syntax (define-builtin-node stx)
 
   (define-syntax-class import-builtin
-    #:description "import for builtin modules"
-    #:attributes (module use)
-    (pattern ((~datum use) module:id)
+    #:description "import for builtin nodes"
+    #:attributes (node use)
+    (pattern ((~datum use) node:id)
              #:with use #'#t)
-    (pattern ((~datum include) module:id)
+    (pattern ((~datum include) node:id)
              #:with use #'#f))
 
   (define-syntax-class op-builtin
-    #:description "operator/rule for builtin modules"
+    #:description "operator/rule for builtin nodes"
     #:attributes (ops fns)
 
     (pattern ((~datum op) op-name:id range-sort:id)
@@ -75,7 +75,7 @@
              #:with fns #'(list (list (quote op-name) proc))))
 
   (syntax-parse stx
-    [(_ module-name:id
+    [(_ node-name:id
         import-decl:import-builtin ...
         (~optional
          ((~datum sorts) s-id:id ...))
@@ -84,9 +84,9 @@
         (~optional
          ((~datum special-ops) s-op:id ...))
         op-decl:op-builtin ...)
-     (with-syntax ([import-list (if (attribute import-decl.module)
+     (with-syntax ([import-list (if (attribute import-decl.node)
                                     #'(map (lambda (a b) (cons a b))
-                                           (list import-decl.module ...)
+                                           (list import-decl.node ...)
                                            (list import-decl.use ...))
                                     #'(list))]
                    [sort-list (if (attribute s-id)
@@ -109,20 +109,20 @@
                    [fn-list (if (attribute op-decl.fns)
                                 #'(append op-decl.fns ...)
                                 #'(list))])
-       #'(define module-name
-           (make-module (quote module-name)
-                        (terms:term 'builtin-module
-                                    (list (quote module-name))
-                                    'Module)
-                        import-list sort-list subsort-list
-                        op-list s-op-list fn-list #t)))]))
+       #'(define node-name
+           (make-node (quote node-name)
+                      (terms:term 'builtin-node
+                                  (list (quote node-name))
+                                  'Node)
+                      import-list sort-list subsort-list
+                      op-list s-op-list fn-list #t)))]))
 
-(define (make-module module-name meta-terms
-                     import-list sort-list subsort-list
-                     op-list s-op-list fn-list
-                     strict-checking)
+(define (make-node node-name meta-terms
+                   import-list sort-list subsort-list
+                   op-list s-op-list fn-list
+                   strict-checking)
   ; strict-checking enables checks for situations that are
-  ; usually errors in hand-written modules but can occur in
+  ; usually errors in hand-written nodes but can occur in
   ; metaprogramming: redefinitions of sorts, subsorts, and operator
   ; signatures, and declaring a sort its own subsort.
 
@@ -133,7 +133,7 @@
 
   (define hashcode (terms:term-hashcode meta-terms))
 
-  (or (lookup-module-hash hashcode)
+  (or (lookup-node-hash hashcode)
       (let*-values
           ; imports is a list of (hashcode restricted-mode) sublists
           ([(imports) (for/list ([import-spec import-list])
@@ -142,10 +142,10 @@
                                 (hash-set
                                  (if rmode
                                      (for/hash ([(hashcode _)
-                                                 (in-hash (module-imports mod))])
+                                                 (in-hash (node-imports mod))])
                                        (values hashcode #t))
-                                     (module-imports mod))
-                                 (module-hashcode mod) rmode))))]
+                                     (node-imports mod))
+                                 (node-hashcode mod) rmode))))]
            ; all-imports maps hashcodes to a boolean indicating restricted mode
            [(all-imports) (for/fold ([all-imports (hash)])
                                     ([import imports])
@@ -157,7 +157,7 @@
                                 ([import imports])
                         (values (sorts:merge-sort-graph
                                  (operators:op-set-sorts
-                                  (module-ops (first import)))
+                                  (node-ops (first import)))
                                  prior-imports
                                  sorts)
                                 (merge-imports prior-imports (second import))))]
@@ -176,7 +176,7 @@
                                [prior-imports (hash)])
                               ([import imports])
                       (values (operators:merge-op-set
-                               (module-ops (first import))
+                               (node-ops (first import))
                                prior-imports
                                ops)
                               (merge-imports prior-imports (second import))))]
@@ -192,31 +192,31 @@
                     (operators:add-special-op s-op-symbol hashcode
                                               all-imports ops))]
            ; Rules are initialized to an empty mutable hash. This is required
-           ; for constructing modules from their meta-representation.
+           ; for constructing nodes from their meta-representation.
            [(rules) (rules:empty-rules)])
         ; Rules are constructed from (1) imports (2) procedure specifications.
-        ; Part (2) is effective only for builtin modules. Meta-modules are
+        ; Part (2) is effective only for builtin nodes. Meta-nodes are
         ; instantiated with an empty rule set at this stage.
         (for/fold ([prior-imports (hash)])
                   ([import imports])
-          (rules:merge-rules! (module-rules (first import))
+          (rules:merge-rules! (node-rules (first import))
                               prior-imports
                               rules)
           (merge-imports prior-imports (second import)))
         (for ([fn-spec fn-list])
           (match-let ([(list symbol proc-expr) fn-spec])
             (rules:add-proc! symbol proc-expr hashcode rules)))
-        (let ([mod (module module-name ops rules all-imports hashcode)])
-          (register-module mod)
+        (let ([mod (node node-name ops rules all-imports hashcode)])
+          (register-node mod)
           mod))))
 
-; Make a term relative to a module
+; Make a term relative to a node
 ; (used in rewrite.rkt)
-(define (make-term op args module)
-  (terms:make-term op args (module-ops module)))
+(define (make-term op args node)
+  (terms:make-term op args (node-ops node)))
 
-; Check if a module imports another one
+; Check if a node imports another one
 
 (define (imports? mod-a mod-b)
   (or (equal? mod-a mod-b)
-      (hash-has-key? (module-imports mod-a) (module-hashcode mod-b))))
+      (hash-has-key? (node-imports mod-a) (node-hashcode mod-b))))

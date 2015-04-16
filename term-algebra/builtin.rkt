@@ -1,24 +1,24 @@
 #lang racket
 
 (provide any truth equality string symbol natural integer rational
-         lookup-module)
+         lookup-node)
 
 (require (prefix-in sorts: term-algebra/sorts)
-         (prefix-in modules: term-algebra/modules)
+         (prefix-in nodes: term-algebra/nodes)
          (prefix-in terms: term-algebra/terms))
 
-(modules:define-builtin-module truth
+(nodes:define-builtin-node truth
   (sorts Boolean)
   (op true Boolean)
   (op false Boolean))
 
-(define true (terms:make-term 'true empty (modules:module-ops truth)))
-(define false (terms:make-term 'false empty (modules:module-ops truth)))
+(define true (terms:make-term 'true empty (nodes:node-ops truth)))
+(define false (terms:make-term 'false empty (nodes:node-ops truth)))
 
-(modules:define-builtin-module any
+(nodes:define-builtin-node any
   (sorts Any))
 
-(modules:define-builtin-module equality
+(nodes:define-builtin-node equality
   (use truth)
   (use any)
   (op (== Any Any) Boolean)
@@ -28,15 +28,15 @@
           true
           false))))
 
-(modules:define-builtin-module string
+(nodes:define-builtin-node string
   (sorts String)
   (special-ops string))
 
-(modules:define-builtin-module symbol
+(nodes:define-builtin-node symbol
   (sorts Symbol)
   (special-ops symbol))
 
-(modules:define-builtin-module natural
+(nodes:define-builtin-node natural
   (use truth)
 
   (sorts Natural Zero NonZeroNatural)
@@ -75,7 +75,7 @@
   (op (= Natural Natural) Boolean)
   (fn = (lambda (x y) (if (= x y) true false))))
 
-(modules:define-builtin-module integer
+(nodes:define-builtin-node integer
   (include natural)
 
   (sorts Integer NonZeroInteger)
@@ -105,7 +105,7 @@
   (op (<= Integer Integer) Boolean)
   (op (= Integer Integer) Boolean))
 
-(modules:define-builtin-module rational
+(nodes:define-builtin-node rational
   (include integer)
 
   (sorts Rational NonZeroRational PositiveRational)
@@ -142,9 +142,9 @@
   (op (= Rational Rational) Boolean))
 
 ;
-; Lookup builtin module by name
+; Lookup builtin node by name
 ;
-(define (lookup-module name)
+(define (lookup-node name)
   (case name
     ['any any]
     ['truth truth]

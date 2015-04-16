@@ -5,9 +5,9 @@
 (require rackunit
          term-algebra/basic-api)
 
-(define-syntax-rule (check-reduce module initial-term reduced-term)
-  (check-equal? (reduce (term module initial-term))
-                (term module reduced-term)))
+(define-syntax-rule (check-reduce node initial-term reduced-term)
+  (check-equal? (reduce (term node initial-term))
+                (term node reduced-term)))
 
 (define-test-suite builtin-tests
 
@@ -68,7 +68,7 @@
 
   (test-not-exn "string-imported"
     (lambda ()
-      (define-module test
+      (define-node test
         (use builtin:string)
         (op foo String)
         (=-> foo "foo"))
@@ -76,7 +76,7 @@
   (test-exn "string-not-imported"
       #rx"import builtin:string to use strings"
     (lambda ()
-      (define-module test
+      (define-node test
         (sort String)
         (op foo String)
         (=-> foo "foo"))
@@ -84,7 +84,7 @@
 
   (test-not-exn "symbol-imported"
     (lambda ()
-      (define-module test
+      (define-node test
         (use builtin:symbol)
         (op foo Symbol)
         (=-> foo 'foo))
@@ -92,7 +92,7 @@
   (test-exn "symbol-not-imported"
       #rx"import builtin:symbol to use symbols"
     (lambda ()
-      (define-module test
+      (define-node test
         (sort Symbol)
         (op foo Symbol)
         (=-> foo 'foo))
@@ -100,21 +100,21 @@
 
   (test-not-exn "natural-imported"
     (lambda ()
-      (define-module test
+      (define-node test
         (use builtin:natural)
         (op foo Natural)
         (=-> foo 2))
       (void)))
   (test-not-exn "integer-imported"
     (lambda ()
-      (define-module test
+      (define-node test
         (use builtin:integer)
         (op foo Integer)
         (=-> foo -5))
       (void)))
   (test-not-exn "rational-imported"
     (lambda ()
-      (define-module test
+      (define-node test
         (use builtin:rational)
         (op foo Rational)
         (=-> foo 2/3))
@@ -122,7 +122,7 @@
   (test-exn "natural-not-imported"
       #rx"import builtin:natural to use natural numbers"
     (lambda ()
-      (define-module test
+      (define-node test
         (sort Natural)
         (op foo Natural)
         (=-> foo 2))
@@ -130,7 +130,7 @@
   (test-exn "integer-not-imported"
       #rx"import builtin:integer to use integer numbers"
     (lambda ()
-      (define-module test
+      (define-node test
         (sort Integer)
         (op foo Integer)
         (=-> foo -2))
@@ -138,7 +138,7 @@
   (test-exn "rational-not-imported"
       #rx"import builtin:rational to use rational numbers"
     (lambda ()
-      (define-module test
+      (define-node test
         (sort Rational)
         (op foo Rational)
         (=-> foo 2/3))
@@ -147,7 +147,7 @@
   (test-exn "wrong-sort-in-term"
       #rx"Wrong number or sort of arguments.*"
     (lambda ()
-      (define-module test
+      (define-node test
         (use builtin:truth)
         (use builtin:string)
         (op (not Boolean) Boolean))

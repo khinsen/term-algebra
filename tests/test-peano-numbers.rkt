@@ -5,15 +5,15 @@
 (require rackunit
          term-algebra/basic-api)
 
-(define-syntax-rule (check-reduce module initial-term reduced-term)
-  (check-equal? (reduce (term module initial-term))
-                (term module reduced-term)))
+(define-syntax-rule (check-reduce node initial-term reduced-term)
+  (check-equal? (reduce (term node initial-term))
+                (term node reduced-term)))
 
-(define-syntax-rule (check-normal module term1 term2)
-  (check-equal? (reduce (term module term1))
-                (reduce (term module term2))))
+(define-syntax-rule (check-normal node term1 term2)
+  (check-equal? (reduce (term node term1))
+                (reduce (term node term2))))
 
-(define-module pn
+(define-node pn
   (sorts PN NZPN)
   (subsort NZPN PN)
 
@@ -47,7 +47,7 @@
        (* (succ N) (succ M))
        (succ (+ N (+ M (* N M))))))
 
-(define-module pn+
+(define-node pn+
   (use builtin:rational)
   (include pn)
   (op (from-natural Natural) PN)

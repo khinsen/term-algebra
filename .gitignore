@@ -3,3 +3,4 @@
 compiled/
 doc/
 test.rkt
+.projectile

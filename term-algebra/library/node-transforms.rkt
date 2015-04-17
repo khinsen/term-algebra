@@ -47,8 +47,8 @@
   ; be a subsort for fixed-arity domains.
   (op (cons Symbol Domain) Domain)
   (=-> #:vars ([S Symbol] [Ss Symbol ...])
-       (cons S (fixed-arity-domain Ss))
-       (fixed-arity-domain S Ss))
+       (cons S (domain Ss))
+       (domain S Ss))
 
   ;
   ; rename-sort
@@ -123,14 +123,14 @@
 
   (op (rename-sort Domain Symbol Symbol) Domain)
   (=-> #:vars ([S1 Symbol] [S2 Symbol])
-       (rename-sort (fixed-arity-domain) S1 S2)
-       (fixed-arity-domain))
+       (rename-sort (domain) S1 S2)
+       (domain))
   (=-> #:vars ([S Symbol] [Ss Symbol ...] [S1 Symbol] [S2 Symbol])
-       (rename-sort (fixed-arity-domain S Ss) S1 S2)
-       (cons (rename-sort S S1 S2) (rename-sort (fixed-arity-domain Ss) S1 S2)))
+       (rename-sort (domain S Ss) S1 S2)
+       (cons (rename-sort S S1 S2) (rename-sort (domain Ss) S1 S2)))
   (=-> #:vars ([S Symbol] [S1 Symbol] [S2 Symbol])
-       (rename-sort (var-arity-domain S) S1 S2)
-       (var-arity-domain (rename-sort S S1 S2)))
+       (rename-sort (vl-domain S) S1 S2)
+       (vl-domain (rename-sort S S1 S2)))
 
   (op (rename-sort Rule Symbol Symbol) Rule)
   (=-> #:vars ([Vs VarList] [P1 Pattern] [P2 Pattern] [P3 Pattern]

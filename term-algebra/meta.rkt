@@ -84,8 +84,11 @@
   (sorts Node
          ImportList Import
          SortList SubsortList Subsort
-         OpList Op Domain
+         OpList Op
+         Domain EmptyDomain VarLengthDomain
          RuleList Rule VarList Var)
+  (subsorts [EmptyDomain Domain]
+            [VarLengthDomain Domain])
 
   (op (builtin-node Symbol) Node)
 
@@ -108,9 +111,11 @@
   (op (ops Op ...) OpList)
   (op (ops) OpList)
   (op (op Symbol Domain Symbol) Op)
-  (op (fixed-arity-domain Symbol ...) Domain)
-  (op (fixed-arity-domain) Domain)
-  (op (var-arity-domain Symbol) Domain)
+  (op (symop Symbol VarLengthDomain Symbol) Op)
+  (op (symop Symbol EmptyDomain Symbol) Op)
+  (op (domain Symbol ...) Domain)
+  (op (domain) EmptyDomain)
+  (op (vl-domain Symbol) VarLengthDomain)
 
   (op (rules Rule ...) RuleList)
   (op (rules) RuleList)
@@ -188,10 +193,14 @@
   (define (op-list op-terms)
     (for/list ([op op-terms])
       (match op
-        [(mterm 'op (list name (mterm 'fixed-arity-domain sort-symbols) range))
+        [(mterm 'op (list name (mterm 'domain sort-symbols) range))
          (list name sort-symbols range (set))]
-        [(mterm 'op (list name (mterm 'var-arity-domain sort-symbols) range))
+        [(mterm 'op (list name (mterm 'vl-domain sort-symbols) range))
          (list name sort-symbols range (set 'var-arity))]
+        [(mterm 'symop (list name (mterm0 'domain) range))
+         (list name empty range (set 'symmetric))]
+        [(mterm 'symop (list name (mterm 'vl-domain sort-symbols) range))
+         (list name sort-symbols range (set 'var-arity 'symmetric))]
         [_ (error "Invalid op term " op)])))
 
   (define (import-list import-terms)

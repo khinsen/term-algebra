@@ -118,23 +118,35 @@
   (define-syntax-class operator
     #:description "operator/rule"
     #:attributes (imports sorts subsorts ops rules)
-    (pattern ((~datum op) op-name:id range-sort:id)
+    (pattern ((~datum op) op-name:id range-sort:id
+              (~optional (~and #:symmetric (~bind [symmetric? #t]))))
              #:with ops
-             #'(list (term n-node
-                           (op (quote op-name)
-                               (fixed-arity-domain)
-                               (quote range-sort))))
+             (if (attribute symmetric?)
+                 #'(list (term n-node
+                               (symop (quote op-name)
+                                      (domain)
+                                      (quote range-sort))))
+                 #'(list (term n-node
+                               (op (quote op-name)
+                                   (domain)
+                                   (quote range-sort)))))
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty)
     (pattern ((~datum op) (op-name:id arg-sort:id (~datum ...))
-              range-sort:id)
+              range-sort:id
+              (~optional (~and #:symmetric (~bind [symmetric? #t]))))
              #:with ops
-             #'(list (term n-node
-                           (op (quote op-name)
-                               (var-arity-domain (quote arg-sort))
-                               (quote range-sort))))
+             (if (attribute symmetric?)
+                 #'(list (term n-node
+                               (symop (quote op-name)
+                                      (vl-domain (quote arg-sort))
+                                      (quote range-sort))))
+                 #'(list (term n-node
+                               (op (quote op-name)
+                                   (vl-domain (quote arg-sort))
+                                   (quote range-sort)))))
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty
@@ -143,7 +155,7 @@
              #:with ops
              #'(list (term n-node
                            (op (quote op-name)
-                               (fixed-arity-domain (quote arg-sort) ...)
+                               (domain (quote arg-sort) ...)
                                (quote range-sort))))
              #:with rules #'empty
              #:with imports #'empty

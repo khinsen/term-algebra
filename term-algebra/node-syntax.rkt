@@ -132,7 +132,7 @@
              #:with ops
              #'(list (term builtin:node
                            (op (quote op-name)
-                               (fixed-arity-domain)
+                               (domain)
                                (quote range-sort))))
              #:with rules #'empty
              #:with imports #'empty
@@ -143,7 +143,7 @@
              #:with ops
              #'(list (term builtin:node
                            (op (quote op-name)
-                               (var-arity-domain (quote arg-sort))
+                               (vl-domain (quote arg-sort))
                                (quote range-sort))))
              #:with rules #'empty
              #:with imports #'empty
@@ -153,7 +153,7 @@
              #:with ops
              #'(list (term builtin:node
                            (op (quote op-name)
-                               (fixed-arity-domain (quote arg-sort) ...)
+                               (domain (quote arg-sort) ...)
                                (quote range-sort))))
              #:with rules #'empty
              #:with imports #'empty

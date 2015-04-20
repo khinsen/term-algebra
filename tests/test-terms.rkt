@@ -16,6 +16,7 @@
   (sorts A B C X Y Z)
   (subsorts [A C] [B C] [X Y] [X Z])
   (op anA A)
+  (op anotherA A)
   (op aB B)
   (op aC C)
   (op anX X)
@@ -23,10 +24,12 @@
   (op (foo A) X)
   (op (foo C) Z)
   (op (bar A ...) Z)
-  (op (bar X Y) Z))
+  (op (bar X Y) Z)
+  (op (sym A ...) A #:symmetric))
 
 (define test-ops (node-ops test-terms))
 (define anA (terms:make-term 'anA empty test-ops))
+(define anotherA (terms:make-term 'anotherA empty test-ops))
 (define aB (terms:make-term 'aB empty test-ops))
 (define aC (terms:make-term 'aC empty test-ops))
 (define anX (terms:make-term 'anX empty test-ops))
@@ -148,7 +151,27 @@
                                           anX)
                                     test-ops)
                    test-ops)
-                  #f))
+                  #f)
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'sym (list AVar anA) test-ops)
+                   (terms:make-term 'sym (list anA  anA) test-ops)
+                   test-ops)
+                  (hash AVar anA))
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'sym (list anA) test-ops)
+                   (terms:make-term 'sym (list anotherA) test-ops)
+                   test-ops)
+                  #f)
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'sym (list anA anotherA) test-ops)
+                   (terms:make-term 'sym (list anotherA anA) test-ops)
+                   test-ops)
+                  (hash))
+    (check-equal? (terms:match-pattern
+                   (terms:make-term 'sym (list anA AVar) test-ops)
+                   (terms:make-term 'sym (list anotherA anA) test-ops)
+                   test-ops)
+                  (hash AVar anotherA)))
   
   (test-case "pattern-substitution"
     (check-equal?

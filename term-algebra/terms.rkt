@@ -157,38 +157,44 @@
         (hash svar targets)
         #f))
 
-  (define (match-args p-args t-args sorts)
+  (define (match-svar-pattern p-args t-args sorts)
     (cond
-      [(and (not (empty? p-args))
-            (svar? (last p-args)))
-       ; The pattern has an svar argument
-       (cond
-         [(< (length t-args) (- (length p-args) 1))
-          ; Not enough arguments
-          #f]
-         [else
-          (define n-fix (- (length p-args) 1))
-          (for/fold ([subst (match-svar
-                             (last p-args) (drop t-args n-fix) sorts)])
-                    ([p-arg (take p-args n-fix)]
-                     [t-arg (take t-args n-fix)])
-            #:break (not subst)
-            (merge-substitutions subst
-                                 (match-pattern* p-arg t-arg sorts)))])
-       ]
+      [(< (length t-args) (- (length p-args) 1))
+       ; Not enough arguments
+       #f]
       [else
-       ; The pattern is a standard term
-       (cond
-         [(equal? (length p-args) (length t-args))
-          ; Matching number of arguments
-          (for/fold ([subst (hash)])
-                    ([p-arg p-args]
-                     [t-arg t-args])
-            #:break (not subst)
-            (merge-substitutions subst
-                                 (match-pattern* p-arg t-arg sorts)))]
-         [else #f])]))
-  
+       (define n-fix (- (length p-args) 1))
+       (for/fold ([subst (match-svar
+                          (last p-args) (drop t-args n-fix) sorts)])
+                 ([p-arg (take p-args n-fix)]
+                  [t-arg (take t-args n-fix)])
+         #:break (not subst)
+         (merge-substitutions subst (match-pattern* p-arg t-arg sorts)))]))
+
+  (define (match-plain-pattern p-args t-args sorts)
+    (cond
+      [(equal? (length p-args) (length t-args))
+       ; Matching number of arguments
+       (for/fold ([subst (hash)])
+                 ([p-arg p-args]
+                  [t-arg t-args])
+         #:break (not subst)
+         (merge-substitutions subst (match-pattern* p-arg t-arg sorts)))]
+      [else #f]))
+
+  (define (match-args p-args t-args sorts)
+    (if (and (not (empty? p-args))
+             (svar? (last p-args)))
+       ; The last pattern argument is an svar
+       (match-svar-pattern p-args t-args sorts) 
+       ; The pattern has no svar argument (svars are not allowed elsewhere)
+       (match-plain-pattern p-args t-args sorts)))
+
+  (define (match-symmetric-args p-args t-args sorts)
+    ; A brute-force implementation that is probably very inefficient.
+    (for/or ([pt (in-permutations t-args)])
+      (match-args p-args pt sorts)))
+
   (define (match-pattern* pattern target sorts)
     (cond
       [(var? pattern)
@@ -196,7 +202,9 @@
       [(and (term? pattern)
             (term? target)
             (equal? (term-op pattern) (term-op target)))
-       (match-args (term-args pattern) (term-args target) sorts)]
+       (if (operators:signature-symmetric? (term-signature target))
+           (match-symmetric-args (term-args pattern) (term-args target) sorts)
+           (match-args (term-args pattern) (term-args target) sorts))]
       [(equal? pattern target)
        (hash)]
       [else

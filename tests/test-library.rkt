@@ -12,6 +12,10 @@
   (check-equal? (reduce (term node initial-term))
                 (term node reduced-term)))
 
+(define-node boolean2
+  (use boolean)
+  (op foo Boolean))
+
 (define-test-suite library-tests
 
   (test-case "boolean"
@@ -37,7 +41,14 @@
     (check-reduce boolean (xor true false)  true)
     (check-reduce boolean (xor false true)  true)
     (check-reduce boolean (xor false true false true) false)
-    (check-reduce boolean (xor (not false) (not true)) true))
+    (check-reduce boolean (xor (not false) (not true)) true)
+
+    (check-reduce boolean2 (and foo foo false foo) false)
+    (check-reduce boolean2 (and foo foo true foo)  foo)
+    (check-reduce boolean2 (or foo foo true foo)   true)
+    (check-reduce boolean2 (or foo foo false foo)  foo)
+    (check-reduce boolean2 (xor foo false true)    (not foo))
+    (check-reduce boolean2 (xor foo foo foo)       foo))
 
   (test-case "list transforms"
 

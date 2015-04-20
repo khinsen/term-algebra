@@ -210,7 +210,7 @@
         [(string? node-or-hashcode)
          (nodes:lookup-node-hash node-or-hashcode)]
         [(and (terms:term? node-or-hashcode)
-              (equal? (terms:term-sort node-or-hashcode) 'Node))
+              (equal? (terms:sort-of node-or-hashcode) 'Node))
          (node-from-meta node-or-hashcode strict-checking)]
         [else (error "Not a valid node " node-or-hashcode)]))
 
@@ -280,8 +280,7 @@
                [imports (nodes:node-imports mod)])
            (when (and (terms:term? pattern)
                       (hash-ref imports 
-                                (terms:op-origin pattern
-                                                 (nodes:node-ops mod))
+                                (terms:op-origin pattern)
                                 #f))
              (error (format "Cannot add rule for operator ~s imported in restricted mode"
                             (terms:term-op pattern)))))

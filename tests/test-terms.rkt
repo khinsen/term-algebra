@@ -37,37 +37,37 @@
 (define-test-suite term-tests
   
   (test-case "nullary-terms"
-    (check-equal? (terms:term-sort anA)
+    (check-equal? (terms:sort-of anA)
                   'A)
-    (check-equal? (terms:term-sort aB)
+    (check-equal? (terms:sort-of aB)
                   'B)
-    (check-equal? (terms:term-sort aC)
+    (check-equal? (terms:sort-of aC)
                   'C))
   
   (test-case "unary-terms"
-    (check-equal? (terms:term-sort (terms:make-term 'foo (list anA) test-ops))
+    (check-equal? (terms:sort-of (terms:make-term 'foo (list anA) test-ops))
                   'X)
-    (check-equal? (terms:term-sort (terms:make-term 'foo (list aB) test-ops))
+    (check-equal? (terms:sort-of (terms:make-term 'foo (list aB) test-ops))
                   'Z)
-    (check-equal? (terms:term-sort (terms:make-term 'foo (list aC) test-ops))
+    (check-equal? (terms:sort-of (terms:make-term 'foo (list aC) test-ops))
                   'Z))
 
   (test-case "binary-terms"
-    (check-equal? (terms:term-sort 
+    (check-equal? (terms:sort-of 
                    (terms:make-term 'bar (list anX anY) test-ops))
                   'Z)
-    (check-equal? (terms:term-sort 
+    (check-equal? (terms:sort-of 
                    (terms:make-term 'bar (list anX anX) test-ops))
                   'Z))
 
   (test-case "n-nary-terms"
-    (check-equal? (terms:term-sort
+    (check-equal? (terms:sort-of
                    (terms:make-term 'bar (list anA) test-ops))
                   'Z)
-    (check-equal? (terms:term-sort
+    (check-equal? (terms:sort-of
                    (terms:make-term 'bar (list anA anA) test-ops))
                   'Z)
-    (check-equal? (terms:term-sort
+    (check-equal? (terms:sort-of
                    (terms:make-term 'bar (list anA anA anA) test-ops))
                   'Z))
 

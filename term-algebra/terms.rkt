@@ -1,6 +1,6 @@
 #lang racket
 
-(provide term term? term-op term-args term-sort
+(provide term term? term-op term-args
          (struct-out var)
          (struct-out svar)
          vars-in-term
@@ -16,7 +16,7 @@
 
 ; Struct definitions
 
-(struct term (op args sort)
+(struct term (op args signature)
         #:transparent
         #:constructor-name -term
         #:property prop:custom-write
@@ -60,7 +60,7 @@
 
 (define (sort-of gterm)
   (cond
-   [(term? gterm)   (term-sort gterm)]
+   [(term? gterm)   (operators:signature-range (term-signature gterm))]
    [(var? gterm)    (var-sort gterm)]
    [(svar? gterm)   (svar-sort gterm)]
    [(symbol? gterm) 'Symbol]
@@ -75,27 +75,27 @@
 (define (make-term op args op-set)
   (unless (operators:has-op? op op-set)
     (error "Undefined operator " op))
-  (let ([sort (operators:lookup-range op (map sort-of args) op-set)])
-    (unless sort
+  (let ([signature (operators:lookup-op op (map sort-of args) op-set)])
+    (unless signature
       (error "Wrong number or sort of arguments: " (cons op args)))
-    (-term op args sort)))
+    (-term op args signature)))
 
 (define (make-pattern op args op-set)
   (unless (operators:has-op? op op-set)
     (error "Undefined operator " op))
   (let* ([nsvars (count svar? args)]
-         [sort (cond
-                 [(zero? nsvars)
-                  (operators:lookup-range op (map sort-of args) op-set)]
-                 [(and (equal? nsvars 1)
-                       (svar? (last args)))
-                  (operators:lookup-var-arity-range
-                   op (map sort-of args) op-set)]
-                 [else
-                  (error "svar allowed only as last argument")])])
-    (unless sort
+         [signature (cond
+                      [(zero? nsvars)
+                       (operators:lookup-op op (map sort-of args) op-set)]
+                      [(and (equal? nsvars 1)
+                            (svar? (last args)))
+                       (operators:lookup-var-arity-op
+                        op (map sort-of args) op-set)]
+                      [else
+                       (error "svar allowed only as last argument")])])
+    (unless signature
       (error (format "No signature for ~s" (cons op args))))
-    (-term op args sort)))
+    (-term op args signature)))
 
 (define (make-special-term value op-set)
   (cond
@@ -218,12 +218,10 @@
                              (hash-ref substitution (last p-args)))
                      (map (λ (arg) (substitute arg substitution op-set))
                           p-args))]
-           [sort (operators:lookup-range
-                  op-symbol (map sort-of args) op-set)])
-      (-term op-symbol args sort))]
+           [signature (operators:lookup-op
+                       op-symbol (map sort-of args) op-set)])
+      (-term op-symbol args signature))]
    [else pattern]))
 
-(define (op-origin term op-set)
-  (let ([op (term-op term)]
-        [args (term-args term)])
-    (operators:lookup-origin op (map sort-of args) op-set)))
+(define (op-origin term)
+  (operators:signature-origin (term-signature term)))

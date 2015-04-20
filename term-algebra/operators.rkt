@@ -3,9 +3,9 @@
 (provide empty-op-set op-set-sorts
          add-op add-special-op merge-op-set
          has-op? has-special-op? has-var-arity?
-         lookup-range lookup-var-arity-range
-         lookup-origin lookup-var-arity-origin
-         op-definitions)
+         lookup-op lookup-var-arity-op
+         op-definitions
+         (struct-out signature))
 
 (require (prefix-in sorts: term-algebra/sorts)
          racket/generator)
@@ -23,7 +23,7 @@
 ;
 ; A signature consists of a a domain (a list of sorts) and a range sort
 ;
-(struct signature (domain range origin)
+(struct signature (domain symmetric? range origin)
         #:transparent)
 
 ;
@@ -103,7 +103,8 @@
          [range-kind (sorts:kind range sorts)]
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
          [op (hash-ref ops-for-symbol domain-kinds #f)]
-         [sig (signature domain range origin)])
+         [sig (signature domain (set-member? properties 'symmetric)
+                         range origin)])
     (let ([extended-op
            (if op
                (let* ([op-signatures (operator-signatures op)]
@@ -207,7 +208,7 @@
                                          (length (signature-domain sig)))
                                  (andmap (λ (s1 s2) (sorts:is-sort? s1 s2 sorts))
                                          arg-sorts (signature-domain sig))))
-           (cons op-fixed sig))))
+           sig)))
 
   (define (lookup-var arg-sorts op-var sorts)
     (and op-var
@@ -216,7 +217,7 @@
                                             s (first (signature-domain sig))
                                             sorts))
                                     arg-sorts))
-           (cons op-var sig))))
+           sig)))
 
   (define (lookup-any arg-sorts op-any sorts)
     (and op-any
@@ -225,12 +226,12 @@
                                             s (first (signature-domain sig))
                                             sorts))
                                     arg-sorts))
-           (cons op-any sig))))
+           sig)))
 
   (define (lookup-var-any op-any)
     ; A var-arity operator with domain sort Any matches everything.
     (and op-any
-         (cons op-any (first (operator-signatures op-any)))))
+         (first (operator-signatures op-any))))
 
   (let* ([sorts (op-set-sorts ops)]
          [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
@@ -255,7 +256,7 @@
          (for/first ([sig (operator-signatures op-var)]
                      #:when (sorts:is-sort?
                              arg-sort (first (signature-domain sig)) sorts))
-           (cons op-var sig))))
+           sig)))
 
   (define (lookup-var-any op-any)
     ; A var-arity operator with domain sort Any matches everything.
@@ -269,23 +270,3 @@
          [op-var (hash-ref ops-for-symbol domain-kind #f)])
     (or (lookup-var lcsort op-var sorts)
         (lookup-var-any (hash-ref ops-for-symbol 'Any #f)))))
-
-(define (lookup-range symbol arg-sorts ops)
-  (let ([op-sig (lookup-op symbol arg-sorts ops)])
-    (and op-sig
-         (signature-range (cdr op-sig)))))
-
-(define (lookup-var-arity-range symbol arg-sorts ops)
-  (let ([op-sig (lookup-var-arity-op symbol arg-sorts ops)])
-    (and op-sig
-         (signature-range (cdr op-sig)))))
-
-(define (lookup-origin symbol arg-sorts ops)
-  (let ([op-sig (lookup-op symbol arg-sorts ops)])
-    (and op-sig
-         (signature-origin (cdr op-sig)))))
-
-(define (lookup-var-arity-origin symbol arg-sorts ops)
-  (let ([op-sig (lookup-var-arity-op symbol arg-sorts ops)])
-    (and op-sig
-         (signature-origin (cdr op-sig)))))

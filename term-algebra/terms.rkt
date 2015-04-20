@@ -12,7 +12,8 @@
 
 (require (prefix-in sorts: term-algebra/sorts)
          (prefix-in operators: term-algebra/operators)
-         (only-in file/sha1 sha1))
+         (only-in file/sha1 sha1)
+         racket/generator)
 
 ; Struct definitions
 
@@ -190,10 +191,27 @@
        ; The pattern has no svar argument (svars are not allowed elsewhere)
        (match-plain-pattern p-args t-args sorts)))
 
+  ; Racket's built-in in-permutations doesn't make any promises about
+  ; the order of returned permutations. This version guarantees that
+  ; the original list is the first permutation.
+  (define (in-perms l)
+    (in-generator
+     (if (empty? l)
+         (yield empty)
+         (for ([x l])
+           (for ([ys (in-perms (remq x l))])
+             (yield (cons x ys)))))))
+
   (define (match-symmetric-args p-args t-args sorts)
     ; A brute-force implementation that is probably very inefficient.
-    (for/or ([pt (in-permutations t-args)])
-      (match-args p-args pt sorts)))
+    (define length-match
+      (if (and (not (empty? p-args))
+               (svar? (last p-args)))
+          (>= (length t-args) (- (length p-args) 1))
+          (equal? (length p-args) (length t-args))))
+    (and length-match
+         (for/or ([pt (in-perms t-args)])
+           (match-args p-args pt sorts))))
 
   (define (match-pattern* pattern target sorts)
     (cond

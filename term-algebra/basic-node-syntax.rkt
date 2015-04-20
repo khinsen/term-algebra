@@ -7,13 +7,15 @@
 
 (require term-algebra/term-syntax
          (prefix-in terms: term-algebra/terms)
+         (prefix-in nodes: term-algebra/nodes)
          (prefix-in meta: term-algebra/meta)
          (for-syntax syntax/parse))
 
 (define n-node
   (meta:check-node
    (meta:make-vterm meta:n-node
-                    (terms:term 'builtin-node (list 'node) 'Node))))
+                    (terms:make-term 'builtin-node (list 'node)
+                                     (nodes:node-ops meta:n-node)))))
 
 (begin-for-syntax
 

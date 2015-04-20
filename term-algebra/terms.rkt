@@ -1,6 +1,6 @@
 #lang racket
 
-(provide (struct-out term)
+(provide term term? term-op term-args term-sort
          (struct-out var)
          (struct-out svar)
          vars-in-term
@@ -18,6 +18,7 @@
 
 (struct term (op args sort)
         #:transparent
+        #:constructor-name -term
         #:property prop:custom-write
         (lambda (term port mode)
           (let ([op (term-op term)])
@@ -77,7 +78,7 @@
   (let ([sort (operators:lookup-range op (map sort-of args) op-set)])
     (unless sort
       (error "Wrong number or sort of arguments: " (cons op args)))
-    (term op args sort)))
+    (-term op args sort)))
 
 (define (make-pattern op args op-set)
   (unless (operators:has-op? op op-set)
@@ -94,7 +95,7 @@
                   (error "svar allowed only as last argument")])])
     (unless sort
       (error (format "No signature for ~s" (cons op args))))
-    (term op args sort)))
+    (-term op args sort)))
 
 (define (make-special-term value op-set)
   (cond
@@ -122,11 +123,11 @@
                         (error "import builtin:natural to use natural numbers"))))))]
    [else (error "invalid special term " value)]))
 
-(define (term-hashcode a-term)
+(define (term-hashcode a-term-or-string)
   (define (hash-of-string s)
     (sha1 (open-input-string s)))
   (let ([o (open-output-string)])
-    (write a-term o)
+    (write a-term-or-string o)
     (hash-of-string (get-output-string o))))
 
 ; Pattern matching and substitution
@@ -219,7 +220,7 @@
                           p-args))]
            [sort (operators:lookup-range
                   op-symbol (map sort-of args) op-set)])
-      (term op-symbol args sort))]
+      (-term op-symbol args sort))]
    [else pattern]))
 
 (define (op-origin term op-set)

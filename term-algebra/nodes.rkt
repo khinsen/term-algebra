@@ -111,9 +111,11 @@
                                 #'(list))])
        #'(define node-name
            (make-node (quote node-name)
-                      (terms:term 'builtin-node
-                                  (list (quote node-name))
-                                  'Node)
+                      ; We can't construct a meta-term here because
+                      ; the meta module is not yet available. We cheat
+                      ; by using the textual representation of the term.
+                      ; It is used only to compute the hashcode.
+                      (format "(builtin-node ~s)" (quote node-name))
                       import-list sort-list subsort-list
                       op-list s-op-list fn-list #t)))]))
 

@@ -23,7 +23,8 @@
 (define n-term
   (meta:check-node
    (meta:make-vterm meta:n-node
-                    (terms:term 'builtin-node (list 'term) 'Node))))
+                    (terms:make-term 'builtin-node (list 'term)
+                                     (nodes:node-ops meta:n-node)))))
 
 (begin-for-syntax
   

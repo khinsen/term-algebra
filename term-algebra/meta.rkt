@@ -2,7 +2,8 @@
 
 (provide n-term n-pattern n-node
          meta-up meta-down
-         make-vterm reduce-vterm (struct-out vterm) (struct-out node-vterm)
+         make-vterm (struct-out vterm) (struct-out node-vterm)
+         reduce-vterm in-vterm-reduction
          check-node node-hashcode)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -12,7 +13,8 @@
          (prefix-in builtin: term-algebra/builtin)
          (prefix-in rules: term-algebra/rules)
          (prefix-in rewrite: term-algebra/rewrite)
-         (for-syntax syntax/parse))
+         (for-syntax syntax/parse)
+         racket/generator)
 
 ;
 ; The data structure for a term validated with reference to a node
@@ -140,6 +142,12 @@
         [term (vterm-term vterm)])
     (make-vterm mod (rewrite:reduce term mod))))
 
+(define (in-vterm-reduction vterm)
+  (in-generator
+   (let ([mod (vterm-node vterm)]
+         [term (vterm-term vterm)])
+     (for ([r (rewrite:in-reduction term mod)])
+       (yield (make-vterm mod r))))))
 
 ; used in test-nodes.rkt
 (define (internal-node m-vterm)

@@ -4,7 +4,8 @@
          define-unchecked-node unchecked-node
          term meta-term
          meta-up meta-down
-         (rename-out [meta:reduce-vterm reduce])
+         (rename-out [meta:reduce-vterm reduce]
+                     [meta:in-vterm-reduction in-reduction])
          ; builtin nodes:
          builtin:any
          builtin:truth builtin:equality

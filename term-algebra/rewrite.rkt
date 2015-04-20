@@ -1,11 +1,12 @@
 #lang racket
 
-(provide reduce)
+(provide reduce in-reduction)
 
 (require (prefix-in terms: term-algebra/terms)
          (prefix-in rules: term-algebra/rules)
          (prefix-in nodes: term-algebra/nodes)
-         (prefix-in builtin: term-algebra/builtin))
+         (prefix-in builtin: term-algebra/builtin)
+         racket/generator)
 
 (define true-term
   (nodes:make-term 'true empty builtin:truth))
@@ -62,3 +63,11 @@
       (if (eq? rewritten-term a-term)
           a-term
           (loop rewritten-term)))))
+
+(define (in-reduction a-term node)
+  (in-generator
+   (let loop ([a-term a-term])
+     (let* ([rewritten-term (rewrite-leftmost-innermost a-term node)])
+       (yield a-term)
+       (unless (eq? rewritten-term a-term)
+         (loop rewritten-term))))))

@@ -155,6 +155,38 @@
                 targets)
         (hash svar targets)
         #f))
+
+  (define (match-args p-args t-args sorts)
+    (cond
+      [(and (not (empty? p-args))
+            (svar? (last p-args)))
+       ; The pattern has an svar argument
+       (cond
+         [(< (length t-args) (- (length p-args) 1))
+          ; Not enough arguments
+          #f]
+         [else
+          (define n-fix (- (length p-args) 1))
+          (for/fold ([subst (match-svar
+                             (last p-args) (drop t-args n-fix) sorts)])
+                    ([p-arg (take p-args n-fix)]
+                     [t-arg (take t-args n-fix)])
+            #:break (not subst)
+            (merge-substitutions subst
+                                 (match-pattern* p-arg t-arg sorts)))])
+       ]
+      [else
+       ; The pattern is a standard term
+       (cond
+         [(equal? (length p-args) (length t-args))
+          ; Matching number of arguments
+          (for/fold ([subst (hash)])
+                    ([p-arg p-args]
+                     [t-arg t-args])
+            #:break (not subst)
+            (merge-substitutions subst
+                                 (match-pattern* p-arg t-arg sorts)))]
+         [else #f])]))
   
   (define (match-pattern* pattern target sorts)
     (cond
@@ -163,38 +195,7 @@
       [(and (term? pattern)
             (term? target)
             (equal? (term-op pattern) (term-op target)))
-       (let ([p-args (term-args pattern)]
-             [t-args (term-args target)])
-         (cond
-           [(and (not (empty? p-args))
-                 (svar? (last p-args)))
-            ; The pattern has an svar argument
-            (cond
-              [(< (length t-args) (- (length p-args) 1))
-               ; Not enough arguments
-               #f]
-              [else
-               (define n-fix (- (length p-args) 1))
-               (for/fold ([subst (match-svar
-                                  (last p-args) (drop t-args n-fix) sorts)])
-                         ([p-arg (take p-args n-fix)]
-                          [t-arg (take t-args n-fix)])
-                  #:break (not subst)
-                  (merge-substitutions subst
-                                       (match-pattern* p-arg t-arg sorts)))])
-            ]
-           [else
-            ; The pattern is a standard term
-            (cond
-              [(equal? (length p-args) (length t-args))
-               ; Matching number of arguments
-               (for/fold ([subst (hash)])
-                          ([p-arg p-args]
-                           [t-arg t-args])
-                  #:break (not subst)
-                  (merge-substitutions subst
-                                       (match-pattern* p-arg t-arg sorts)))]
-              [else #f])]))]
+       (match-args (term-args pattern) (term-args target) sorts)]
       [(equal? pattern target)
        (hash)]
       [else

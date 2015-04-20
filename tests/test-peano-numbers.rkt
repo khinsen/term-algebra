@@ -25,9 +25,9 @@
        (pred (succ N))
        N)
 
-  (op (+ PN PN) PN)
+  (op (+ PN ...) PN #:symmetric)
   (=-> #:var [N PN]
-       (+ N zero)
+       (+ N)
        N)
   (=-> #:var [N PN]
        (+ zero N)
@@ -35,20 +35,26 @@
   (=-> #:vars ([N PN] [M PN])
        (+ N (succ M))
        (+ (succ N) M))
+  (=-> #:vars ([N PN] [M PN] [Ks PN ...])
+       (+ N M Ks)
+       (+ (+ N M) Ks))
   
-  (op (* PN PN) PN)
+  (op (* PN ...) PN #:symmetric)
   (=-> #:var [N PN]
-       (* N zero)
-       zero)
+       (* N)
+       N)
   (=-> #:var [N PN]
        (* zero N)
        zero)
   (=-> #:vars ([N PN] [M PN])
        (* (succ N) (succ M))
-       (succ (+ N (+ M (* N M))))))
+       (succ (+ N (+ M (* N M)))))
+  (=-> #:vars ([N PN] [M PN] [Ks PN ...])
+       (* N M Ks)
+       (* (* N M) Ks)))
 
 (define-node pn+
-  (use builtin:rational)
+  (use builtin:natural)
   (include pn)
   (op (from-natural Natural) PN)
   (=-> (from-natural 0) zero)
@@ -62,11 +68,15 @@
     (check-reduce pn (pred (succ zero)) zero)
 
     (check-reduce pn (+ zero zero) zero)
+    (check-reduce pn (+ zero (succ zero)) (succ zero))
+    (check-reduce pn (+ (succ zero) zero) (succ zero))
     (check-reduce pn (+ (succ zero) (succ zero)) (succ (succ zero)))
     (check-reduce pn (+ (succ zero) (succ (succ zero)))
                      (succ (succ (succ zero))))
 
     (check-reduce pn (* zero zero) zero)
+    (check-reduce pn (* zero (succ zero)) zero)
+    (check-reduce pn (* (succ zero) zero) zero)
     (check-reduce pn (* (succ (succ zero)) (succ (succ (succ zero))))
                      (succ (succ (succ (succ (succ (succ zero))))))))
   
@@ -75,12 +85,16 @@
                       (from-natural 9))
     (check-normal pn+ (+ (from-natural 4) (from-natural 0))
                       (from-natural 4))
+    (check-normal pn+ (+ (from-natural 3) (from-natural 2) (from-natural 1))
+                      (from-natural 6))
     (check-normal pn+ (* (from-natural 2) (from-natural 3))
                       (from-natural 6))
     (check-normal pn+ (* (from-natural 0) (from-natural 3))
                       (from-natural 0))
     (check-normal pn+ (* (from-natural 2) (from-natural 0))
-                      (from-natural 0))))
+                      (from-natural 0))
+    (check-normal pn+ (* (from-natural 2) (from-natural 1) (from-natural 2))
+                      (from-natural 4))))
 
 (module* main #f
   (require rackunit/text-ui)

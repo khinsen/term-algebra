@@ -23,10 +23,11 @@
   (use any)
   (op (== Any Any) Boolean)
   (fn ==
-    (lambda (term1 term2)
-      (if (equal? term1 term2)
-          true
-          false))))
+    (λ (term)
+      (let ([args (terms:term-args term)])
+        (if (equal? (first args) (second args))
+            true
+            false)))))
 
 (nodes:define-builtin-node string
   (sorts String)
@@ -44,36 +45,94 @@
 
   (special-ops natural-number)
 
-  (op (+ Natural ...) Natural)
-  (op (+ Zero ...) Zero)
-  (op (+ NonZeroNatural ...) NonZeroNatural)
-  (fn + +)
+  (op (+ Natural ...) Natural #:symmetric)
+  (op (+ Zero ...) Zero  #:symmetric)
+  (op (+ NonZeroNatural ...) NonZeroNatural  #:symmetric)
+  (fn + (λ (term)
+          (unless (andmap (λ (a) (is-sort? a 'Natural)) (terms:term-args term))
+            (error 'not-my-domain))
+          (let*-values ([(numbers subterms)
+                         (partition number? (terms:term-args term))]
+                        [(sum-of-numbers)
+                         (foldl + 0 numbers)])
+            (cond
+              [(empty? subterms) sum-of-numbers]
+              [(zero? sum-of-numbers)
+               (cond
+                 [(= 1 (length subterms))
+                  (first subterms)]
+                 [(empty? numbers)
+                  term]
+                 [else
+                  (make-term '+ subterms)])]
+              [(= (length numbers) 1) term]
+              [else (make-term '+ (cons sum-of-numbers subterms))]))))
 
   (op (dec NonZeroNatural) Natural)
-  (fn dec sub1)
+  (fn dec (λ (term) (sub1 (first (terms:term-args term)))))
 
-  (op (* Natural ...) Natural)
-  (op (* Zero ...) Zero)
-  (op (* NonZeroNatural ...) NonZeroNatural)
-  (fn * *)
+  (op (* Natural ...) Natural #:symmetric)
+  (op (* Zero ...) Zero #:symmetric)
+  (op (* NonZeroNatural ...) NonZeroNatural #:symmetric)
+  (fn * (λ (term)
+          (unless (andmap (λ (a) (is-sort? a 'Natural)) (terms:term-args term))
+            (error 'not-my-domain))
+          (let*-values ([(numbers subterms)
+                         (partition number? (terms:term-args term))]
+                        [(product-of-numbers)
+                         (foldl * 1 numbers)])
+            (cond
+              [(empty? subterms) product-of-numbers]
+              [(= 1 product-of-numbers)
+               (cond
+                 [(= 1 (length subterms))
+                  (first subterms)]
+                 [(empty? numbers)
+                  term]
+                 [else
+                  (make-term '* subterms)])]
+              [(= (length numbers) 1) term]
+              [else (make-term '* (cons product-of-numbers subterms))]))))
 
   (op (div Natural NonZeroNatural) Natural)
-  (fn div quotient)
+  (fn div (λ (term)
+            (let ([args (terms:term-args term)])
+              (quotient (first args) (second args)))))
 
   (op (> Natural Natural) Boolean)
-  (fn > (lambda (x y) (if (> x y) true false)))
+  (fn > (λ (term)
+          (let ([args (terms:term-args term)])
+            (if (> (first args) (second args))
+                true
+                false))))
 
   (op (>= Natural Natural) Boolean)
-  (fn >= (lambda (x y) (if (>= x y) true false)))
+  (fn >= (λ (term)
+           (let ([args (terms:term-args term)])
+             (if (>= (first args) (second args))
+                 true
+                 false))))
 
   (op (< Natural Natural) Boolean)
-  (fn < (lambda (x y) (if (< x y) true false)))
+  (fn < (λ (term)
+          (let ([args (terms:term-args term)])
+            (if (< (first args) (second args))
+                true
+                false))))
 
   (op (<= Natural Natural) Boolean)
-  (fn <= (lambda (x y) (if (<= x y) true false)))
+  (fn <= (λ (term)
+           (let ([args (terms:term-args term)])
+             (if (<= (first args) (second args))
+                 true
+                 false))))
 
   (op (= Natural Natural) Boolean)
-  (fn = (lambda (x y) (if (= x y) true false))))
+  (fn = (λ (term)
+          (let ([args (terms:term-args term)])
+            (if (= (first args) (second args))
+                true
+                false)))))
 
 (nodes:define-builtin-node integer
   (include natural)
@@ -85,17 +144,55 @@
 
   (special-ops integer-number)
 
-  (op (+ Integer ...) Integer)
+  (op (+ Integer ...) Integer #:symmetric)
+  (fn + (λ (term)
+          (unless (andmap (λ (a) (is-sort? a 'Integer)) (terms:term-args term))
+            (error 'not-my-domain))
+          (let*-values ([(numbers subterms)
+                         (partition number? (terms:term-args term))]
+                        [(sum-of-numbers)
+                         (foldl + 0 numbers)])
+            (cond
+              [(empty? subterms) sum-of-numbers]
+              [(zero? sum-of-numbers)
+               (cond
+                 [(= 1 (length subterms))
+                  (first subterms)]
+                 [(empty? numbers)
+                  term]
+                 [else
+                  (make-term '+ subterms)])]
+              [(= (length numbers) 1) term]
+              [else (make-term '+ (cons sum-of-numbers subterms))]))))
 
   (op (- Zero) Zero)
   (op (- Integer) Integer)
   (op (- Integer Integer) Integer)
-  (fn - -)
+  (fn - (λ (term) (apply - (terms:term-args term))))
 
   (op (dec Integer) Integer)
 
-  (op (* Integer ...) Integer)
-  (op (* NonZeroInteger ...) NonZeroInteger)
+  (op (* Integer ...) Integer #:symmetric)
+  (op (* NonZeroInteger ...) NonZeroInteger #:symmetric)
+  (fn * (λ (term)
+          (unless (andmap (λ (a) (is-sort? a 'Integer)) (terms:term-args term))
+            (error 'not-my-domain))
+          (let*-values ([(numbers subterms)
+                         (partition number? (terms:term-args term))]
+                        [(product-of-numbers)
+                         (foldl * 1 numbers)])
+            (cond
+              [(empty? subterms) product-of-numbers]
+              [(= 1 product-of-numbers)
+               (cond
+                 [(= 1 (length subterms))
+                  (first subterms)]
+                 [(empty? numbers)
+                  term]
+                 [else
+                  (make-term '* subterms)])]
+              [(= (length numbers) 1) term]
+              [else (make-term '* (cons product-of-numbers subterms))]))))
 
   (op (div Integer NonZeroInteger) Integer)
 
@@ -116,24 +213,62 @@
 
   (special-ops rational-number)
 
-  (op (+ Rational ...) Rational)
-  (op (+ PositiveRational ...) PositiveRational)
+  (op (+ Rational ...) Rational #:symmetric)
+  (op (+ PositiveRational ...) PositiveRational #:symmetric)
+  (fn + (λ (term)
+          (unless (andmap (λ (a) (is-sort? a 'Rational)) (terms:term-args term))
+            (error 'not-my-domain))
+          (let*-values ([(numbers subterms)
+                         (partition number? (terms:term-args term))]
+                        [(sum-of-numbers)
+                         (foldl + 0 numbers)])
+            (cond
+              [(empty? subterms) sum-of-numbers]
+              [(zero? sum-of-numbers)
+               (cond
+                 [(= 1 (length subterms))
+                  (first subterms)]
+                 [(empty? numbers)
+                  term]
+                 [else
+                  (make-term '+ subterms)])]
+              [(= (length numbers) 1) term]
+              [else (make-term '+ (cons sum-of-numbers subterms))]))))
 
   (op (- Rational) Rational)
   (op (- Rational Rational) Rational)
 
   (op (dec Rational) Rational)
 
-  (op (* Rational ...) Rational)
-  (op (* NonZeroRational ...) NonZeroRational)
-  (op (* PositiveRational ...) PositiveRational)
+  (op (* Rational ...) Rational #:symmetric)
+  (op (* NonZeroRational ...) NonZeroRational #:symmetric)
+  (op (* PositiveRational ...) PositiveRational #:symmetric)
+  (fn * (λ (term)
+          (unless (andmap (λ (a) (is-sort? a 'Rational)) (terms:term-args term))
+            (error 'not-my-domain))
+          (let*-values ([(numbers subterms)
+                         (partition number? (terms:term-args term))]
+                        [(product-of-numbers)
+                         (foldl * 1 numbers)])
+            (cond
+              [(empty? subterms) product-of-numbers]
+              [(= 1 product-of-numbers)
+               (cond
+                 [(= 1 (length subterms))
+                  (first subterms)]
+                 [(empty? numbers)
+                  term]
+                 [else
+                  (make-term '* subterms)])]
+              [(= (length numbers) 1) term]
+              [else (make-term '* (cons product-of-numbers subterms))]))))
 
   (op (/ Rational) Rational)
   (op (/ PositiveRational) PositiveRational)
   (op (/ Rational Rational) Rational)
   (op (/ NonZeroRational NonZeroRational) NonZeroRational)
   (op (/ PositiveRational PositiveRational) PositiveRational)
-  (fn / /)
+  (fn / (λ (term) (apply / (terms:term-args term))))
 
   (op (> Rational Rational) Boolean)
   (op (>= Rational Rational) Boolean)

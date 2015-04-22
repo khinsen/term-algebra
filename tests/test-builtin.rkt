@@ -9,6 +9,18 @@
   (check-equal? (reduce (term node initial-term))
                 (term node reduced-term)))
 
+(define-node test1
+  (use builtin:natural)
+  (op foo Natural))
+
+(define-node test2
+  (use builtin:integer)
+  (op foo Integer))
+
+(define-node test3
+  (use builtin:rational)
+  (op foo Rational))
+
 (define-test-suite builtin-tests
 
   (test-case "equality"
@@ -65,6 +77,48 @@
     (check-reduce builtin:rational (< 2/7 3/7) true)
     (check-reduce builtin:rational (<= 2/7 3/7) true)
     (check-reduce builtin:rational (= 1/5 2/10) true))
+
+  (test-case "naturals-and-terms"
+    (check-reduce test1 (+ 2 3) 5)
+    (check-reduce test1 (+ foo) foo)
+    (check-reduce test1 (+ foo foo) (+ foo foo))
+    (check-reduce test1 (+ 2 foo) (+ 2 foo))
+    (check-reduce test1 (+ 2 3 foo) (+ 5 foo))
+    (check-reduce test1 (* 2 3) 6)
+    (check-reduce test1 (* foo) foo)
+    (check-reduce test1 (* foo foo) (* foo foo))
+    (check-reduce test1 (* 2 foo) (* 2 foo))
+    (check-reduce test1 (* 2 3 foo) (* 6 foo)))
+
+  (test-case "integers-and-terms"
+    (check-reduce test2 (+ 2 -3) -1)
+    (check-reduce test2 (+ foo) foo)
+    (check-reduce test2 (+ 2 -2 foo) foo)
+    (check-reduce test2 (+ foo foo) (+ foo foo))
+    (check-reduce test2 (+ 2 -2 foo foo) (+ foo foo))
+    (check-reduce test2 (+ 2 foo) (+ 2 foo))
+    (check-reduce test2 (+ 2 3 foo) (+ 5 foo))
+    (check-reduce test2 (* 2 -3) -6)
+    (check-reduce test2 (* foo) foo)
+    (check-reduce test2 (* foo foo) (* foo foo))
+    (check-reduce test2 (* 2 foo) (* 2 foo))
+    (check-reduce test2 (* 2 -3 foo) (* -6 foo)))
+
+  (test-case "rationale-and-terms"
+    (check-reduce test3 (+ 2/3 1/3) 1)
+    (check-reduce test3 (+ foo) foo)
+    (check-reduce test3 (+ 2/3 -2/3 foo) foo)
+    (check-reduce test3 (+ foo foo) (+ foo foo))
+    (check-reduce test3 (+ 2/3 -2/3 foo foo) (+ foo foo))
+    (check-reduce test3 (+ 1/2 foo) (+ 1/2 foo))
+    (check-reduce test3 (+ 2/3 1/3 foo) (+ 1 foo))
+    (check-reduce test3 (* 2 1/3) 2/3)
+    (check-reduce test3 (* foo) foo)
+    (check-reduce test3 (* 2 1/2 foo) foo)
+    (check-reduce test3 (* foo foo) (* foo foo))
+    (check-reduce test3 (* 2 1/2 foo foo) (* foo foo))
+    (check-reduce test3 (* 2 foo) (* 2 foo))
+    (check-reduce test3(* 2 1/3 foo) (* 2/3 foo)))
 
   (test-not-exn "string-imported"
     (lambda ()

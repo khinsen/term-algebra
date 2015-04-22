@@ -3,11 +3,19 @@
 (provide builtin-tests)
 
 (require rackunit
-         term-algebra/basic-api)
+         term-algebra/basic-api
+         (prefix-in meta: term-algebra/meta))
 
 (define-syntax-rule (check-reduce node initial-term reduced-term)
-  (check-equal? (reduce (term node initial-term))
-                (term node reduced-term)))
+  (check meta:vterm-equal?
+         (reduce (term node initial-term))
+         (term node reduced-term)))
+
+(define-node test0
+  (use builtin:equality)
+  (op foo Boolean)
+  (op (bar Boolean ...) Boolean)
+  (op (baz Boolean ...) Boolean #:symmetric))
 
 (define-node test1
   (use builtin:natural)
@@ -28,7 +36,12 @@
     (check-reduce builtin:equality (== true true) true)
     (check-reduce builtin:equality (== false true) false)
     (check-reduce builtin:equality (== true false) false)
-    (check-reduce builtin:equality (== (== true true) (== false false)) true))
+    (check-reduce builtin:equality (== (== true true) (== false false)) true)
+    (check-reduce test0 (== foo foo) true)
+    (check-reduce test0 (== (bar foo (bar foo)) (bar foo (bar foo))) true)
+    (check-reduce test0 (== (bar (bar foo) foo) (bar foo (bar foo))) false)
+    (check-reduce test0 (== (baz foo (bar foo)) (baz foo (bar foo))) true)
+    (check-reduce test0 (== (baz (bar foo) foo) (baz foo (bar foo))) true))
 
   (test-case "natural"
     (check-reduce builtin:natural (+ 1) 1)
@@ -83,6 +96,7 @@
     (check-reduce test1 (+ foo) foo)
     (check-reduce test1 (+ foo foo) (+ foo foo))
     (check-reduce test1 (+ 2 foo) (+ 2 foo))
+    (check-reduce test1 (+ foo 2) (+ 2 foo))
     (check-reduce test1 (+ 2 3 foo) (+ 5 foo))
     (check-reduce test1 (* 2 3) 6)
     (check-reduce test1 (* foo) foo)
@@ -97,6 +111,7 @@
     (check-reduce test2 (+ foo foo) (+ foo foo))
     (check-reduce test2 (+ 2 -2 foo foo) (+ foo foo))
     (check-reduce test2 (+ 2 foo) (+ 2 foo))
+    (check-reduce test1 (+ foo 2) (+ 2 foo))
     (check-reduce test2 (+ 2 3 foo) (+ 5 foo))
     (check-reduce test2 (* 2 -3) -6)
     (check-reduce test2 (* foo) foo)
@@ -111,6 +126,7 @@
     (check-reduce test3 (+ foo foo) (+ foo foo))
     (check-reduce test3 (+ 2/3 -2/3 foo foo) (+ foo foo))
     (check-reduce test3 (+ 1/2 foo) (+ 1/2 foo))
+    (check-reduce test3 (+ foo 1/2) (+ 1/2 foo))
     (check-reduce test3 (+ 2/3 1/3 foo) (+ 1 foo))
     (check-reduce test3 (* 2 1/3) 2/3)
     (check-reduce test3 (* foo) foo)

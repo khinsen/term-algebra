@@ -25,7 +25,7 @@
   (fn ==
     (λ (term)
       (let ([args (terms:term-args term)])
-        (if (equal? (first args) (second args))
+        (if (terms:term-equal? (first args) (second args))
             true
             false)))))
 

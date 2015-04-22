@@ -4,6 +4,7 @@
          meta-up meta-down
          make-vterm (struct-out vterm) (struct-out node-vterm)
          reduce-vterm in-vterm-reduction
+         vterm-equal?
          check-node node-hashcode)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -148,6 +149,10 @@
          [term (vterm-term vterm)])
      (for ([r (rewrite:in-reduction term mod)])
        (yield (make-vterm mod r))))))
+
+(define (vterm-equal? vterm1 vterm2)
+  (and (eq? (vterm-node vterm1) (vterm-node vterm2))
+       (terms:term-equal? (vterm-term vterm1) (vterm-term vterm2))))
 
 ; used in test-nodes.rkt
 (define (internal-node m-vterm)

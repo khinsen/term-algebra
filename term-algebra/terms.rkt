@@ -7,6 +7,7 @@
          sort-of
          make-term make-pattern make-special-term
          term-hashcode
+         term-equal?
          match-pattern substitute
          op-origin)
 
@@ -131,6 +132,41 @@
     (write a-term-or-string o)
     (hash-of-string (get-output-string o))))
 
+
+; Racket's built-in in-permutations doesn't make any promises about
+; the order of returned permutations. This version guarantees that
+; the original list is the first permutation. It is used for matching
+; and equality tests on symmetric operators.
+(define (in-perms l)
+  (in-generator
+   (if (empty? l)
+       (yield empty)
+       (for ([x l])
+         (for ([ys (in-perms (remq x l))])
+           (yield (cons x ys)))))))
+
+; Term equality
+
+(define (term-equal? term1 term2)
+
+  (define (compare-args args1 args2)
+    (and (equal? (length args1) (length args2))
+         (andmap term-equal? args1 args2)))
+
+  (define (compare-symmetric-args args1 args2)
+    ; A brute-force implementation that is probably very inefficient.
+    (and (equal? (length args1) (length args2))
+         (for/or ([p (in-perms args2)])
+           (andmap term-equal? args2 p))))
+
+  (cond
+    [(and (term? term1) (term? term2))
+     (and (equal? (term-op term1) (term-op term2))
+          (if (operators:signature-symmetric? (term-signature term2))
+              (compare-symmetric-args (term-args term1) (term-args term2))
+              (compare-args (term-args term1) (term-args term2))))]
+    [else (equal? term1 term2)]))
+
 ; Pattern matching and substitution
 
 (define (match-pattern pattern target op-set)
@@ -190,17 +226,6 @@
        (match-svar-pattern p-args t-args sorts) 
        ; The pattern has no svar argument (svars are not allowed elsewhere)
        (match-plain-pattern p-args t-args sorts)))
-
-  ; Racket's built-in in-permutations doesn't make any promises about
-  ; the order of returned permutations. This version guarantees that
-  ; the original list is the first permutation.
-  (define (in-perms l)
-    (in-generator
-     (if (empty? l)
-         (yield empty)
-         (for ([x l])
-           (for ([ys (in-perms (remq x l))])
-             (yield (cons x ys)))))))
 
   (define (match-symmetric-args p-args t-args sorts)
     ; A brute-force implementation that is probably very inefficient.

@@ -114,16 +114,27 @@
                                   #'(list))]
                    [fn-list (if (attribute op-decl.fns)
                                 #'(append op-decl.fns ...)
-                                #'(list))])
+                                #'(list))]
+                   [make-term (datum->syntax stx 'make-term)]
+                   [is-sort? (datum->syntax stx 'is-sort?)])
        #'(define node-name
-           (make-node (quote node-name)
+           (letrec ([make-term
+                     (λ (op args) (terms:make-term op args (node-ops node)))]
+                    [is-sort?
+                     (λ (term target-sort)
+                       (sorts:is-sort? (terms:sort-of term) target-sort
+                                       (operators:op-set-sorts
+                                        (node-ops node))))]
+                    [node
+                     (make-node (quote node-name)
                       ; We can't construct a meta-term here because
                       ; the meta module is not yet available. We cheat
                       ; by using the textual representation of the term.
                       ; It is used only to compute the hashcode.
                       (format "(builtin-node ~s)" (quote node-name))
                       import-list sort-list subsort-list
-                      op-list s-op-list fn-list #t)))]))
+                      op-list s-op-list fn-list #t)])
+             node)))]))
 
 (define (make-node node-name meta-terms
                    import-list sort-list subsort-list

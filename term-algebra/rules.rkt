@@ -73,5 +73,7 @@
 (define (add-proc! op-symbol proc origin rules)
   (hash-update! rules
                 op-symbol
-                (λ (l) (append l (list (cons proc origin))))
+                ; A procedure replaces all prior (imported) rules
+                ; and procedures.
+                (λ (l) (list (cons proc origin)))
                 empty))

@@ -136,7 +136,7 @@
 ; Racket's built-in in-permutations doesn't make any promises about
 ; the order of returned permutations. This version guarantees that
 ; the original list is the first permutation. It is used for matching
-; and equality tests on symmetric operators.
+; on symmetric operators.
 (define (in-perms l)
   (in-generator
    (if (empty? l)
@@ -154,10 +154,11 @@
          (andmap term-equal? args1 args2)))
 
   (define (compare-symmetric-args args1 args2)
-    ; A brute-force implementation that is probably very inefficient.
     (and (equal? (length args1) (length args2))
-         (for/or ([p (in-perms args2)])
-           (andmap term-equal? args2 p))))
+         (or (empty? args1)
+             (compare-symmetric-args (rest args1)
+                                     (remove (first args1) args2
+                                             term-equal?)))))
 
   (cond
     [(and (term? term1) (term? term2))

@@ -120,8 +120,12 @@
   (=-> #:vars ([N Symbol] [D Domain] [S Symbol] [S1 Symbol] [S2 Symbol])
        (rename-sort (op N D S) S1 S2)
        (op N (rename-sort D S1 S2) (rename-sort S S1 S2)))
+  (=-> #:vars ([N Symbol] [D VarLengthDomain] [S Symbol] [S1 Symbol] [S2 Symbol])
+       (rename-sort (symop N D S) S1 S2)
+       (symop N (rename-sort D S1 S2) (rename-sort S S1 S2)))
 
   (op (rename-sort Domain Symbol Symbol) Domain)
+  (op (rename-sort VarLengthDomain Symbol Symbol) VarLengthDomain)
   (=-> #:vars ([S1 Symbol] [S2 Symbol])
        (rename-sort (domain) S1 S2)
        (domain))
@@ -204,6 +208,12 @@
   (=-> #:vars ([N Symbol] [D Domain] [S Symbol] [OS1 Symbol] [OS2 Symbol])
        (rename-op (op N D S) OS1 OS2)
        (op N D S))
+  (=-> #:vars ([D VarLengthDomain] [S Symbol] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (symop OS1 D S) OS1 OS2)
+       (symop OS2 D S))
+  (=-> #:vars ([N Symbol] [D VarLengthDomain] [S Symbol] [OS1 Symbol] [OS2 Symbol])
+       (rename-op (symop N D S) OS1 OS2)
+       (symop N D S))
 
   (op (rename-op Rule Symbol Symbol) Rule)
   (=-> #:vars ([Vs VarList] [P1 Pattern] [P2 Pattern] [P3 Pattern]

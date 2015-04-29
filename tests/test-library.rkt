@@ -6,11 +6,14 @@
          term-algebra/basic-api
          term-algebra/library/boolean
          term-algebra/library/list
-         term-algebra/library/node-transforms)
+         term-algebra/library/set
+         term-algebra/library/node-transforms
+         (prefix-in meta: term-algebra/meta))
 
 (define-syntax-rule (check-reduce node initial-term reduced-term)
-  (check-equal? (reduce (term node initial-term))
-                (term node reduced-term)))
+  (check meta:vterm-equal?
+         (reduce (term node initial-term))
+         (term node reduced-term)))
 
 (define-node boolean2
   (use boolean)
@@ -65,10 +68,33 @@
                   (rename-op 'list 'symbols))))))
     
     (check-reduce symbol-list (cons 'X (symbols 'A 'B)) (symbols 'X 'A 'B))
+    (check-reduce symbol-list (cons 'X (symbols)) (symbols 'X))
     (check-reduce symbol-list (head (symbols 'A 'B)) 'A)
     (check-reduce symbol-list (tail (symbols 'A 'B)) (symbols 'B))
     (check-reduce symbol-list (contains? 'A (symbols 'A 'B)) true)
-    (check-reduce symbol-list (contains? 'X (symbols 'A 'B)) false)))
+    (check-reduce symbol-list (contains? 'X (symbols 'A 'B)) false))
+
+  (test-case "sets"
+
+    (define symbol-set
+      (reduce
+       (term node-transforms
+             (transformed-node ,set
+                 (transforms
+                  (node-name 'set-of-symbols)
+                  (add-import (use (builtin-node 'symbol)))
+                  (rename-sort 'Element 'Symbol)
+                  (rename-sort 'Set 'SymbolSet)
+                  (rename-sort 'NonEmptySet 'NESymbolSet)
+                  (rename-op 'set 'symbols))))))
+
+    (check-reduce symbol-set (symbols 'A 'A 'B 'C 'B 'A) (symbols 'A 'B 'C))
+    (check-reduce symbol-set (cons 'X (symbols 'A 'A 'B 'C 'B 'A))
+                             (symbols 'A 'B 'C 'X))
+    (check-reduce symbol-set (cons 'X (symbols))
+                             (symbols 'X))
+    (check-reduce symbol-set (contains? 'A (symbols 'A 'B 'C 'B)) true)
+    (check-reduce symbol-set (contains? 'X (symbols 'A 'B 'C 'B)) false)))
 
 (module* main #f
   (require rackunit/text-ui)

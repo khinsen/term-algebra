@@ -198,11 +198,10 @@
   (define (match-svar-args p-args t-args sorts)
 
     (define (match-svar-args* p-args t-args sorts substitution)
-      (define n-fix (- (length p-args) 1))
       (cond
-        [(zero? n-fix)
+        [(empty? (rest p-args))
          (in-generator
-          (for ([sl (match-svar (last p-args) (drop t-args n-fix) sorts)])
+          (for ([sl (match-svar (first p-args) t-args sorts)])
             (let ([sm (merge-substitutions substitution sl)])
               (when sm
                 (yield sm)))))]
@@ -215,7 +214,7 @@
                                            sorts sm)])
                   (yield s))))))]))
 
-    (if (< (length t-args) (- (length p-args) 1))
+    (if (< (length t-args) (sub1 (length p-args)))
         empty-sequence
         (match-svar-args* p-args t-args sorts (hash))))
 

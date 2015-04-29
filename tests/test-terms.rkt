@@ -37,6 +37,9 @@
 (define AVar (terms:var 'AVar 'A))
 (define XVar (terms:var 'XVar 'X))
 
+(define (all-matches pattern target op-set)
+  (sequence->list (terms:match-pattern pattern target op-set)))
+
 (define-test-suite term-tests
   
   (test-case "nullary-terms"
@@ -94,47 +97,47 @@
       (terms:make-term 'foo (list anX) test-ops)))
 
   (test-case "pattern-matching"
-    (check-equal? (terms:match-pattern 'foo 'foo test-ops)
-                  (hash))
-    (check-equal? (terms:match-pattern "foo" "foo" test-ops)
-                  (hash))
-    (check-equal? (terms:match-pattern 'foo "foo" test-ops)
-                  #f)
-    (check-equal? (terms:match-pattern AVar anA test-ops)
-                  (hash AVar anA))
-    (check-equal? (terms:match-pattern AVar 'foo test-ops)
-                  #f)
-    (check-equal? (terms:match-pattern
+    (check-equal? (all-matches 'foo 'foo test-ops)
+                  (list (hash)))
+    (check-equal? (all-matches "foo" "foo" test-ops)
+                  (list (hash)))
+    (check-equal? (all-matches 'foo "foo" test-ops)
+                  empty)
+    (check-equal? (all-matches AVar anA test-ops)
+                  (list (hash AVar anA)))
+    (check-equal? (all-matches AVar 'foo test-ops)
+                  empty)
+    (check-equal? (all-matches
                    (terms:make-term 'foo (list anA) test-ops)
                    (terms:make-term 'foo (list anA) test-ops)
                    test-ops)
-                  (hash))
-    (check-equal? (terms:match-pattern
+                  (list (hash)))
+    (check-equal? (all-matches
                    (terms:make-term 'foo (list AVar) test-ops)
                    (terms:make-term 'foo (list anA) test-ops)
                    test-ops)
-                  (hash AVar anA))
-    (check-equal? (terms:match-pattern
+                  (list (hash AVar anA)))
+    (check-equal? (all-matches
                    (terms:make-term 'foo (list AVar) test-ops)
                    anA
                    test-ops)
-                  #f)
-    (check-equal? (terms:match-pattern
+                  empty)
+    (check-equal? (all-matches
                    (terms:make-term 'foo (list AVar) test-ops)
                    (terms:make-term 'foo (list aC) test-ops)
                    test-ops)
-                  #f)
-    (check-equal? (terms:match-pattern
+                  empty)
+    (check-equal? (all-matches
                    (terms:make-term 'bar (list XVar anX) test-ops)
                    (terms:make-term 'bar (list anX  anX) test-ops)
                    test-ops)
-                  (hash XVar anX))
-    (check-equal? (terms:match-pattern
+                  (list (hash XVar anX)))
+    (check-equal? (all-matches
                    (terms:make-term 'bar (list XVar anX) test-ops)
                    (terms:make-term 'bar (list anX  anY) test-ops)
                    test-ops)
-                  #f)
-    (check-equal? (terms:match-pattern
+                  empty)
+    (check-equal? (all-matches
                    (terms:make-term 'bar (list XVar anX) test-ops)
                    (terms:make-term 'bar
                                     (list (terms:make-term 'foo (list anA)
@@ -142,8 +145,8 @@
                                           anX)
                                     test-ops)
                    test-ops)
-                  (hash XVar (terms:make-term 'foo (list anA) test-ops)))
-    (check-equal? (terms:match-pattern
+                  (list (hash XVar (terms:make-term 'foo (list anA) test-ops))))
+    (check-equal? (all-matches
                    (terms:make-term 'bar (list XVar XVar) test-ops)
                    (terms:make-term 'bar
                                     (list (terms:make-term 'foo (list anA)
@@ -151,27 +154,27 @@
                                           anX)
                                     test-ops)
                    test-ops)
-                  #f)
-    (check-equal? (terms:match-pattern
+                  empty)
+    (check-equal? (all-matches
                    (terms:make-term 'sym (list AVar anA) test-ops)
                    (terms:make-term 'sym (list anA  anA) test-ops)
                    test-ops)
-                  (hash AVar anA))
-    (check-equal? (terms:match-pattern
+                  (list (hash AVar anA)))
+    (check-equal? (all-matches
                    (terms:make-term 'sym (list anA) test-ops)
                    (terms:make-term 'sym (list anotherA) test-ops)
                    test-ops)
-                  #f)
-    (check-equal? (terms:match-pattern
+                  empty)
+    (check-equal? (all-matches
                    (terms:make-term 'sym (list anA anotherA) test-ops)
                    (terms:make-term 'sym (list anotherA anA) test-ops)
                    test-ops)
-                  (hash))
-    (check-equal? (terms:match-pattern
+                  (list (hash)))
+    (check-equal? (all-matches
                    (terms:make-term 'sym (list anA AVar) test-ops)
                    (terms:make-term 'sym (list anotherA anA) test-ops)
                    test-ops)
-                  (hash AVar anotherA)))
+                  (list (hash AVar anotherA))))
   
   (test-case "pattern-substitution"
     (check-equal?

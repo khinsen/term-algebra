@@ -243,18 +243,21 @@
     (cond
       [(var? pattern)
        (match-var pattern target sorts)]
-      [(and (term? pattern)
-            (term? target)
-            (equal? (term-op pattern) (term-op target)))
-       (if (operators:signature-symmetric? (term-signature target))
-           (match-symmetric-args (term-args pattern) (term-args target) sorts)
-           (match-args (term-args pattern) (term-args target) sorts))]
+      [(term? pattern)
+       (and (term? target)
+            (equal? (term-op pattern) (term-op target))
+            (if (operators:signature-symmetric? (term-signature target))
+                   (match-symmetric-args (term-args pattern)
+                                         (term-args target) sorts)
+                   (match-args (term-args pattern) (term-args target) sorts)))]
       [(equal? pattern target)
        (hash)]
       [else
        #f]))
 
-  (match-pattern* pattern target (operators:op-set-sorts op-set)))
+  (in-generator
+   (let ([m (match-pattern* pattern target (operators:op-set-sorts op-set))])
+     (when m (yield m)))))
 
 (define (substitute pattern substitution op-set)
   (cond

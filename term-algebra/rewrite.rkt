@@ -13,9 +13,18 @@
 (define false-term
   (nodes:make-term 'false empty builtin:truth))
 
+
 ; Term rewriting
 
 (define (rewrite-head-once a-term node)
+
+  (define (test-condition condition substitution ops)
+    (or (not condition)
+        (equal? (reduce (terms:substitute condition
+                                          substitution ops)
+                        node)
+                true-term)))
+  
   (let* ([key (if (terms:term? a-term)
                   (terms:term-op a-term)
                   (terms:sort-of a-term))]
@@ -30,18 +39,11 @@
                 ; rewrite rule
                 (let* ([pattern (rules:rule-pattern rule)]
                        [condition (rules:rule-condition rule)]
-                       [value (rules:rule-replacement rule)]
-                       [s (terms:match-pattern pattern a-term ops)])
-                  (cond
-                    [(not s)
-                     #f]
-                    [(and condition
-                          (not (equal? (reduce (terms:substitute condition s ops)
-                                               node)
-                                       true-term)))
-                     #f]
-                    [else
-                     (terms:substitute value s ops)])))))
+                       [value (rules:rule-replacement rule)])
+                  (for/or ([s (terms:match-pattern pattern a-term ops)])
+                    (if (test-condition condition s ops)
+                        (terms:substitute value s ops)
+                        #f))))))
         a-term)))
 
 (define (rewrite-leftmost-innermost a-term node)

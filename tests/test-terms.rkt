@@ -35,6 +35,7 @@
 (define anX (terms:make-term 'anX empty test-ops))
 (define anY (terms:make-term 'anY empty test-ops))
 (define AVar (terms:var 'AVar 'A))
+(define AVar2 (terms:var 'AVar2 'A))
 (define XVar (terms:var 'XVar 'X))
 
 (define (all-matches pattern target op-set)
@@ -155,11 +156,17 @@
                                     test-ops)
                    test-ops)
                   empty)
+    (check-equal? (list->set (all-matches
+                              (terms:make-term 'sym (list AVar anA) test-ops)
+                              (terms:make-term 'sym (list anA  anA) test-ops)
+                              test-ops))
+                  (set (hash AVar anA)))
     (check-equal? (all-matches
-                   (terms:make-term 'sym (list AVar anA) test-ops)
-                   (terms:make-term 'sym (list anA  anA) test-ops)
+                   (terms:make-term 'sym (list AVar AVar2) test-ops)
+                   (terms:make-term 'sym (list anA  anotherA) test-ops)
                    test-ops)
-                  (list (hash AVar anA)))
+                  (list (hash AVar anA AVar2 anotherA)
+                        (hash AVar anotherA AVar2 anA)))
     (check-equal? (all-matches
                    (terms:make-term 'sym (list anA) test-ops)
                    (terms:make-term 'sym (list anotherA) test-ops)

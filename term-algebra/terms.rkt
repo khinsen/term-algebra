@@ -172,6 +172,15 @@
 
 (define (match-pattern pattern target op-set)
 
+  (define sorts (operators:op-set-sorts op-set))
+  (define (is-sort? term target-sort)
+    (sorts:is-sort? (sort-of term) target-sort sorts))
+
+  (define (single-match condition value)
+    (if condition
+        (in-value value)
+        empty-sequence))
+
   (define (merge-substitutions s-acc s)
     (if (not s)
         #f
@@ -184,66 +193,48 @@
                 #f
                 (hash-set s-acc var value))))))
 
-  (define (match-var var target sorts)
-    (if (sorts:is-sort? (sort-of target) (var-sort var) sorts)
-        (in-value (hash var target))
-        empty-sequence))
+  (define (match-fixed-args p-args t-args substitution match-tail)
+    (if (empty? p-args)
+        (match-tail t-args substitution)
+        (in-generator
+         (for ([sf (match-pattern* (first p-args) (first t-args))])
+           (let ([sm (merge-substitutions substitution sf)])
+             (when sm
+               (for ([s (match-fixed-args (rest p-args) (rest t-args)
+                                          sm match-tail)])
+                 (yield s))))))))
 
-  (define (match-svar svar targets sorts)
-    (if (andmap (λ (t) (sorts:is-sort? (sort-of t) (svar-sort svar) sorts))
-                targets)
-        (in-value (hash svar targets))
-        empty-sequence))
+  (define (match-svar-args fixed-p-args svar t-args)
 
-  (define (match-svar-args p-args t-args sorts)
-
-    (define (match-svar-args* p-args t-args sorts substitution)
+    (define (match-svar t-args substitution)
       (cond
-        [(empty? (rest p-args))
-         (in-generator
-          (for ([sl (match-svar (first p-args) t-args sorts)])
-            (let ([sm (merge-substitutions substitution sl)])
-              (when sm
-                (yield sm)))))]
+        [(andmap (λ (t) (is-sort? t (svar-sort svar))) t-args)
+         (define s (merge-substitutions substitution (hash svar t-args)))
+         (single-match s s)]
         [else
-         (in-generator
-          (for ([sf (match-pattern* (first p-args) (first t-args) sorts)])
-            (let ([sm (merge-substitutions substitution sf)])
-              (when sm
-                (for ([s (match-svar-args* (rest p-args) (rest t-args)
-                                           sorts sm)])
-                  (yield s))))))]))
+         empty-sequence]))
 
-    (if (< (length t-args) (sub1 (length p-args)))
+    (if (< (length t-args) (length fixed-p-args))
         empty-sequence
-        (match-svar-args* p-args t-args sorts (hash))))
+        (match-fixed-args fixed-p-args t-args (hash) match-svar)))
 
-  (define (match-plain-args p-args t-args sorts)
-
-    (define (match-plain-args* p-args t-args sorts substitution)
-      (if (empty? p-args)
-          (in-value substitution)
-          (in-generator
-           (for ([sf (match-pattern* (first p-args) (first t-args) sorts)])
-             (let ([sm (merge-substitutions substitution sf)])
-               (when sm
-                 (for ([s (match-plain-args* (rest p-args) (rest t-args)
-                                             sorts sm)])
-                   (yield s))))))))
-
+  (define (match-plain-args p-args t-args)
     (if (equal? (length p-args) (length t-args))
-        (match-plain-args* p-args t-args sorts (hash))
+        (match-fixed-args p-args t-args (hash)
+                          (λ (t s) (in-value s)))
         empty-sequence))
 
-  (define (match-args p-args t-args sorts)
-    (if (and (not (empty? p-args))
-             (svar? (last p-args)))
-       ; The last pattern argument is an svar
-       (match-svar-args p-args t-args sorts) 
-       ; The pattern has no svar argument (svars are not allowed elsewhere)
-       (match-plain-args p-args t-args sorts)))
+  (define (match-args p-args t-args)
+    (cond
+      [(empty? p-args)
+       (single-match (empty? t-args) (hash))]
+      [(svar? (last p-args))
+       (let-values ([(fixed svar-list) (split-at-right p-args 1)])
+         (match-svar-args fixed (first svar-list) t-args))]
+      [else
+       (match-plain-args p-args t-args)]))
 
-  (define (match-symmetric-args p-args t-args sorts)
+  (define (match-symmetric-args p-args t-args)
     ; A brute-force implementation that is probably very inefficient.
     (define length-match
       (if (and (not (empty? p-args))
@@ -253,28 +244,27 @@
     (if length-match
         (in-generator
          (for* ([pt (in-perms t-args)]
-                [s (match-args p-args pt sorts)])
+                [s (match-args p-args pt)])
            (yield s)))
         empty-sequence))
 
-  (define (match-pattern* pattern target sorts)
+  (define (match-pattern* pattern target)
     (cond
       [(var? pattern)
-       (match-var pattern target sorts)]
+       (single-match (is-sort? target (var-sort pattern))
+                     (hash pattern target))]
       [(term? pattern)
        (if (and (term? target)
                   (equal? (term-op pattern) (term-op target)))
          (if (operators:signature-symmetric? (term-signature target))
              (match-symmetric-args (term-args pattern)
-                                   (term-args target) sorts)
-             (match-args (term-args pattern) (term-args target) sorts))
+                                   (term-args target))
+             (match-args (term-args pattern) (term-args target)))
          empty-sequence)]
-      [(equal? pattern target)
-       (in-value (hash))]
       [else
-       empty-sequence]))
+       (single-match (equal? pattern target) (hash))]))
 
-  (match-pattern* pattern target (operators:op-set-sorts op-set)))
+  (match-pattern* pattern target))
 
 (define (substitute pattern substitution op-set)
   (cond

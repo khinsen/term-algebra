@@ -29,7 +29,7 @@
     (lambda ()
       (define-node test2
         (include test)
-        (=-> #:vars ([X A] [Y B]) (foo X) Y))
+        (=> #:vars ([X A] [Y B]) (foo X) Y))
       (void)))
   
   (test-exn "variable-not-in-pattern-2"
@@ -37,7 +37,7 @@
     (lambda ()
       (define-node test2
         (include test)
-        (=-> #:vars ([X A] [Y B]) (foo X) #:if (== X Y) X))
+        (=> #:vars ([X A] [Y B]) (foo X) #:if (== X Y) X))
       (void)))
   
   (test-exn "condition-not-boolean"
@@ -45,7 +45,7 @@
     (lambda ()
       (define-node test2
         (include test)
-        (=-> #:var [X A] (foo X) #:if X X))
+        (=> #:var [X A] (foo X) #:if X X))
       (void)))
   
   (test-exn "undefined-operator-in-rule"
@@ -53,7 +53,7 @@
     (lambda ()
       (define-node test2
         (include test)
-        (=-> #:var [X A] (bar X) (foo X)))
+        (=> #:var [X A] (bar X) (foo X)))
       (void)))
   
   (test-exn "too-many-vars"
@@ -61,7 +61,7 @@
     (lambda ()
       (define-node test
         (use builtin:truth)
-        (=-> #:var [X Boolean] true false))
+        (=> #:var [X Boolean] true false))
       (void)))
 
   (test-exn "svar-in-wrong-position"
@@ -70,7 +70,7 @@
       (define-node test
         (sort A)
         (op (foo A ...) A)
-        (=-> #:vars ([X A] [Y A ...])
+        (=> #:vars ([X A] [Y A ...])
              (foo Y X)
              (foo X)))
       (void)))
@@ -79,7 +79,7 @@
       (define-node test
         (sort A)
         (op (foo A ...) A)
-        (=-> #:vars ([X A] [Y A ...])
+        (=> #:vars ([X A] [Y A ...])
              (foo X Y)
              (foo Y)))
       (void)))
@@ -89,13 +89,13 @@
     (lambda ()
       (define-node test
         (use builtin:truth)
-        (=-> true false))
+        (=> true false))
       (void)))
   (test-not-exn "rule-for-imported-op"
     (lambda ()
       (define-node test
         (include builtin:truth)
-        (=-> true false))
+        (=> true false))
       (void)))
   
   (test-exn "sort redefinition"

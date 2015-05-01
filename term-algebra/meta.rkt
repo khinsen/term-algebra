@@ -123,7 +123,7 @@
 
   (op (rules Rule ...) RuleList)
   (op (rules) RuleList)
-  (op (=-> VarList Pattern Pattern Pattern) Rule)
+  (op (=> VarList Pattern Pattern Pattern) Rule)
   (op (vars Var ...) VarList)
   (op (vars) VarList)
   (op (var Symbol Symbol) Var)
@@ -271,7 +271,7 @@
 
     (for/list ([rule rule-terms])
       (match rule
-        [(mterm '=-> (list (mterm 'vars vars) pattern condition replacement))
+        [(mterm '=> (list (mterm 'vars vars) pattern condition replacement))
          (let* ([vars (var-hash vars)]
                 [rule-pattern (pattern-from-meta node vars pattern)]
                 [rule-condition (pattern-from-meta node vars condition)]

@@ -10,18 +10,18 @@
   (use builtin:truth)
 
   (op (not Boolean) Boolean)
-  (=-> (not true) false)
-  (=-> (not false) true)
+  (=> (not true) false)
+  (=> (not false) true)
 
   (op (and Boolean Boolean) Boolean)
-  (=-> (and true true) true)
-  (=-> #:var [X Boolean] (and false X) false)
-  (=-> #:var [X Boolean] (and X false) false)
+  (=> (and true true) true)
+  (=> #:var [X Boolean] (and false X) false)
+  (=> #:var [X Boolean] (and X false) false)
 
   (op (or Boolean ...) Boolean)
-  (=-> #:var [X Boolean] (or X) X)
-  (=-> #:var [Xs Boolean ...] (or true Xs) true)
-  (=-> #:var [Xs Boolean ...] (or false  Xs) (or Xs)))
+  (=> #:var [X Boolean] (or X) X)
+  (=> #:var [Xs Boolean ...] (or true Xs) true)
+  (=> #:var [Xs Boolean ...] (or false  Xs) (or Xs)))
 
 (define-node test
   (use builtin:equality)
@@ -29,8 +29,8 @@
   (op (foo A A) A)
   (op bar A)
   (op baz A)
-  (=-> #:vars ([A1 A] [A2 A])
-       (foo A1 A2) #:if (== A1 A2) A1))
+  (=> #:vars ([A1 A] [A2 A])
+      (foo A1 A2) #:if (== A1 A2) A1))
 
 (define-test-suite rewrite-tests
 

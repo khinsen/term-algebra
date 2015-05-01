@@ -141,7 +141,7 @@
       (define-node test
         (use builtin:string)
         (op foo String)
-        (=-> foo "foo"))
+        (=> foo "foo"))
       (void)))
   (test-exn "string-not-imported"
       #rx"import builtin:string to use strings"
@@ -149,7 +149,7 @@
       (define-node test
         (sort String)
         (op foo String)
-        (=-> foo "foo"))
+        (=> foo "foo"))
       (void)))
 
   (test-not-exn "symbol-imported"
@@ -157,7 +157,7 @@
       (define-node test
         (use builtin:symbol)
         (op foo Symbol)
-        (=-> foo 'foo))
+        (=> foo 'foo))
       (void)))
   (test-exn "symbol-not-imported"
       #rx"import builtin:symbol to use symbols"
@@ -165,7 +165,7 @@
       (define-node test
         (sort Symbol)
         (op foo Symbol)
-        (=-> foo 'foo))
+        (=> foo 'foo))
       (void)))
 
   (test-not-exn "natural-imported"
@@ -173,21 +173,21 @@
       (define-node test
         (use builtin:natural)
         (op foo Natural)
-        (=-> foo 2))
+        (=> foo 2))
       (void)))
   (test-not-exn "integer-imported"
     (lambda ()
       (define-node test
         (use builtin:integer)
         (op foo Integer)
-        (=-> foo -5))
+        (=> foo -5))
       (void)))
   (test-not-exn "rational-imported"
     (lambda ()
       (define-node test
         (use builtin:rational)
         (op foo Rational)
-        (=-> foo 2/3))
+        (=> foo 2/3))
       (void)))
   (test-exn "natural-not-imported"
       #rx"import builtin:natural to use natural numbers"
@@ -195,7 +195,7 @@
       (define-node test
         (sort Natural)
         (op foo Natural)
-        (=-> foo 2))
+        (=> foo 2))
       (void)))
   (test-exn "integer-not-imported"
       #rx"import builtin:integer to use integer numbers"
@@ -203,7 +203,7 @@
       (define-node test
         (sort Integer)
         (op foo Integer)
-        (=-> foo -2))
+        (=> foo -2))
       (void)))
   (test-exn "rational-not-imported"
       #rx"import builtin:rational to use rational numbers"
@@ -211,7 +211,7 @@
       (define-node test
         (sort Rational)
         (op foo Rational)
-        (=-> foo 2/3))
+        (=> foo 2/3))
       (void)))
 
   (test-exn "wrong-sort-in-term"

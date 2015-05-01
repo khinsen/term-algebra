@@ -145,14 +145,14 @@
         [anElementSymbol ElementSymbol]
         [aNonZeroNatural NonZeroNatural])
   (op (.label Atom) String)
-  (=-> (.label (atom L aString))
-       L)
-  (=-> (.label (atom L anElementSymbol))
-       L)
-  (=-> (.label (atom L aString aNonZeroNatural))
-       L)
-  (=-> (.label (atom L anElementSymbol aNonZeroNatural))
-       L))
+  (=> (.label (atom L aString))
+      L)
+  (=> (.label (atom L anElementSymbol))
+      L)
+  (=> (.label (atom L aString aNonZeroNatural))
+      L)
+  (=> (.label (atom L anElementSymbol aNonZeroNatural))
+      L))
 
 (define-node fragments
 
@@ -172,30 +172,30 @@
   (op (aref String ...) AtomRef)
 
   (op (.atoms Fragment) AtomList)
-  (=-> #:vars ([AL AtomList]
-               [_1 String] [_2 String] [_3 FragmentList] [_5 BondList])
-       (.atoms (fragment _1 _2 _3 AL _5))
-       AL)
-
+  (=> #:vars ([AL AtomList]
+              [_1 String] [_2 String] [_3 FragmentList] [_5 BondList])
+      (.atoms (fragment _1 _2 _3 AL _5))
+      AL)
+  
   (op (ref->atom Fragment AtomRef) Atom)
-  (=-> #:vars ([F Fragment] [L String])
-       (ref->atom F (aref L))
-       (lookup-in-atoms (.atoms F) L))
+  (=> #:vars ([F Fragment] [L String])
+      (ref->atom F (aref L))
+      (lookup-in-atoms (.atoms F) L))
   (op (lookup-in-atoms AtomList String) Atom)
-  (=-> #:vars ([A Atom] [AS Atom ...] [L String])
-       (lookup-in-atoms (atoms A AS) L)
-       #:cond [(== (.label A) L)  A]
-              [#:else (lookup-in-atoms (atoms AS) L)]))
+  (=> #:vars ([A Atom] [AS Atom ...] [L String])
+      (lookup-in-atoms (atoms A AS) L)
+      #:cond [(== (.label A) L)  A]
+      [#:else (lookup-in-atoms (atoms AS) L)]))
 
 (define-node water
   (use fragments)
   (op (water String) Fragment)
-  (=-> #:var [L String]
-       (water L)
-       (fragment L "water" (fragments)
-                           (atoms (atom "H1" H) (atom "H2" H) (atom "O" O))
-                           (bonds (bond (aref "H1") (aref "O"))
-                                  (bond (aref "H2") (aref "O"))))))
+  (=> #:var [L String]
+      (water L)
+      (fragment L "water" (fragments)
+                (atoms (atom "H1" H) (atom "H2" H) (atom "O" O))
+                (bonds (bond (aref "H1") (aref "O"))
+                       (bond (aref "H2") (aref "O"))))))
 
 (reduce (term water (water "w")))
 

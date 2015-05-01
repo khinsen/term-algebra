@@ -168,7 +168,7 @@
              #:with sorts #'empty
              #:with subsorts #'empty)
 
-    (pattern ((~datum =->)
+    (pattern ((~datum =>)
               (~optional vars:variable-list
                          #:defaults ([vars.value #'(term n-node (vars))]
                                      [vars.symbols #'(set)]))
@@ -180,8 +180,8 @@
              #:with rules
              #'(let ([var-symbols vars.symbols])
                  (list (term n-node
-                             (=-> ,vars.value
-                                  ,left.value ,cond.value ,right.value))))
+                             (=> ,vars.value
+                                 ,left.value ,cond.value ,right.value))))
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty)))

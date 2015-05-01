@@ -21,46 +21,46 @@
   (op (succ PN) NZPN)
   (op (pred NZPN) PN)
 
-  (=-> #:var [N PN] 
-       (pred (succ N))
-       N)
+  (=> #:var [N PN] 
+      (pred (succ N))
+      N)
 
   (op (+ PN ...) PN #:symmetric)
-  (=-> #:var [N PN]
-       (+ N)
-       N)
-  (=-> #:var [N PN]
-       (+ zero N)
-       N)
-  (=-> #:vars ([N PN] [M PN])
-       (+ N (succ M))
-       (+ (succ N) M))
-  (=-> #:vars ([N PN] [M PN] [Ks PN ...])
-       (+ N M Ks)
-       (+ (+ N M) Ks))
+  (=> #:var [N PN]
+      (+ N)
+      N)
+  (=> #:var [N PN]
+      (+ zero N)
+      N)
+  (=> #:vars ([N PN] [M PN])
+      (+ N (succ M))
+      (+ (succ N) M))
+  (=> #:vars ([N PN] [M PN] [Ks PN ...])
+      (+ N M Ks)
+      (+ (+ N M) Ks))
   
   (op (* PN ...) PN #:symmetric)
-  (=-> #:var [N PN]
-       (* N)
-       N)
-  (=-> #:var [N PN]
-       (* zero N)
-       zero)
-  (=-> #:vars ([N PN] [M PN])
-       (* (succ N) (succ M))
-       (succ (+ N (+ M (* N M)))))
-  (=-> #:vars ([N PN] [M PN] [Ks PN ...])
-       (* N M Ks)
-       (* (* N M) Ks)))
+  (=> #:var [N PN]
+      (* N)
+      N)
+  (=> #:var [N PN]
+      (* zero N)
+      zero)
+  (=> #:vars ([N PN] [M PN])
+      (* (succ N) (succ M))
+      (succ (+ N (+ M (* N M)))))
+  (=> #:vars ([N PN] [M PN] [Ks PN ...])
+      (* N M Ks)
+      (* (* N M) Ks)))
 
 (define-node pn+
   (use builtin:natural)
   (include pn)
   (op (from-natural Natural) PN)
-  (=-> (from-natural 0) zero)
-  (=-> #:var [N NonZeroNatural]
-       (from-natural N)
-       (succ (from-natural (dec N)))))
+  (=> (from-natural 0) zero)
+  (=> #:var [N NonZeroNatural]
+      (from-natural N)
+      (succ (from-natural (dec N)))))
 
 (define-test-suite peano-number-tests
 

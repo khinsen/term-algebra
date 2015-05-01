@@ -229,7 +229,7 @@
                                     node-vars)
                             (set-union (set (quote v.var-symbol) ...)
                                        node-var-symbols)))))
-    (pattern ((~datum =->)
+    (pattern ((~datum =>)
               (~optional rule-vars:variable-list
                          #:defaults ([rule-vars.value #'empty]
                                      [rule-vars.symbols #'(set)]))
@@ -243,13 +243,13 @@
                                     node-var-symbols rule-vars.symbols)]
                       [used-vars (used-node-vars left.value node-vars)])
                  (list (term builtin:node
-                             (=-> (vars ,@used-vars ,@rule-vars.value)
-                                  ,left.value ,cond.value ,right.value))))
+                             (=> (vars ,@used-vars ,@rule-vars.value)
+                                 ,left.value ,cond.value ,right.value))))
              #:with mvars #'(void)
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty)
-    (pattern ((~datum =->)
+    (pattern ((~datum =>)
               (~optional rule-vars:variable-list
                          #:defaults ([rule-vars.value #'empty]
                                      [rule-vars.symbols #'(set)]))
@@ -264,12 +264,12 @@
                                     node-var-symbols rule-vars.symbols)]
                       [used-vars (used-node-vars left.value node-vars)])
                  (list (term builtin:node
-                             (=-> (vars ,@used-vars ,@rule-vars.value)
-                                  ,left.value ,cond.value ,right.value))
+                             (=> (vars ,@used-vars ,@rule-vars.value)
+                                 ,left.value ,cond.value ,right.value))
                        ...
                        (term builtin:node
-                             (=-> (vars ,@used-vars ,@rule-vars.value)
-                                  ,left.value no-condition ,else.value))))
+                             (=> (vars ,@used-vars ,@rule-vars.value)
+                                 ,left.value no-condition ,else.value))))
              #:with mvars #'(void)
              #:with imports #'empty
              #:with sorts #'empty

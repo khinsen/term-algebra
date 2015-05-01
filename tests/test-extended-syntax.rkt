@@ -18,7 +18,7 @@
            (rename-sort NonEmptyList NEStringList)
            (rename-op list string-list))
   (op bar NEStringList)
-  (=-> bar (string-list "a" "b" "c")))
+  (=> bar (string-list "a" "b" "c")))
 
 (define-node test-cond
   (use builtin:equality)
@@ -26,10 +26,10 @@
   (op (foo A) A)
   (op bar A)
   (op baz A)
-  (=-> #:var [AA A]
-       (foo AA)
-       #:cond [(== AA bar) bar]
-              [#:else baz]))
+  (=> #:var [AA A]
+      (foo AA)
+      #:cond [(== AA bar) bar]
+             [#:else baz]))
 
 (define-node test-vars
   (use builtin:equality)
@@ -38,9 +38,9 @@
   (op bar A)
   (op baz A)
   (vars [AA A])
-  (=-> (foo AA)
-       #:cond [(== AA bar) bar]
-              [#:else baz]))
+  (=> (foo AA)
+      #:cond [(== AA bar) bar]
+             [#:else baz]))
 
 (define-test-suite extended-syntax-tests
 
@@ -70,7 +70,7 @@
           (op (foo Foo) Foo)
           (op bar Foo)
           (vars [aFoo Foo])
-          (=-> #:var [aFoo Foo] (foo bar) bar))
+          (=> #:var [aFoo Foo] (foo bar) bar))
         (void))))
 
 (module* main #f

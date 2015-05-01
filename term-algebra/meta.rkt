@@ -115,8 +115,7 @@
   (op (ops Op ...) OpList)
   (op (ops) OpList)
   (op (op Symbol Domain Symbol) Op)
-  (op (symop Symbol VarLengthDomain Symbol) Op)
-  (op (symop Symbol EmptyDomain Symbol) Op)
+  (op (symop Symbol Domain Symbol) Op)
   (op (domain Symbol ...) Domain)
   (op (domain) EmptyDomain)
   (op (vl-domain Symbol) VarLengthDomain)
@@ -211,8 +210,10 @@
          (list name sort-symbols range (set))]
         [(mterm 'op (list name (mterm 'vl-domain sort-symbols) range))
          (list name sort-symbols range (set 'var-arity))]
-        [(mterm 'symop (list name (mterm0 'domain) range))
-         (list name empty range (set 'symmetric))]
+        [(mterm 'symop (list name (mterm 'domain sort-symbols) range))
+         (if (equal? 1  (set-count (list->set sort-symbols)))
+             (list name sort-symbols range (set 'symmetric))
+             (error "Invalid symop term " op))]
         [(mterm 'symop (list name (mterm 'vl-domain sort-symbols) range))
          (list name sort-symbols range (set 'var-arity 'symmetric))]
         [_ (error "Invalid op term " op)])))

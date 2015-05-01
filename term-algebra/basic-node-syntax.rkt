@@ -157,12 +157,19 @@
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty)
-    (pattern ((~datum op) (op-name:id arg-sort:id ...) range-sort:id)
+    (pattern ((~datum op) (op-name:id arg-sort:id ...)
+              range-sort:id
+              (~optional (~and #:symmetric (~bind [symmetric? #t]))))
              #:with ops
-             #'(list (term n-node
-                           (op (quote op-name)
-                               (domain (quote arg-sort) ...)
-                               (quote range-sort))))
+             (if (attribute symmetric?)
+                 #'(list (term n-node
+                               (symop (quote op-name)
+                                      (domain (quote arg-sort) ...)
+                                      (quote range-sort))))
+                 #'(list (term n-node
+                               (op (quote op-name)
+                                   (domain (quote arg-sort) ...)
+                                   (quote range-sort)))))
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty

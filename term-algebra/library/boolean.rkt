@@ -17,13 +17,13 @@
   (=-> #:vars ([X Boolean]) (and X) X)
   (=-> #:vars ([Xs Boolean ...]) (and false Xs) false)
   (=-> #:vars ([Xs Boolean ...]) (and true  Xs) (and Xs))
-  (=-> #:vars ([X Boolean] [Xs Boolean ...]) (and X X Xs) (and X Xs))
+  (=-> #:vars ([X Boolean] [Xs Boolean ?...]) (and X X Xs) (and X Xs))
 
   (op (or Boolean ...) Boolean #:symmetric)
   (=-> #:vars ([X Boolean]) (or X) X)
   (=-> #:vars ([Xs Boolean ...]) (or true  Xs) true)
   (=-> #:vars ([Xs Boolean ...]) (or false Xs) (or Xs))
-  (=-> #:vars ([X Boolean] [Xs Boolean ...]) (or X X Xs) (or X Xs))
+  (=-> #:vars ([X Boolean] [Xs Boolean ?...]) (or X X Xs) (or X Xs))
   
   (op (xor Boolean ...) Boolean #:symmetric)
   (=-> #:vars ([X Boolean]) (xor X) X)

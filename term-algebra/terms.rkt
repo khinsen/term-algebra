@@ -37,7 +37,7 @@
             (write-string ":" port)
             (write (var-sort var) port))))
 
-(struct svar (symbol sort)
+(struct svar (symbol sort allow-zero?)
         #:transparent
         #:property prop:custom-write
         (lambda (svar port mode)
@@ -91,8 +91,18 @@
                        (operators:lookup-op op (map sort-of args) op-set)]
                       [(and (equal? nsvars 1)
                             (svar? (last args)))
-                       (operators:lookup-var-arity-op
-                        op (map sort-of args) op-set)]
+                       (let ([sig
+                              (operators:lookup-var-arity-op
+                               op (map sort-of args) op-set)])
+                         (when (and sig
+                                    (equal? 1 (length args))
+                                    (svar-allow-zero? (last args)))
+                           ; A single arg which is an svar allowing
+                           ; zero arguments: valid only if a zero-arg
+                           ; version of the operator exists as well.
+                           (unless (operators:lookup-op op empty op-set)
+                             (error (format "No zero-argument form for ~s" op))))
+                         sig)]
                       [else
                        (error "svar allowed only as last argument")])])
     (unless signature
@@ -213,8 +223,8 @@
          (single-match s s)]
         [else
          empty-sequence]))
-
-    (if (< (length t-args) (length fixed-p-args))
+    (if (< (length t-args)
+           (+ (length fixed-p-args) (if (svar-allow-zero? svar) 0 1)))
         empty-sequence
         (match-fixed-args fixed-p-args t-args (hash) match-svar)))
 

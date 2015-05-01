@@ -194,7 +194,11 @@
     (pattern [var-symbol:id sort-symbol:id (~datum ...)]
              #:with var
              #'(term builtin:node
-                     (svar (quote var-symbol) (quote sort-symbol)))))
+                     (svar (quote var-symbol) (quote sort-symbol) false)))
+    (pattern [var-symbol:id sort-symbol:id (~datum ?...)]
+             #:with var
+             #'(term builtin:node
+                     (svar (quote var-symbol) (quote sort-symbol) true))))
 
   (define-splicing-syntax-class variable-list
     #:description "variable list in a rule"

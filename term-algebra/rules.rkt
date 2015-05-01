@@ -17,11 +17,13 @@
 (define (make-rule ops vars pattern condition replacement)
   (let* ([vars-in-pattern (terms:vars-in-term pattern)]
          [vars-in-replacement (terms:vars-in-term replacement)]
-         [declared-vars (list->set
-                         (hash-map vars (λ (name spec)
-                                          (if (cdr spec)
-                                              (terms:svar name (car spec))
-                                              (terms:var name (car spec))))))])
+         [declared-vars
+          (list->set
+           (hash-map vars (λ (name spec)
+                            (case (cdr spec)
+                              ['one (terms:var name (car spec))]
+                              ['zero-or-more (terms:svar name (car spec) #t)]
+                              ['one-or-more  (terms:svar name (car spec) #f)]))))])
     (when condition
       (unless (sorts:is-sort? (terms:sort-of condition) 'Boolean
                               (operators:op-set-sorts ops))

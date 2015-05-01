@@ -15,16 +15,16 @@
   (op (list) List)
 
   (op (head NonEmptyList) Element)
-  (=-> #:vars ([E Element] [Es Element ...])
+  (=-> #:vars ([E Element] [Es Element ?...])
        (head (list E Es))
        E)
   (op (tail NonEmptyList) List)
-  (=-> #:vars ([E Element] [Es Element ...])
+  (=-> #:vars ([E Element] [Es Element ?...])
        (tail (list E Es))
        (list Es))
   
   (op (cons Element List) NonEmptyList)
-  (=-> #:vars ([E Element] [Es Element ...])
+  (=-> #:vars ([E Element] [Es Element ?...])
        (cons E (list Es))
        (list E Es))
   
@@ -32,10 +32,10 @@
   (=-> #:vars ([E Element])
        (contains? E (list))
        false)
-  (=-> #:vars ([E Element] [Es Element ...])
+  (=-> #:vars ([E Element] [Es Element ?...])
        (contains? E (list E Es))
        true)
-  (=-> #:vars ([E Element] [E1 Element] [Es Element ...])
+  (=-> #:vars ([E Element] [E1 Element] [Es Element ?...])
        (contains? E (list E1 Es))
        (contains? E (list Es))))
 

@@ -83,6 +83,7 @@
 (nodes:define-builtin-node n-node
 
   (include n-pattern)
+  (use builtin:truth)
 
   (sorts Node
          ImportList Import
@@ -126,7 +127,7 @@
   (op (vars Var ...) VarList)
   (op (vars) VarList)
   (op (var Symbol Symbol) Var)
-  (op (svar Symbol Symbol) Var)
+  (op (svar Symbol Symbol Boolean) Var)
   (op no-condition Pattern))
 
 (define n-term-ops (nodes:node-ops n-term))
@@ -242,9 +243,13 @@
                 ([var-term var-terms])
         (match var-term
           [(mterm 'var (list var sort))
-           (hash-set vars var (cons sort #f))]
-          [(mterm 'svar (list var sort))
-           (hash-set vars var (cons sort #t))]
+           (hash-set vars var (cons sort 'one))]
+          [(mterm 'svar (list var sort allow-zero?))
+           (hash-set vars var (cons sort
+                                    (if (equal? (terms:term-op allow-zero?)
+                                                'true)
+                                        'zero-or-more
+                                        'one-or-more)))]
           [_ (error "Invalid var term " var-term)])))
 
     (define (pattern-from-meta node vars meta-term)
@@ -256,9 +261,10 @@
            (terms:make-pattern op args (nodes:node-ops node)))]
         [(mterm 'var-ref (list var-name))
          (let ([var-spec (hash-ref vars var-name)])
-           (if (cdr var-spec)
-               (terms:svar var-name (car var-spec))
-               (terms:var var-name (car var-spec))))]
+           (case (cdr var-spec)
+             ['one (terms:var var-name (car var-spec))]
+             ['zero-or-more (terms:svar var-name (car var-spec) #t)]
+             ['one-or-more  (terms:svar var-name (car var-spec) #f)]))]
         [(mterm 'no-condition empty)
          #f]
         [_ (terms:make-special-term meta-term (nodes:node-ops node))]))

@@ -97,7 +97,9 @@
   (op (div Natural NonZeroNatural) Natural)
   (fn div (λ (term)
             (let ([args (terms:term-args term)])
-              (quotient (first args) (second args)))))
+              (if (equal? 1 (second args))
+                  (first args)
+                  (quotient (first args) (second args))))))
 
   (op (> Natural Natural) Boolean)
   (fn > (λ (term)
@@ -168,7 +170,25 @@
   (op (- Zero) Zero)
   (op (- Integer) Integer)
   (op (- Integer Integer) Integer)
-  (fn - (λ (term) (apply - (terms:term-args term))))
+  (fn - (λ (term)
+          (let ([args (terms:term-args term)])
+            (unless (andmap (λ (a) (is-sort? a 'Integer)) args)
+              (error 'not-my-domain))
+            (case (length args)
+              [(1) (if (number? (first args))
+                       (- (first args))
+                       term)]
+              [(2) (cond
+                     [(andmap number? args)
+                      (apply - args)]
+                     [(equal? (first args) (second args))
+                      0]
+                     [(and (number? (first args)) (zero? (first args)))
+                      (make-term '- (list (second args)))]
+                     [(and (number? (second args)) (zero? (second args)))
+                      (first args)]
+                     [else term])]
+              [else (error 'wrong-number-of-arguments)]))))
 
   (op (dec Integer) Integer)
 
@@ -237,6 +257,25 @@
 
   (op (- Rational) Rational)
   (op (- Rational Rational) Rational)
+  (fn - (λ (term)
+          (let ([args (terms:term-args term)])
+            (unless (andmap (λ (a) (is-sort? a 'Rational)) args)
+              (error 'not-my-domain))
+            (case (length args)
+              [(1) (if (number? (first args))
+                       (- (first args))
+                       term)]
+              [(2) (cond
+                     [(andmap number? args)
+                      (apply - args)]
+                     [(equal? (first args) (second args))
+                      0]
+                     [(and (number? (first args)) (zero? (first args)))
+                      (make-term '- (list (second args)))]
+                     [(and (number? (second args)) (zero? (second args)))
+                      (first args)]
+                     [else term])]
+              [else (error 'wrong-number-of-arguments)]))))
 
   (op (dec Rational) Rational)
 
@@ -268,7 +307,27 @@
   (op (/ Rational NonZeroRational) Rational)
   (op (/ NonZeroRational NonZeroRational) NonZeroRational)
   (op (/ PositiveRational PositiveRational) PositiveRational)
-  (fn / (λ (term) (apply / (terms:term-args term))))
+  (fn / (λ (term)
+          (let ([args (terms:term-args term)])
+            (unless (andmap (λ (a) (is-sort? a 'Rational)) args)
+              (error 'not-my-domain))
+            (case (length args)
+              [(1) (if (number? (first args))
+                       (/ (first args))
+                       term)]
+              [(2) (cond
+                     [(andmap number? args)
+                      (apply / args)]
+                     [(equal? (first args) (second args))
+                      1]
+                     [(equal? 0 (first args))
+                      0]
+                     [(equal? 1 (first args))
+                      (make-term '/ (list (second args)))]
+                     [(equal? 1 (second args))
+                      (first args)]
+                     [else term])]
+              [else (error 'wrong-number-of-arguments)]))))
 
   (op (> Rational Rational) Boolean)
   (op (>= Rational Rational) Boolean)

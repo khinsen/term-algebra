@@ -45,7 +45,8 @@
                  [term (vterm-term vterm)])
             (write (nodes:node-name mod) port)
             (write-string ":" port)
-            (write (vterm-sort vterm) port)
+            (write-string (sorts:sort->string (vterm-sort vterm)
+                                              (operators:op-set-sorts ops)) port)
             (write-string ":" port)
             (write-term term ops port))))
 

@@ -6,9 +6,10 @@
          is-subsort? has-sort?
          check-subsort-graph
          is-sort?
-         kind
+         kind sort? kind?
          subsorts
-         least-common-sort)
+         least-common-sort
+         sort->string)
 
 (require graph)
 
@@ -114,13 +115,23 @@
 ;
 ; Higher-level sort operations
 ;
+(define (sort? sort-or-kind)
+  ; Sorts are symbols (for now at least)
+  (symbol? sort-or-kind))
+
+(define (kind? sort-or-kind)
+  ; Kinds are sets of sorts
+  (set? sort-or-kind))
+
 (define (is-sort? sort target-sort graph)
   (or (equal? sort target-sort)
       (equal? target-sort any-sort)
       (is-subsort? sort target-sort graph)))
 
-(define (kind sort graph)
-  (hash-ref (sort-graph-cc graph) sort))
+(define (kind sort-or-kind graph)
+  (if (kind? sort-or-kind)
+      sort-or-kind
+      (hash-ref (sort-graph-cc graph) sort-or-kind)))
 
 (define (subsorts sort graph)
   (define-values (dist pred) (bfs (sort-graph-dag graph) sort))
@@ -146,3 +157,22 @@
             (values sort distance)
             (values least-sort min-distance)))))
   least-sort)
+
+(define (greatest-sorts kind graph)
+  ; Return a set of all sorts in the kind that are not subsorts
+  ; of some other sort. Used for displaying kinds.
+  (for/fold ([gs kind])
+            ([sort (in-set kind)])
+    (define-values (dist pred) (bfs (sort-graph-dag graph) sort))
+    (set-subtract gs
+                  (for/set ([(sort psort) (in-hash pred)]
+                            #:when psort)
+                    sort))))
+
+(define (sort->string sort-or-kind graph)
+  (if (sort? sort-or-kind)
+      (symbol->string sort-or-kind)
+      (format "[~a]"
+              (string-join (map symbol->string
+                                (set->list (greatest-sorts sort-or-kind graph)))
+                           ","))))

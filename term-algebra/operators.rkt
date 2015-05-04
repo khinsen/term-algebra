@@ -199,6 +199,9 @@
                 #:when (set-member? (operator-properties op) 'var-arity))
       op)))
 
+(define (all-equal? lst)
+  (equal? 1 (set-count (list->set lst))))
+
 (define (lookup-op symbol arg-sorts ops)
 
   (define sorts (op-set-sorts ops))
@@ -226,19 +229,48 @@
     (and op-any
          (first (operator-signatures op-any))))
 
-  (let* ([ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
-         [domain-kinds (map (λ (s) (sorts:kind s sorts)) arg-sorts)]
-         [op-fixed (hash-ref ops-for-symbol domain-kinds #f)])
+  (define (kindsig-fixed domain-kinds op-fixed)
+    (and op-fixed
+         (let* ([sig (first (operator-signatures op-fixed))])
+           (signature domain-kinds
+                      (signature-symmetric? sig)
+                      (sorts:kind (signature-range sig) sorts)
+                      #f))))
+
+  (define (kindsig-var domain-kinds op-var)
+    (and op-var
+         (all-equal? domain-kinds)
+         (let* ([sig (first (operator-signatures op-var))])
+           (signature (list (first domain-kinds))
+                      (signature-symmetric? sig)
+                      (sorts:kind (signature-range sig) sorts)
+                      #f))))
+
+  (define (kind-sig domain-kinds op-fixed op-var)
+    (and (not (empty? domain-kinds))
+         (or (kindsig-fixed domain-kinds op-fixed)
+             (kindsig-var domain-kinds op-var))))
+
+  (define (sort-sig arg-sorts op-fixed op-var op-any op-var-any)
     (or (lookup-fixed arg-sorts op-fixed)
         (and (not (empty? arg-sorts))
-             (let* ([domain-kind (first domain-kinds)]
-                    [op-var (hash-ref ops-for-symbol domain-kind #f)]
-                    [op-any (hash-ref ops-for-symbol
-                                      (map (λ (s) 'Any) arg-sorts) #f)]
-                    [op-var-any (hash-ref ops-for-symbol 'Any #f)])
-               (or (lookup-var-or-any arg-sorts op-var)
-                   (lookup-var-or-any arg-sorts op-any)
-                   (lookup-var-any op-var-any)))))))
+             (or (lookup-var-or-any arg-sorts op-var)
+                 (lookup-var-or-any arg-sorts op-any)
+                 (lookup-var-any op-var-any)))))
+  
+  (let* ([ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
+         [domain-kinds (map (λ (s) (sorts:kind s sorts)) arg-sorts)]
+         [kind-sig? (ormap sorts:kind? arg-sorts)]
+         [op-fixed (hash-ref ops-for-symbol domain-kinds #f)]
+         [op-var (and (not (empty? domain-kinds))
+                      (hash-ref ops-for-symbol (first domain-kinds) #f))]
+         [op-any (hash-ref ops-for-symbol (map (λ (s) 'Any) arg-sorts) #f)]
+         [op-var-any (hash-ref ops-for-symbol 'Any #f)])
+    (if kind-sig?
+        (kind-sig domain-kinds op-fixed op-var)
+        (or
+         (sort-sig arg-sorts op-fixed op-var op-any op-var-any)
+         (kind-sig domain-kinds op-fixed op-var)))))
 
 (define (lookup-var-arity-op symbol arg-sorts ops)
 
@@ -257,9 +289,25 @@
     (and op-any
          (signature-range (first (operator-signatures op-any)))))
 
-  (let* ([lcsort (apply sorts:least-common-sort (cons sorts arg-sorts))]
-         [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
-         [domain-kind (sorts:kind lcsort sorts)]
-         [op-var (hash-ref ops-for-symbol domain-kind #f)])
-    (or (lookup-var lcsort op-var)
-        (lookup-var-any (hash-ref ops-for-symbol 'Any #f)))))
+  (define (kindsig-var domain-kind op-var)
+    (and op-var
+         (let* ([sig (first (operator-signatures op-var))])
+           (signature (list domain-kind)
+                      (signature-symmetric? sig)
+                      (sorts:kind (signature-range sig) sorts)
+                      #f))))
+
+  (and (not (empty? arg-sorts))
+       (let* ([kind-sig? (ormap sorts:kind? arg-sorts)]
+              [domain-kinds (map (λ (s) (sorts:kind s sorts)) arg-sorts)]
+              [domain-kind (first domain-kinds)]
+              [ops-for-symbol (hash-ref (op-set-ops ops) symbol (hash))]
+              [op-var (hash-ref ops-for-symbol domain-kind #f)])
+         (and (all-equal? domain-kinds)
+              (if kind-sig?
+                  (kindsig-var domain-kind op-var)
+                  (or (lookup-var
+                       (apply sorts:least-common-sort (cons sorts arg-sorts))
+                       op-var)
+                      (lookup-var-any (hash-ref ops-for-symbol 'Any #f))
+                      (kindsig-var domain-kind op-var)))))))

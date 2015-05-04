@@ -18,9 +18,14 @@
     (and op-sig
          (operators:signature-range op-sig))))
 
+(define (lookup-var-arity-range symbol arg-sorts ops)
+  (let ([op-sig (operators:lookup-var-arity-op symbol arg-sorts ops)])
+    (and op-sig
+         (operators:signature-range op-sig))))
+
 (define-builtin-node test-op
-  (sorts A B C X Y Z)
-  (subsorts [A C] [B C] [X Y] [X Z])
+  (sorts A B C D E X Y Z)
+  (subsorts [A C] [B C] [C E] [D E] [X Y] [X Z])
   (op (foo A) X)
   (op (foo C) Z))
 
@@ -28,6 +33,17 @@
 (define test-ops (node-ops test-op))
 (define A-kind (sorts:kind 'A test-sorts))
 (define X-kind (sorts:kind 'X test-sorts))
+
+(define-builtin-node test-var-op
+  (sorts A B C D E X Y Z)
+  (subsorts [A C] [B C] [C E] [D E] [X Y] [X Z])
+  (op (foo A ...) X)
+  (op (foo C ...) Z))
+
+(define test-var-sorts (node-sorts test-var-op))
+(define test-var-ops (node-ops test-var-op))
+(define A-kind-var (sorts:kind 'A test-var-sorts))
+(define X-kind-var (sorts:kind 'X test-var-sorts))
 
 (define-builtin-node test-op-any
   (sorts Any X Y)
@@ -40,7 +56,7 @@
 (define-test-suite operator-tests
 
   (test-case "test-sorts"
-    (check-equal? A-kind (set 'A 'B 'C))
+    (check-equal? A-kind (set 'A 'B 'C 'D 'E))
     (check-equal? X-kind (set 'X 'Y 'Z)))
 
   (test-case "operator-lookup"
@@ -50,7 +66,57 @@
                   'Z)
     (check-equal? (lookup-range 'foo (list 'C) test-ops)
                   'Z)
+    (check-equal? (lookup-range 'foo (list 'D) test-ops)
+                  X-kind)
+    (check-equal? (lookup-range 'foo (list 'E) test-ops)
+                  X-kind)
+    (check-equal? (lookup-range 'foo (list A-kind) test-ops)
+                  X-kind)
     (check-equal? (lookup-range 'foo (list 'X) test-ops)
+                  #f)
+    (check-equal? (lookup-range 'foo (list 'Y) test-ops)
+                  #f)
+    (check-equal? (lookup-range 'foo (list 'Z) test-ops)
+                  #f))
+
+  (test-case "operator-lookup-var"
+    (check-equal? (lookup-range 'foo (list 'A) test-var-ops)
+                  'X)
+    (check-equal? (lookup-range 'foo (list 'B) test-var-ops)
+                  'Z)
+    (check-equal? (lookup-range 'foo (list 'C) test-var-ops)
+                  'Z)
+    (check-equal? (lookup-range 'foo (list 'D) test-var-ops)
+                  X-kind)
+    (check-equal? (lookup-range 'foo (list 'E) test-var-ops)
+                  X-kind)
+    (check-equal? (lookup-range 'foo (list A-kind) test-var-ops)
+                  X-kind)
+    (check-equal? (lookup-range 'foo (list 'X) test-var-ops)
+                  #f)
+    (check-equal? (lookup-range 'foo (list 'Y) test-var-ops)
+                  #f)
+    (check-equal? (lookup-range 'foo (list 'Z) test-var-ops)
+                  #f))
+
+  (test-case "operator-lookup-var-arity"
+    (check-equal? (lookup-var-arity-range 'foo (list 'A) test-var-ops)
+                  'X)
+    (check-equal? (lookup-var-arity-range 'foo (list 'B) test-var-ops)
+                  'Z)
+    (check-equal? (lookup-var-arity-range 'foo (list 'C) test-var-ops)
+                  'Z)
+    (check-equal? (lookup-var-arity-range 'foo (list 'D) test-var-ops)
+                  X-kind)
+    (check-equal? (lookup-var-arity-range 'foo (list 'E) test-var-ops)
+                  X-kind)
+    (check-equal? (lookup-var-arity-range 'foo (list A-kind) test-var-ops)
+                  X-kind)
+    (check-equal? (lookup-var-arity-range 'foo (list 'X) test-var-ops)
+                  #f)
+    (check-equal? (lookup-var-arity-range 'foo (list 'Y) test-var-ops)
+                  #f)
+    (check-equal? (lookup-var-arity-range 'foo (list 'Z) test-var-ops)
                   #f))
 
   (test-case "operator-lookup-any"

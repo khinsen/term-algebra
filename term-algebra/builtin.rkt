@@ -263,9 +263,9 @@
               [(= (length numbers) 1) term]
               [else (make-term '* (cons product-of-numbers subterms))]))))
 
-  (op (/ Rational) Rational)
+  (op (/ NonZeroRational) Rational)
   (op (/ PositiveRational) PositiveRational)
-  (op (/ Rational Rational) Rational)
+  (op (/ Rational NonZeroRational) Rational)
   (op (/ NonZeroRational NonZeroRational) NonZeroRational)
   (op (/ PositiveRational PositiveRational) PositiveRational)
   (fn / (λ (term) (apply / (terms:term-args term))))

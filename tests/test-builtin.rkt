@@ -66,6 +66,7 @@
     (check-reduce builtin:integer (* -2) -2)
     (check-reduce builtin:integer (* -1 -3) 3)
     (check-reduce builtin:integer (div -11 2) -5)
+    (check-reduce builtin:integer (div 2 0) (div 2 0))
     (check-reduce builtin:integer (> 1 -1) true)
     (check-reduce builtin:integer (>= -1 -2) true)
     (check-reduce builtin:integer (< 2 -3) false)
@@ -134,7 +135,7 @@
     (check-reduce test3 (* foo foo) (* foo foo))
     (check-reduce test3 (* 2 1/2 foo foo) (* foo foo))
     (check-reduce test3 (* 2 foo) (* 2 foo))
-    (check-reduce test3(* 2 1/3 foo) (* 2/3 foo)))
+    (check-reduce test3 (* 2 1/3 foo) (* 2/3 foo)))
 
   (test-not-exn "string-imported"
     (lambda ()

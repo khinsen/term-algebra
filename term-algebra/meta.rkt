@@ -141,7 +141,8 @@
 
 (define (make-vterm node term)
   (if (and (nodes:imports? node n-node)
-           (member (terms:term-op term) '(node builtin-node)))
+           (member (terms:term-op term) '(node builtin-node))
+           (equal? (terms:op-origin term) (nodes:node-hashcode n-node)))
       (node-vterm node (terms:sort-of term) term #f)
       (vterm node (terms:sort-of term) term)))
 
@@ -354,8 +355,8 @@
     (error (format "Not a node: ~s" node-term)))
   (unless (node-vterm-internal node-term)
     (set-node-vterm-internal! node-term
-                                (node-from-meta (vterm-term node-term)
-                                                  strict-checking)))
+                              (node-from-meta (vterm-term node-term)
+                                              strict-checking)))
   node-term)
 
 (define (node-hashcode node)

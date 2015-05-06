@@ -31,7 +31,6 @@
         (include test)
         (=> #:vars ([X A] [Y B]) (foo X) Y))
       (void)))
-  
   (test-exn "variable-not-in-pattern-2"
       #rx"Condition.*contains variables that are not in the rule pattern"
     (lambda ()
@@ -39,15 +38,62 @@
         (include test)
         (=> #:vars ([X A] [Y B]) (foo X) #:if (== X Y) X))
       (void)))
+  (test-exn "variable-not-in-pattern-3"
+      #rx"Var list contains variables.*that are not used in the rule"
+    (lambda ()
+      (define-node test2
+        (include test)
+        (=> #:vars ([X A] [Y B]) (foo X) X))
+      (void)))
+  (test-exn "variable-not-in-pattern-4"
+      #rx"Condition.*contains variables that are not in the left or right pattern"
+    (lambda ()
+      (define-node test2
+        (include test)
+        (= #:vars ([X A] [Y B]) (foo X) X #:if (== X Y)))
+      (void)))
+  (test-exn "variable-not-in-pattern-5"
+      #rx"Var list contains variables.*that are not used in the equation"
+    (lambda ()
+      (define-node test2
+        (include test)
+        (= #:vars ([X A] [Y B]) (foo X) X))
+      (void)))
   
-  (test-exn "condition-not-boolean"
+  (test-exn "condition-not-boolean-1"
       #rx"Condition.*not of sort Boolean"
     (lambda ()
       (define-node test2
         (include test)
         (=> #:var [X A] (foo X) #:if X X))
       (void)))
-  
+  (test-exn "condition-not-boolean-2"
+      #rx"Condition.*not of sort Boolean"
+    (lambda ()
+      (define-node test2
+        (include test)
+        (= #:var [X A] (foo X) X #:if X))
+      (void)))
+
+  (test-exn "sort-mismatch-1"
+      #rx"Term.*must be of sort.*"
+    (lambda ()
+      (define-node test2
+        (include test)
+        (sort C)
+        (op aC C)
+        (=> #:var [X A] (foo X) aC))
+      (void)))
+  (test-exn "sort-mismatch-2"
+      #rx"Term.*and.*must be of the same kind"
+    (lambda ()
+      (define-node test2
+        (include test)
+        (sort C)
+        (op aC C)
+        (= #:var [X A] (foo X) aC))
+      (void)))
+
   (test-exn "undefined-operator-in-rule"
       #rx"Undefined operator.*"
     (lambda ()

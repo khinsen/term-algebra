@@ -1,7 +1,7 @@
 #lang racket
 
-(provide (struct-out rule)
-         make-rule
+(provide (struct-out rule) (struct-out equation)
+         make-rule make-equation
          empty-rules merge-rules! add-rule! add-proc!)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -9,6 +9,9 @@
          (prefix-in terms: term-algebra/terms))
 
 (struct rule (pattern condition replacement)
+        #:transparent)
+
+(struct equation (left right condition)
         #:transparent)
 
 ;
@@ -39,9 +42,40 @@
         (error (format "Var list contains variables ~a that are not used in the rule" (set->list unused-vars)))))
     (unless (sorts:is-sort? (terms:sort-of replacement) (terms:sort-of pattern)
                             (operators:op-set-sorts ops))
-      (error (format "Term ~s must of sort ~s"
+      (error (format "Term ~s must be of sort ~s"
                      replacement (terms:sort-of pattern))))
     (rule pattern condition replacement)))
+
+;
+; Make an equation structure after checking its components
+;
+(define (make-equation ops vars left right condition)
+  (let* ([vars-in-left (terms:vars-in-term left)]
+         [vars-in-right (terms:vars-in-term right)]
+         [declared-vars
+          (list->set
+           (hash-map vars (λ (name spec)
+                            (case (cdr spec)
+                              ['one (terms:var name (car spec))]
+                              ['zero-or-more (terms:svar name (car spec) #t)]
+                              ['one-or-more  (terms:svar name (car spec) #f)]))))])
+    (when condition
+      (unless (sorts:is-sort? (terms:sort-of condition) 'Boolean
+                              (operators:op-set-sorts ops))
+        (error (format "Condition ~s not of sort Boolean" condition)))
+      (unless (set-empty?
+               (set-subtract (terms:vars-in-term condition) vars-in-left vars-in-right))
+        (error (format "Condition ~s contains variables that are not in the left or right patterns" condition))))
+    (let ([unused-vars (set-subtract declared-vars vars-in-left vars-in-right)])
+      (unless (set-empty? unused-vars)
+        (error (format "Var list contains variables ~a that are not used in the equation" (set->list unused-vars)))))
+    ; check for equal kinds instead!
+    (unless (equal? (sorts:kind (terms:sort-of right)
+                                (operators:op-set-sorts ops))
+                    (sorts:kind (terms:sort-of left)
+                                (operators:op-set-sorts ops)))
+      (error (format "Term ~s and ~s must be of the same kind" left right)))
+    (equation left right condition)))
 
 ;
 ; Manage complete rule lists as used in nodes

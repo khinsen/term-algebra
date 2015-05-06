@@ -30,6 +30,10 @@
   (=> #:vars ([O Op] [Os Op ?...])
       (cons O (ops Os))
       (ops O Os))
+  (op (cons Equation EquationList) EquationList)
+  (=> #:vars ([E Equation] [Es Equation ?...])
+      (cons E (equations Es))
+      (equations E Es))
   (op (cons Rule RuleList) RuleList)
   (=> #:vars ([R Rule] [Rs Rule ?...])
       (cons R (rules Rs))
@@ -56,13 +60,14 @@
   (op (rename-sort Node Symbol Symbol) Node)
   (=> #:vars ([Name Symbol] [Imports ImportList]
               [Sorts SortList] [Subsorts SubsortList]
-              [Ops OpList] [Rules RuleList]
+              [Ops OpList] [Equations EquationList] [Rules RuleList]
               [S1 Symbol] [S2 Symbol])
-      (rename-sort (node Name Imports Sorts Subsorts Ops Rules) S1 S2)
+      (rename-sort (node Name Imports Sorts Subsorts Ops Equations Rules) S1 S2)
       (node Name Imports
             (rename-sort Sorts S1 S2)
             (rename-sort Subsorts S1 S2)
             (rename-sort Ops S1 S2)
+            (rename-sort Equations S1 S2)
             (rename-sort Rules S1 S2)))
 
   ;
@@ -91,6 +96,14 @@
   (=> #:vars ([O Op] [Os Op ?...] [S1 Symbol] [S2 Symbol])
       (rename-sort (ops O Os) S1 S2)
       (cons (rename-sort O S1 S2) (rename-sort (ops Os) S1 S2)))
+
+  (op (rename-sort EquationList Symbol Symbol) EquationList)
+  (=> #:vars ([S1 Symbol] [S2 Symbol])
+      (rename-sort (equations) S1 S2)
+      (equations))
+  (=> #:vars ([E Equation] [Es Equation ?...] [S1 Symbol] [S2 Symbol])
+      (rename-sort (equations E Es) S1 S2)
+      (cons (rename-sort E S1 S2) (rename-sort (equations Es) S1 S2)))
 
   (op (rename-sort RuleList Symbol Symbol) RuleList)
   (=> #:vars ([S1 Symbol] [S2 Symbol])
@@ -136,6 +149,12 @@
       (rename-sort (vl-domain S) S1 S2)
       (vl-domain (rename-sort S S1 S2)))
 
+  (op (rename-sort Equation Symbol Symbol) Equation)
+  (=> #:vars ([Vs VarList] [P1 Pattern] [P2 Pattern] [P3 Pattern]
+              [S1 Symbol] [S2 Symbol])
+      (rename-sort (= Vs P1 P2 P3) S1 S2)
+      (= (rename-sort Vs S1 S2) P1 P2 P3))
+  
   (op (rename-sort Rule Symbol Symbol) Rule)
   (=> #:vars ([Vs VarList] [P1 Pattern] [P2 Pattern] [P3 Pattern]
               [S1 Symbol] [S2 Symbol])
@@ -163,11 +182,12 @@
   (op (rename-op Node Symbol Symbol) Node)
   (=> #:vars ([Name Symbol] [Imports ImportList]
               [Sorts SortList] [Subsorts SubsortList]
-              [Ops OpList] [Rules RuleList]
+              [Ops OpList] [Equations EquationList] [Rules RuleList]
               [OS1 Symbol] [OS2 Symbol])
-      (rename-op (node Name Imports Sorts Subsorts Ops Rules) OS1 OS2)
+      (rename-op (node Name Imports Sorts Subsorts Ops Equations Rules) OS1 OS2)
       (node Name Imports Sorts Subsorts
             (rename-op Ops OS1 OS2)
+            (rename-op Equations OS1 OS2)
             (rename-op Rules OS1 OS2)))
 
   ;
@@ -180,6 +200,14 @@
   (=> #:vars ([O Op] [Os Op ?...] [OS1 Symbol] [OS2 Symbol])
       (rename-op (ops O Os) OS1 OS2)
       (cons (rename-op O OS1 OS2) (rename-op (ops Os) OS1 OS2)))
+
+  (op (rename-op EquationList Symbol Symbol) EquationList)
+  (=> #:vars ([OS1 Symbol] [OS2 Symbol])
+      (rename-op (equations) OS1 OS2)
+      (equations))
+  (=> #:vars ([E Equation] [Es Equation ?...] [OS1 Symbol] [OS2 Symbol])
+      (rename-op (equations E Es) OS1 OS2)
+      (cons (rename-op E OS1 OS2) (rename-op (equations Es) OS1 OS2)))
 
   (op (rename-op RuleList Symbol Symbol) RuleList)
   (=> #:vars ([OS1 Symbol] [OS2 Symbol])
@@ -215,6 +243,14 @@
       (rename-op (symop N D S) OS1 OS2)
       (symop N D S))
 
+  (op (rename-op Equation Symbol Symbol) Equation)
+  (=> #:vars ([Vs VarList] [P1 Pattern] [P2 Pattern] [P3 Pattern]
+              [OS1 Symbol] [OS2 Symbol])
+      (rename-op (= Vs P1 P2 P3) OS1 OS2)
+      (= Vs (rename-op P1 OS1 OS2)
+         (rename-op P2 OS1 OS2)
+         (rename-op P3 OS1 OS2)))
+
   (op (rename-op Rule Symbol Symbol) Rule)
   (=> #:vars ([Vs VarList] [P1 Pattern] [P2 Pattern] [P3 Pattern]
               [OS1 Symbol] [OS2 Symbol])
@@ -247,10 +283,10 @@
   (op (add-import Node Import) Node)
   (=> #:vars ([Name Symbol] [Imports ImportList]
               [Sorts SortList] [Subsorts SubsortList]
-              [Ops OpList] [Rules RuleList]
+              [Ops OpList] [Equations EquationList] [Rules RuleList]
               [I Import])
-      (add-import (node Name Imports  Sorts Subsorts Ops Rules) I)
-      (node Name (cons I Imports) Sorts Subsorts Ops Rules))
+      (add-import (node Name Imports  Sorts Subsorts Ops Equations Rules) I)
+      (node Name (cons I Imports) Sorts Subsorts Ops Equations Rules))
 
   ;
   ; node-name
@@ -258,10 +294,10 @@
   (op (node-name Node Symbol) Node)
   (=> #:vars ([Name Symbol] [Imports ImportList]
               [Sorts SortList] [Subsorts SubsortList]
-              [Ops OpList] [Rules RuleList]
+              [Ops OpList] [Equations EquationList] [Rules RuleList]
               [NN Symbol])
-      (node-name (node Name Imports  Sorts Subsorts Ops Rules) NN)
-      (node NN Imports Sorts Subsorts Ops Rules))
+      (node-name (node Name Imports  Sorts Subsorts Ops Equations Rules) NN)
+      (node NN Imports Sorts Subsorts Ops Equations Rules))
 
   ;
   ; Transforms and their application

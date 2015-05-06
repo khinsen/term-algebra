@@ -71,42 +71,46 @@
   (define-syntax-class extended-import
     #:description "import declaration"
     #:datum-literals (use include)
-    #:attributes (imports sorts subsorts ops rules)
+    #:attributes (imports sorts subsorts ops equations rules)
     (pattern (use node:id
                   (~optional (~seq #:transforms mt:node-transform ...) 
                              #:defaults ([(mt.transform 1) null])) ...)
              #:with imports
              #'(list (term builtin:node
                            (use ,(prepare-import node mt.transform ...))))
-             #:with sorts #'(list)
-             #:with subsorts #'(list)
-             #:with ops #'(list)
-             #:with rules #'(list))
+             #:with sorts #'empty
+             #:with subsorts #'empty
+             #:with ops #'empty
+             #:with equations #'empty
+             #:with rules #'empty)
     (pattern (include node:id
                       (~optional (~seq #:transforms mt:node-transform ...) 
                                  #:defaults ([(mt.transform 1) null])) ...)
              #:with imports
              #'(list (term builtin:node
                            (include ,(prepare-import node mt.transform ...))))
-             #:with sorts #'(list)
-             #:with subsorts #'(list)
-             #:with ops #'(list)
-             #:with rules #'(list)))
+             #:with sorts #'empty
+             #:with subsorts #'empty
+             #:with ops #'empty
+             #:with equations #'empty
+             #:with rules #'empty))
   
   (define-syntax-class sort
     #:description "sort"
-    #:attributes (imports sorts subsorts ops rules)
+    #:attributes (imports sorts subsorts ops equations rules)
     (pattern ((~datum sort) s-id:id)
              #:with sorts #'(list (quote s-id))
              #:with subsorts #'empty
              #:with imports #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty)
     (pattern ((~datum sorts) s-id:id ...)
              #:with sorts #'(list (quote s-id) ...)
              #:with subsorts #'empty
              #:with imports #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty)
     (pattern ((~datum subsort) s-id1:id s-id2:id)
              #:with sorts #'empty
@@ -115,6 +119,7 @@
                            (subsort (quote s-id1) (quote s-id2))))
              #:with imports #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty)
     (pattern ((~datum subsorts) [s-id1:id s-id2:id] ...)
              #:with sorts #'empty
@@ -123,17 +128,19 @@
                            (subsort (quote s-id1) (quote s-id2))) ...)
              #:with imports #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty))
   
   (define-syntax-class operator
     #:description "operator"
-    #:attributes (imports sorts subsorts ops rules)
+    #:attributes (imports sorts subsorts ops equations rules)
     (pattern ((~datum op) op-name:id range-sort:id)
              #:with ops
              #'(list (term builtin:node
                            (op (quote op-name)
                                (domain)
                                (quote range-sort))))
+             #:with equations #'empty
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty
@@ -145,6 +152,7 @@
                            (op (quote op-name)
                                (vl-domain (quote arg-sort))
                                (quote range-sort))))
+             #:with equations #'empty
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty
@@ -155,6 +163,7 @@
                            (op (quote op-name)
                                (domain (quote arg-sort) ...)
                                (quote range-sort))))
+             #:with equations #'empty
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty
@@ -210,14 +219,15 @@
              #:with value #'(list v.var ...)
              #:with symbols #'(set (quote v.var-symbol) ...)))
 
-  (define-syntax-class rule
-    #:description "rule"
-    #:attributes (imports sorts subsorts ops rules mvars)
+  (define-syntax-class eq-or-rule
+    #:description "equation/rule"
+    #:attributes (imports sorts subsorts ops equations rules mvars)
     (pattern ((~datum vars) v:variable ...)
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty
              #:with mvars
              #'(if (ormap (λ (s) (set-member? node-var-symbols s))
@@ -238,13 +248,14 @@
                          #:defaults ([cond.value #'(term builtin:node no-condition)]))
               (~var right (term-pattern #'var-symbols)))
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules
              #'(let* ([var-symbols (combined-var-symbols
                                     node-var-symbols rule-vars.symbols)]
                       [used-vars (used-node-vars left.value node-vars)])
                  (list (term builtin:node
                              (=> (vars ,@used-vars ,@rule-vars.value)
-                                 ,left.value ,cond.value ,right.value))))
+                                 ,left.value ,right.value ,cond.value))))
              #:with mvars #'(void)
              #:with imports #'empty
              #:with sorts #'empty
@@ -258,6 +269,7 @@
                             (~var right (term-pattern #'var-symbols))] ...
                             [#:else (~var else (term-pattern #'var-symbols))]))
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules
              
              #'(let* ([var-symbols (combined-var-symbols
@@ -265,11 +277,33 @@
                       [used-vars (used-node-vars left.value node-vars)])
                  (list (term builtin:node
                              (=> (vars ,@used-vars ,@rule-vars.value)
-                                 ,left.value ,cond.value ,right.value))
+                                 ,left.value ,right.value ,cond.value))
                        ...
                        (term builtin:node
                              (=> (vars ,@used-vars ,@rule-vars.value)
-                                 ,left.value no-condition ,else.value))))
+                                 ,left.value ,else.value no-condition))))
+             #:with mvars #'(void)
+             #:with imports #'empty
+             #:with sorts #'empty
+             #:with subsorts #'empty)
+
+    (pattern ((~datum =)
+              (~optional rule-vars:variable-list
+                         #:defaults ([rule-vars.value #'empty]
+                                     [rule-vars.symbols #'(set)]))
+              (~var left (term-pattern #'var-symbols))
+              (~var right (term-pattern #'var-symbols))
+              (~optional (~seq #:if (~var cond (term-pattern #'var-symbols)))
+                         #:defaults ([cond.value #'(term builtin:node no-condition)])))
+             #:with ops #'empty
+             #:with equations
+             #'(let* ([var-symbols (combined-var-symbols
+                                    node-var-symbols rule-vars.symbols)]
+                      [used-vars (used-node-vars left.value node-vars)])
+                 (list (term builtin:node
+                             (= (vars ,@used-vars ,@rule-vars.value)
+                                ,left.value ,right.value ,cond.value))))
+             #:with rules #'empty
              #:with mvars #'(void)
              #:with imports #'empty
              #:with sorts #'empty
@@ -277,35 +311,39 @@
 
   (define-syntax-class decl
     #:description "declaration in a node"
-    #:attributes (imports sorts subsorts ops rules mvars)
+    #:attributes (imports sorts subsorts ops equations rules mvars)
     (pattern import-decl:extended-import
              #:with imports #'import-decl.imports
-             #:with sorts #'(list)
-             #:with subsorts #'(list)
-             #:with ops #'(list)
+             #:with sorts #'empty
+             #:with subsorts #'empty
+             #:with ops #'empty
              #:with mvars #'(void)
-             #:with rules #'(list))
+             #:with equations #'empty
+             #:with rules #'empty)
     (pattern sort-decl:sort
-             #:with imports #'(list)
+             #:with imports #'empty
              #:with sorts #'sort-decl.sorts
              #:with subsorts #'sort-decl.subsorts
-             #:with ops #'(list)
+             #:with ops #'empty
              #:with mvars #'(void)
-             #:with rules #'(list))
+             #:with equations #'empty
+             #:with rules #'empty)
     (pattern op-decl:operator
-             #:with imports #'(list)
-             #:with sorts #'(list)
-             #:with subsorts #'(list)
+             #:with imports #'empty
+             #:with sorts #'empty
+             #:with subsorts #'empty
              #:with ops #'op-decl.ops
              #:with mvars #'(void)
-             #:with rules #'(list))
-    (pattern rule-decl:rule
-             #:with imports #'(list)
-             #:with sorts #'(list)
-             #:with subsorts #'(list)
-             #:with ops #'(list)
-             #:with rules #'rule-decl.rules
-             #:with mvars #'rule-decl.mvars)))
+             #:with equations #'empty
+             #:with rules #'empty)
+    (pattern eq-or-rule-decl:eq-or-rule
+             #:with imports #'empty
+             #:with sorts #'empty
+             #:with subsorts #'empty
+             #:with ops #'empty
+             #:with equations #'eq-or-rule-decl.equations
+             #:with rules #'eq-or-rule-decl.rules
+             #:with mvars #'eq-or-rule-decl.mvars)))
 
 (define-syntax (unchecked-node stx)
   (syntax-parse stx
@@ -317,6 +355,10 @@
                (sorts ,@(append declaration.sorts ...))
                (subsorts ,@(append declaration.subsorts ...))
                (ops ,@(append declaration.ops ...))
+               (equations ,@(let ([node-vars empty]
+                                  [node-var-symbols (set)])
+                              declaration.mvars ...
+                              (append declaration.equations ...)))
                (rules ,@(let ([node-vars empty]
                               [node-var-symbols (set)])
                           declaration.mvars ...

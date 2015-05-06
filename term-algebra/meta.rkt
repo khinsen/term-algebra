@@ -91,13 +91,14 @@
          SortList SubsortList Subsort
          OpList Op
          Domain EmptyDomain VarLengthDomain
-         RuleList Rule VarList Var)
+         EquationList Equation RuleList Rule VarList Var)
   (subsorts [EmptyDomain Domain]
             [VarLengthDomain Domain])
 
   (op (builtin-node Symbol) Node)
 
-  (op (node Symbol ImportList SortList SubsortList OpList RuleList) Node)
+  (op (node Symbol ImportList SortList SubsortList OpList EquationList RuleList)
+      Node)
 
   (op (imports Import ...) ImportList)
   (op (imports) ImportList)
@@ -121,9 +122,14 @@
   (op (domain) EmptyDomain)
   (op (vl-domain Symbol) VarLengthDomain)
 
+  (op (equations Equation ...) EquationList)
+  (op (equations) EquationList)
+  (op (= VarList Pattern Pattern Pattern) Equation)
+
   (op (rules Rule ...) RuleList)
   (op (rules) RuleList)
   (op (=> VarList Pattern Pattern Pattern) Rule)
+
   (op (vars Var ...) VarList)
   (op (vars) VarList)
   (op (var Symbol Symbol) Var)
@@ -238,7 +244,7 @@
          (cons (internal-node node-or-hashcode) #f)]
         [_ (error "Invalid import term " import)])))
 
-  (define (rule-list node rule-terms)
+  (define (eq-or-rule-list node eq-or-rule-terms)
 
     (define (var-hash var-terms)
       (for/fold ([vars (hash)])
@@ -271,32 +277,43 @@
          #f]
         [_ (terms:make-special-term meta-term (nodes:node-ops node))]))
 
-    (for/list ([rule rule-terms])
-      (match rule
-        [(mterm '=> (list (mterm 'vars vars) pattern condition replacement))
+    (for/list ([eq-or-rule eq-or-rule-terms])
+      (match eq-or-rule
+        [(mterm '=> (list (mterm 'vars vars) pattern replacement condition))
          (let* ([vars (var-hash vars)]
                 [rule-pattern (pattern-from-meta node vars pattern)]
-                [rule-condition (pattern-from-meta node vars condition)]
-                [rule-replacement (pattern-from-meta node vars replacement)])
+                [rule-replacement (pattern-from-meta node vars replacement)]
+                [rule-condition (pattern-from-meta node vars condition)])
            (rules:make-rule (nodes:node-ops node)
                             vars rule-pattern rule-condition rule-replacement))]
-        [_ (error "Invalid rule term " rule)])))
+        [(mterm '= (list (mterm 'vars vars) pattern replacement condition))
+         (let* ([vars (var-hash vars)]
+                [eq-left (pattern-from-meta node vars pattern)]
+                [eq-right (pattern-from-meta node vars replacement)]
+                [eq-condition (pattern-from-meta node vars condition)])
+           (rules:make-equation (nodes:node-ops node)
+                                vars eq-left eq-right eq-condition))]
+        [_ (error "Invalid equation or rule term " eq-or-rule)])))
 
   (match meta-terms
     [(mterm 'node (list name
-                          (mterm 'imports import-terms)
-                          (mterm 'sorts sort-symbols)
-                          (mterm 'subsorts subsort-terms)
-                          (mterm 'ops operator-terms)
-                          (mterm 'rules rule-terms)))
+                        (mterm 'imports import-terms)
+                        (mterm 'sorts sort-symbols)
+                        (mterm 'subsorts subsort-terms)
+                        (mterm 'ops operator-terms)
+                        (mterm 'equations equation-terms)
+                        (mterm 'rules rule-terms)))
      (let* ([mod (nodes:make-node name meta-terms
-                                      (import-list import-terms)
-                                      sort-symbols (subsort-list subsort-terms)
-                                      (op-list operator-terms)
-                                      empty empty strict-checking)]
+                                  (import-list import-terms)
+                                  sort-symbols (subsort-list subsort-terms)
+                                  (op-list operator-terms)
+                                  empty empty strict-checking)]
             [rules (nodes:node-rules mod)]
             [hashcode (nodes:node-hashcode mod)])
-       (for ([rule (rule-list mod rule-terms)])
+       ; Equation structures are not used for now. They are created
+       ; here purely for the side effect of verification.
+       (eq-or-rule-list mod equation-terms)
+       (for ([rule (eq-or-rule-list mod rule-terms)])
          (let ([pattern (rules:rule-pattern rule)]
                [imports (nodes:node-imports mod)])
            (when (and (terms:term? pattern)

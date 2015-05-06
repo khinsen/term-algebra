@@ -29,6 +29,7 @@
              #:with sorts #'empty
              #:with subsorts #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty)
     (pattern ((~datum include) node:id)
              #:with imports
@@ -37,6 +38,7 @@
              #:with sorts #'empty
              #:with subsorts #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty))
   
   (define-syntax-class sort
@@ -47,12 +49,14 @@
              #:with subsorts #'empty
              #:with imports #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty)
     (pattern ((~datum sorts) s-id:id ...)
              #:with sorts #'(list (quote s-id) ...)
              #:with subsorts #'empty
              #:with imports #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty)
     (pattern ((~datum subsort) s-id1:id s-id2:id)
              #:with sorts #'empty
@@ -61,6 +65,7 @@
                            (subsort (quote s-id1) (quote s-id2))))
              #:with imports #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty)
     (pattern ((~datum subsorts) [s-id1:id s-id2:id] ...)
              #:with sorts #'empty
@@ -69,6 +74,7 @@
                            (subsort (quote s-id1) (quote s-id2))) ...)
              #:with imports #'empty
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules #'empty))
   
   (define-syntax-class atom
@@ -122,8 +128,8 @@
              #:with symbols #'(set (quote v.var-symbol) ...)))
 
   (define-syntax-class operator
-    #:description "operator/rule"
-    #:attributes (imports sorts subsorts ops rules)
+    #:description "operator/equation/rule"
+    #:attributes (imports sorts subsorts ops equations rules)
     (pattern ((~datum op) op-name:id range-sort:id
               (~optional (~and #:symmetric (~bind [symmetric? #t]))))
              #:with ops
@@ -136,6 +142,7 @@
                                (op (quote op-name)
                                    (domain)
                                    (quote range-sort)))))
+             #:with equations #'empty
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty
@@ -153,6 +160,7 @@
                                (op (quote op-name)
                                    (vl-domain (quote arg-sort))
                                    (quote range-sort)))))
+             #:with equations #'empty
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty
@@ -170,11 +178,30 @@
                                (op (quote op-name)
                                    (domain (quote arg-sort) ...)
                                    (quote range-sort)))))
+             #:with equations #'empty
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty)
 
+    (pattern ((~datum =)
+              (~optional vars:variable-list
+                         #:defaults ([vars.value #'(term n-node (vars))]
+                                     [vars.symbols #'(set)]))
+              (~var left (term-pattern #'var-symbols))
+              (~var right (term-pattern #'var-symbols))
+              (~optional (~seq #:if (~var cond (term-pattern #'var-symbols)))
+                         #:defaults ([cond.value #'(term n-node no-condition)])))
+             #:with ops #'empty
+             #:with equations
+             #'(let ([var-symbols vars.symbols])
+                 (list (term n-node
+                             (= ,vars.value
+                                ,left.value ,right.value ,cond.value))))
+             #:with rules #'empty
+             #:with imports #'empty
+             #:with sorts #'empty
+             #:with subsorts #'empty)
     (pattern ((~datum =>)
               (~optional vars:variable-list
                          #:defaults ([vars.value #'(term n-node (vars))]
@@ -184,11 +211,12 @@
                          #:defaults ([cond.value #'(term n-node no-condition)]))
               (~var right (term-pattern #'var-symbols)))
              #:with ops #'empty
+             #:with equations #'empty
              #:with rules
              #'(let ([var-symbols vars.symbols])
                  (list (term n-node
                              (=> ,vars.value
-                                 ,left.value ,cond.value ,right.value))))
+                                 ,left.value ,right.value ,cond.value))))
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty)))
@@ -205,6 +233,7 @@
                (sorts ,@(append sort-decl.sorts ...))
                (subsorts ,@(append sort-decl.subsorts ...))
                (ops ,@(append op-decl.ops ...))
+               (equations ,@(append op-decl.equations ...))
                (rules ,@(append op-decl.rules ...))))]))
 
 (define-syntax (define-unchecked-node stx)

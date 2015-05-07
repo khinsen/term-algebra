@@ -63,23 +63,23 @@
   (use builtin:string)
   (use builtin:symbol)
 
-  (sorts Term ArgList)
+  (sorts Term Args)
   (subsorts [Rational Term] [String Term] [Symbol Term])
 
-  (op (term Symbol ArgList) Term)
-  (op (args Term ...) ArgList)
-  (op (args) ArgList))
+  (op (term Symbol Args) Term)
+  (op (args Term ...) Args)
+  (op (args) Args))
 
 (nodes:define-builtin-node n-pattern
 
   (include n-term)
 
-  (sorts Pattern PatternArgList)
-  (subsorts [Term Pattern] [ArgList PatternArgList])
+  (sorts Pattern PatternArgs)
+  (subsorts [Term Pattern] [Args PatternArgs])
 
   (op (var-ref Symbol) Pattern)
-  (op (pattern Symbol PatternArgList) Pattern)
-  (op (args Pattern ...) PatternArgList))
+  (op (pattern Symbol PatternArgs) Pattern)
+  (op (args Pattern ...) PatternArgs))
 
 (nodes:define-builtin-node n-node
 
@@ -87,51 +87,51 @@
   (use builtin:truth)
 
   (sorts Node
-         ImportList Import
-         SortList SubsortList Subsort
-         OpList Op
+         Imports Import
+         Sorts Subsorts Subsort
+         Ops Op
          Domain EmptyDomain VarLengthDomain
-         EquationList Equation RuleList Rule VarList Var)
+         Equations Equation Rules Rule Vars Var)
   (subsorts [EmptyDomain Domain]
             [VarLengthDomain Domain])
 
   (op (builtin-node Symbol) Node)
 
-  (op (node Symbol ImportList SortList SubsortList OpList EquationList RuleList)
+  (op (node Symbol Imports Sorts Subsorts Ops Equations Rules)
       Node)
 
-  (op (imports Import ...) ImportList)
-  (op (imports) ImportList)
+  (op (imports Import ...) Imports #:symmetric)
+  (op (imports) Imports)
   (op (use String) Import)
   (op (use Node) Import)
   (op (include String) Import)
   (op (include Node) Import)
 
-  (op (sorts Symbol ...) SortList)
-  (op (sorts) SortList)
+  (op (sorts Symbol ...) Sorts #:symmetric)
+  (op (sorts) Sorts)
 
-  (op (subsorts Subsort ...) SubsortList)
-  (op (subsorts) SubsortList)
+  (op (subsorts Subsort ...) Subsorts #:symmetric)
+  (op (subsorts) Subsorts)
   (op (subsort Symbol Symbol) Subsort)
 
-  (op (ops Op ...) OpList)
-  (op (ops) OpList)
+  (op (ops Op ...) Ops #:symmetric)
+  (op (ops) Ops)
   (op (op Symbol Domain Symbol) Op)
   (op (symop Symbol Domain Symbol) Op)
   (op (domain Symbol ...) Domain)
   (op (domain) EmptyDomain)
   (op (vl-domain Symbol) VarLengthDomain)
 
-  (op (equations Equation ...) EquationList)
-  (op (equations) EquationList)
-  (op (= VarList Pattern Pattern Pattern) Equation)
+  (op (equations Equation ...) Equations #:symmetric)
+  (op (equations) Equations)
+  (op (= Vars Pattern Pattern Pattern) Equation)
 
-  (op (rules Rule ...) RuleList)
-  (op (rules) RuleList)
-  (op (=> VarList Pattern Pattern Pattern) Rule)
+  (op (rules Rule ...) Rules)
+  (op (rules) Rules)
+  (op (=> Vars Pattern Pattern Pattern) Rule)
 
-  (op (vars Var ...) VarList)
-  (op (vars) VarList)
+  (op (vars Var ...) Vars #:symmetric)
+  (op (vars) Vars)
   (op (var Symbol Symbol) Var)
   (op (svar Symbol Symbol Boolean) Var)
   (op no-condition Pattern))

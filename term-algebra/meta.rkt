@@ -141,6 +141,7 @@
 
 (define (make-vterm node term)
   (if (and (nodes:imports? node n-node)
+           (terms:term? term)
            (member (terms:term-op term) '(node builtin-node))
            (equal? (terms:op-origin term) (nodes:node-hashcode n-node)))
       (node-vterm node (terms:sort-of term) term #f)

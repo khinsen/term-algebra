@@ -4,7 +4,7 @@
          meta-up meta-down
          make-vterm (struct-out vterm) (struct-out node-vterm)
          reduce-vterm in-vterm-reduction in-vterm-matching-rules
-         vterm-equal?
+         vterm-equal? vterm-kind
          check-node node-hashcode)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -170,6 +170,10 @@
 (define (vterm-equal? vterm1 vterm2)
   (and (eq? (vterm-node vterm1) (vterm-node vterm2))
        (terms:term-equal? (vterm-term vterm1) (vterm-term vterm2))))
+
+(define (vterm-kind vterm)
+  (sorts:kind (vterm-sort vterm)
+              (operators:op-set-sorts (nodes:node-ops (vterm-node vterm)))))
 
 ; used in test-nodes.rkt
 (define (internal-node m-vterm)

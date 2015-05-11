@@ -29,6 +29,12 @@
   (use builtin:rational)
   (op foo Rational))
 
+(define-node test4
+  (use builtin:truth)
+  (use builtin:string)
+  (use builtin:symbol)
+  (use builtin:rational))
+
 (define-test-suite builtin-tests
 
   (test-case "equality"
@@ -158,13 +164,37 @@
     (check-reduce test3 (/ foo 1) foo)
     (check-reduce test3 (/ foo foo) 1))
 
+  (test-case "sorts-and-kinds"
+    (check-equal? (meta:vterm-sort (term test4 true)) 'Boolean)
+    (check-equal? (meta:vterm-kind (term test4 true)) (set'Boolean))
+    (check-equal? (meta:vterm-sort (term test4 'foo)) 'Symbol)
+    (check-equal? (meta:vterm-kind (term test4 'foo)) (set 'Symbol))
+    (check-equal? (meta:vterm-sort (term test4 "foo")) 'String)
+    (check-equal? (meta:vterm-kind (term test4 "foo")) (set'String))
+    (check-equal? (meta:vterm-sort (term test4 42)) 'NonZeroNatural)
+    (check-equal? (meta:vterm-kind (term test4 42)) (set 'Natural 'Zero
+                                                         'NonZeroNatural
+                                                         'Integer
+                                                         'NonZeroInteger
+                                                         'Rational
+                                                         'NonZeroRational
+                                                         'PositiveRational))
+    (check-equal? (meta:vterm-sort (term test4 -2/3)) 'NonZeroRational)
+    (check-equal? (meta:vterm-kind (term test4 -2/3)) (set 'Natural 'Zero
+                                                           'NonZeroNatural
+                                                           'Integer
+                                                           'NonZeroInteger
+                                                           'Rational
+                                                           'NonZeroRational
+                                                           'PositiveRational)))
+  
   (test-not-exn "string-imported"
-    (lambda ()
-      (define-node test
-        (use builtin:string)
-        (op foo String)
-        (=> foo "foo"))
-      (void)))
+                (lambda ()
+                  (define-node test
+                    (use builtin:string)
+                    (op foo String)
+                    (=> foo "foo"))
+                  (void)))
   (test-exn "string-not-imported"
       #rx"import builtin:string to use strings"
     (lambda ()
@@ -175,12 +205,12 @@
       (void)))
 
   (test-not-exn "symbol-imported"
-    (lambda ()
-      (define-node test
-        (use builtin:symbol)
-        (op foo Symbol)
-        (=> foo 'foo))
-      (void)))
+                (lambda ()
+                  (define-node test
+                    (use builtin:symbol)
+                    (op foo Symbol)
+                    (=> foo 'foo))
+                  (void)))
   (test-exn "symbol-not-imported"
       #rx"import builtin:symbol to use symbols"
     (lambda ()
@@ -191,26 +221,26 @@
       (void)))
 
   (test-not-exn "natural-imported"
-    (lambda ()
-      (define-node test
-        (use builtin:natural)
-        (op foo Natural)
-        (=> foo 2))
-      (void)))
+                (lambda ()
+                  (define-node test
+                    (use builtin:natural)
+                    (op foo Natural)
+                    (=> foo 2))
+                  (void)))
   (test-not-exn "integer-imported"
-    (lambda ()
-      (define-node test
-        (use builtin:integer)
-        (op foo Integer)
-        (=> foo -5))
-      (void)))
+                (lambda ()
+                  (define-node test
+                    (use builtin:integer)
+                    (op foo Integer)
+                    (=> foo -5))
+                  (void)))
   (test-not-exn "rational-imported"
-    (lambda ()
-      (define-node test
-        (use builtin:rational)
-        (op foo Rational)
-        (=> foo 2/3))
-      (void)))
+                (lambda ()
+                  (define-node test
+                    (use builtin:rational)
+                    (op foo Rational)
+                    (=> foo 2/3))
+                  (void)))
   (test-exn "natural-not-imported"
       #rx"import builtin:natural to use natural numbers"
     (lambda ()

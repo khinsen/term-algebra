@@ -134,35 +134,52 @@
   (define-syntax-class operator
     #:description "operator"
     #:attributes (imports sorts subsorts ops equations rules)
-    (pattern ((~datum op) op-name:id range-sort:id)
+    (pattern ((~datum op) op-name:id range-sort:id
+              (~optional (~and #:symmetric (~bind [symmetric? #t]))))
              #:with ops
-             #'(list (term builtin:node
-                           (op (quote op-name)
-                               (domain)
-                               (quote range-sort))))
+             (if (attribute symmetric?)
+                 #'(list (term builtin:node
+                               (symop (quote op-name)
+                                   (domain)
+                                   (quote range-sort))))
+                 #'(list (term builtin:node
+                               (op (quote op-name)
+                                   (domain)
+                                   (quote range-sort)))))
              #:with equations #'empty
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty)
-    (pattern ((~datum op) (op-name:id arg-sort:id (~datum ...))
-              range-sort:id)
+    (pattern ((~datum op) (op-name:id arg-sort:id (~datum ...)) range-sort:id
+              (~optional (~and #:symmetric (~bind [symmetric? #t]))))
              #:with ops
-             #'(list (term builtin:node
-                           (op (quote op-name)
-                               (vl-domain (quote arg-sort))
-                               (quote range-sort))))
+             (if (attribute symmetric?)
+                 #'(list (term builtin:node
+                               (symop (quote op-name)
+                                      (vl-domain (quote arg-sort))
+                                      (quote range-sort))))
+                 #'(list (term builtin:node
+                               (op (quote op-name)
+                                   (vl-domain (quote arg-sort))
+                                   (quote range-sort)))))
              #:with equations #'empty
              #:with rules #'empty
              #:with imports #'empty
              #:with sorts #'empty
              #:with subsorts #'empty)
-    (pattern ((~datum op) (op-name:id arg-sort:id ...) range-sort:id)
+    (pattern ((~datum op) (op-name:id arg-sort:id ...) range-sort:id
+              (~optional (~and #:symmetric (~bind [symmetric? #t]))))
              #:with ops
-             #'(list (term builtin:node
-                           (op (quote op-name)
-                               (domain (quote arg-sort) ...)
-                               (quote range-sort))))
+             (if (attribute symmetric?)
+                 #'(list (term builtin:node
+                               (symop (quote op-name)
+                                      (domain (quote arg-sort) ...)
+                                      (quote range-sort))))
+                 #'(list (term builtin:node
+                               (op (quote op-name)
+                                   (domain (quote arg-sort) ...)
+                                   (quote range-sort)))))
              #:with equations #'empty
              #:with rules #'empty
              #:with imports #'empty

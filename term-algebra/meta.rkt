@@ -3,7 +3,7 @@
 (provide n-term n-pattern n-node
          meta-up meta-down
          make-vterm (struct-out vterm) (struct-out node-vterm)
-         reduce-vterm in-vterm-reduction
+         reduce-vterm in-vterm-reduction in-vterm-matching-rules
          vterm-equal?
          check-node node-hashcode)
 
@@ -157,6 +157,15 @@
          [term (vterm-term vterm)])
      (for ([r (rewrite:in-reduction term mod)])
        (yield (make-vterm mod r))))))
+
+(define (in-vterm-matching-rules vterm test-conditions?)
+  (in-generator
+   (let ([mod (vterm-node vterm)]
+         [term (vterm-term vterm)])
+     (for ([r (rewrite:in-matching-rules term mod test-conditions?)])
+       (yield (list (make-vterm mod (first r))
+                    (and (second r) (make-vterm mod (second r)))
+                    (make-vterm mod (third r))))))))
 
 (define (vterm-equal? vterm1 vterm2)
   (and (eq? (vterm-node vterm1) (vterm-node vterm2))

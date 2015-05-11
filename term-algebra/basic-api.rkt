@@ -5,7 +5,8 @@
          term meta-term
          meta-up meta-down
          (rename-out [meta:reduce-vterm reduce]
-                     [meta:in-vterm-reduction in-reduction])
+                     [meta:in-vterm-reduction in-reduction]
+                     [meta:in-vterm-matching-rules in-matching-rules])
          ; builtin nodes:
          builtin:any
          builtin:truth builtin:equality

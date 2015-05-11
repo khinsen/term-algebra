@@ -1,6 +1,6 @@
 #lang racket
 
-(provide reduce in-reduction)
+(provide reduce in-reduction in-matching-rules)
 
 (require (prefix-in terms: term-algebra/terms)
          (prefix-in rules: term-algebra/rules)
@@ -14,17 +14,35 @@
   (nodes:make-term 'false empty builtin:truth))
 
 
-; Term rewriting
+; Rule matching and basic term rewriting
+
+(define (test-condition condition substitution node)
+  (or (not condition)
+      (equal? (reduce (terms:substitute condition
+                                        substitution
+                                        (nodes:node-ops node))
+                      node)
+              true-term)))
+  
+(define (in-matching-rules a-term node test-conditions?)
+  (let* ([key (if (terms:term? a-term)
+                  (terms:term-op a-term)
+                  (terms:sort-of a-term))]
+         [rules (hash-ref (nodes:node-rules node) key empty)])
+    (in-generator
+     (for/or ([rule-with-origin rules])
+       (define rule (car rule-with-origin))
+       (unless (procedure? rule)
+         (let ([pattern (rules:rule-pattern rule)]
+               [condition (rules:rule-condition rule)]
+               [value (rules:rule-replacement rule)])
+           (for ([s (terms:match-pattern pattern a-term (nodes:node-ops node))])
+             (when (or (not test-conditions?)
+                       (test-condition condition s node))
+               (yield (list pattern condition value))))))))))
 
 (define (rewrite-head-once a-term node)
 
-  (define (test-condition condition substitution ops)
-    (or (not condition)
-        (equal? (reduce (terms:substitute condition
-                                          substitution ops)
-                        node)
-                true-term)))
-  
   (let* ([key (if (terms:term? a-term)
                   (terms:term-op a-term)
                   (terms:sort-of a-term))]
@@ -41,10 +59,12 @@
                        [condition (rules:rule-condition rule)]
                        [value (rules:rule-replacement rule)])
                   (for/or ([s (terms:match-pattern pattern a-term ops)])
-                    (if (test-condition condition s ops)
+                    (if (test-condition condition s node)
                         (terms:substitute value s ops)
                         #f))))))
         a-term)))
+
+; Recursive rewriting (one step)
 
 (define (rewrite-leftmost-innermost a-term node)
   (if (terms:term? a-term)
@@ -57,6 +77,8 @@
                                                      (nodes:node-ops node)))])
         (rewrite-head-once with-reduced-args node))
       (rewrite-head-once a-term node)))
+
+; Recursive rewriting to normal form
 
 (define (reduce a-term node)
   (let loop ([a-term a-term])

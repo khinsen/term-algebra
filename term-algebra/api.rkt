@@ -4,7 +4,7 @@
          define-unchecked-node unchecked-node
          term meta-term
          meta-up meta-down
-         reduce
+         reduce in-reduction in-matching-rules
          ; builtin nodes:
          builtin:any
          builtin:truth builtin:equality

@@ -2,11 +2,12 @@
 
 (provide define-node node
          define-unchecked-node unchecked-node
-         term meta-term
+         term meta-term pattern
          meta-up meta-down
          (rename-out [meta:reduce-vterm reduce]
                      [meta:in-vterm-reduction in-reduction]
                      [meta:in-vterm-matching-rules in-matching-rules]
+                     [meta:in-vterm-matches in-matches]
                      [meta:vterm-sort sort]
                      [meta:vterm-kind kind])
          ; builtin nodes:
@@ -15,6 +16,8 @@
          builtin:string builtin:symbol
          builtin:natural builtin:integer builtin:rational
          (rename-out [n-term builtin:term]
+                     [n-pattern builtin:pattern]
+                     [n-free-pattern builtin:free-pattern]
                      [n-node builtin:node]))
 
 (require term-algebra/term-syntax

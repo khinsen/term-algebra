@@ -1,10 +1,10 @@
 #lang racket
 
-(provide n-term n-pattern n-node
+(provide n-term n-pattern n-node n-free-pattern
          meta-up meta-down
          make-vterm (struct-out vterm) (struct-out node-vterm)
          reduce-vterm in-vterm-reduction in-vterm-matching-rules
-         vterm-equal? vterm-kind
+         vterm-equal? in-vterm-matches vterm-kind
          check-node node-hashcode)
 
 (require (prefix-in sorts: term-algebra/sorts)
@@ -74,12 +74,23 @@
 
   (include n-term)
 
-  (sorts Pattern PatternArgs)
+  (sorts Pattern PatternArgs Var Vars)
   (subsorts [Term Pattern] [Args PatternArgs])
 
   (op (var-ref Symbol) Pattern)
   (op (pattern Symbol PatternArgs) Pattern)
-  (op (args Pattern ...) PatternArgs))
+  (op (args Pattern ...) PatternArgs)
+
+  (op (vars Var ...) Vars #:symmetric)
+  (op (vars) Vars)
+  (op (var Symbol Symbol) Var)
+  (op (svar Symbol Symbol Boolean) Var))
+
+(nodes:define-builtin-node n-free-pattern
+
+  (include n-pattern)
+
+  (op (free-pattern Vars Pattern) Pattern))
 
 (nodes:define-builtin-node n-node
 
@@ -91,7 +102,7 @@
          Sorts Subsorts Subsort
          Ops Op
          Domain EmptyDomain VarLengthDomain
-         Equations Equation Rules Rule Vars Var)
+         Equations Equation Rules Rule)
   (subsorts [EmptyDomain Domain]
             [VarLengthDomain Domain])
 
@@ -130,10 +141,6 @@
   (op (rules) Rules)
   (op (=> Vars Pattern Pattern Pattern) Rule)
 
-  (op (vars Var ...) Vars #:symmetric)
-  (op (vars) Vars)
-  (op (var Symbol Symbol) Var)
-  (op (svar Symbol Symbol Boolean) Var)
   (op no-condition Pattern))
 
 (define n-term-ops (nodes:node-ops n-term))
@@ -171,6 +178,16 @@
 (define (vterm-equal? vterm1 vterm2)
   (and (eq? (vterm-node vterm1) (vterm-node vterm2))
        (terms:term-equal? (vterm-term vterm1) (vterm-term vterm2))))
+
+(define (in-vterm-matches vpattern vterm)
+  (define node (vterm-node vpattern))
+  (unless (equal? node (vterm-node vterm))
+    (error "pattern and term not defined by the same node"))
+  (in-generator
+   (for ([subst (terms:match-pattern (vterm-term vpattern) (vterm-term vterm)
+                                     (nodes:node-ops node))])
+     (yield (for/hash ([var (hash-keys subst)])
+              (values var (make-vterm node (hash-ref subst var))))))))
 
 (define (vterm-kind vterm)
   (sorts:kind (vterm-sort vterm)
@@ -216,6 +233,37 @@
   (terms:make-term op-symbol (map (λ (arg) (meta-down* node arg)) args)
                    (nodes:node-ops node)))
 
+(define (pattern-from-meta node vars meta-term)
+  (match meta-term
+    [(or (mterm 'term (list op (mterm 'args args)))
+         (mterm 'pattern (list op (mterm 'args args))))
+     (let* ([args (map (λ (arg)
+                         (pattern-from-meta node vars arg)) args)])
+       (terms:make-pattern op args (nodes:node-ops node)))]
+    [(mterm 'var-ref (list var-name))
+     (let ([var-spec (hash-ref vars var-name)])
+       (case (cdr var-spec)
+         ['one (terms:var var-name (car var-spec))]
+         ['zero-or-more (terms:svar var-name (car var-spec) #t)]
+         ['one-or-more  (terms:svar var-name (car var-spec) #f)]))]
+    [(mterm 'no-condition empty)
+     #f]
+    [_ (terms:make-special-term meta-term (nodes:node-ops node))]))
+
+(define (var-hash var-terms)
+  (for/fold ([vars (hash)])
+            ([var-term var-terms])
+    (match var-term
+      [(mterm 'var (list var sort))
+       (hash-set vars var (cons sort 'one))]
+      [(mterm 'svar (list var sort allow-zero?))
+       (hash-set vars var (cons sort
+                                (if (equal? (terms:term-op allow-zero?)
+                                            'true)
+                                    'zero-or-more
+                                    'one-or-more)))]
+      [_ (error "Invalid var term " var-term)])))
+
 (define (node-from-meta meta-terms strict-checking)
 
   (define (subsort-list subsort-terms)
@@ -260,37 +308,6 @@
         [_ (error "Invalid import term " import)])))
 
   (define (eq-or-rule-list node eq-or-rule-terms)
-
-    (define (var-hash var-terms)
-      (for/fold ([vars (hash)])
-                ([var-term var-terms])
-        (match var-term
-          [(mterm 'var (list var sort))
-           (hash-set vars var (cons sort 'one))]
-          [(mterm 'svar (list var sort allow-zero?))
-           (hash-set vars var (cons sort
-                                    (if (equal? (terms:term-op allow-zero?)
-                                                'true)
-                                        'zero-or-more
-                                        'one-or-more)))]
-          [_ (error "Invalid var term " var-term)])))
-
-    (define (pattern-from-meta node vars meta-term)
-      (match meta-term
-        [(or (mterm 'term (list op (mterm 'args args)))
-             (mterm 'pattern (list op (mterm 'args args))))
-         (let* ([args (map (λ (arg)
-                             (pattern-from-meta node vars arg)) args)])
-           (terms:make-pattern op args (nodes:node-ops node)))]
-        [(mterm 'var-ref (list var-name))
-         (let ([var-spec (hash-ref vars var-name)])
-           (case (cdr var-spec)
-             ['one (terms:var var-name (car var-spec))]
-             ['zero-or-more (terms:svar var-name (car var-spec) #t)]
-             ['one-or-more  (terms:svar var-name (car var-spec) #f)]))]
-        [(mterm 'no-condition empty)
-         #f]
-        [_ (terms:make-special-term meta-term (nodes:node-ops node))]))
 
     (for/list ([eq-or-rule eq-or-rule-terms])
       (match eq-or-rule
@@ -344,6 +361,7 @@
          (case name
            ['term n-term]
            ['pattern n-pattern]
+           ['free-pattern n-free-pattern]
            ['node n-node]
            [else (error "Unknown builtin node: " name)]))]
     [_ (error "Invalid meta node " meta-terms)]))
@@ -352,6 +370,10 @@
   (match a-term
     [(mterm 'term (list op-symbol (mterm 'args args)))
      (term-from-meta node op-symbol args)]
+    [(mterm 'pattern (list args))
+     (pattern-from-meta node (hash) a-term)]
+    [(mterm 'free-pattern (list (mterm 'vars vars) pattern))
+     (pattern-from-meta node (var-hash vars) pattern)]
     [(terms:term _ _ _)
      (error "Invalid meta-term " a-term)]
     [_ (terms:make-special-term a-term (nodes:node-ops node))]))

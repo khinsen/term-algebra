@@ -9,7 +9,11 @@
   (include builtin:node)
   (use builtin:equality)
 
-  (sorts Transform Transforms)
+  (sorts Transform Transforms
+         Declaration Declarations)
+  (subsorts [Import Declaration] [Sorts Declaration] [Subsort Declaration]
+            [Subsorts Declaration] [Op Declaration] [Equation Declaration]
+            [Rule Declaration])
 
   ;
   ; Set reductions for all sets
@@ -75,6 +79,15 @@
   (=> #:vars ([S Symbol] [Ss Symbol ?...])
       (cons S (domain Ss))
       (domain S Ss))
+
+  ; Append for Rule (the only real list)
+  (op (append Rule Rules) Rules)
+  (=> #:vars ([NR Rule])
+      (append NR (rules))
+      (rules NR))
+  (=> #:vars ([NR Rule] [R Rule] [Rs Rule ?...])
+      (append NR (rules R Rs))
+      (cons R (append NR (rules Rs))))
 
   ;
   ; rename-sort
@@ -213,7 +226,7 @@
             (rename-op Rules OS1 OS2)))
 
   ;
-  ; rename-op: map-like application to lists
+  ; rename-op: map-like application to lists and sets
   ;
   (op (rename-op Ops Symbol Symbol) Ops)
   (=> #:vars ([OS1 Symbol] [OS2 Symbol])
@@ -300,17 +313,6 @@
       P)
 
   ;
-  ; add-import
-  ;
-  (op (add-import Node Import) Node)
-  (=> #:vars ([Name Symbol] [Imports Imports]
-              [Sorts Sorts] [Subsorts Subsorts]
-              [Ops Ops] [Equations Equations] [Rules Rules]
-              [I Import])
-      (add-import (node Name Imports  Sorts Subsorts Ops Equations Rules) I)
-      (node Name (cons I Imports) Sorts Subsorts Ops Equations Rules))
-
-  ;
   ; node-name
   ;
   (op (node-name Node Symbol) Node)
@@ -318,8 +320,81 @@
               [Sorts Sorts] [Subsorts Subsorts]
               [Ops Ops] [Equations Equations] [Rules Rules]
               [NN Symbol])
-      (node-name (node Name Imports  Sorts Subsorts Ops Equations Rules) NN)
+      (node-name (node Name Imports Sorts Subsorts Ops Equations Rules) NN)
       (node NN Imports Sorts Subsorts Ops Equations Rules))
+
+  ;
+  ; Add declaration
+  ;
+  (op (add Node Declaration) Node)
+  (=> #:vars ([Name Symbol] [Imports Imports]
+              [Sorts Sorts] [Subsorts Subsorts]
+              [Ops Ops] [Equations Equations] [Rules Rules]
+              [I Import])
+      (add (node Name Imports Sorts Subsorts Ops Equations Rules) I)
+      (node Name (cons I Imports) Sorts Subsorts Ops Equations Rules))
+
+  (=> #:vars ([Name Symbol] [Imports Imports]
+              [Sorts Sorts] [Subsorts Subsorts]
+              [Ops Ops] [Equations Equations] [Rules Rules])
+      (add (node Name Imports Sorts Subsorts Ops Equations Rules) (sorts))
+      (node Name Imports Sorts Subsorts Ops Equations Rules))
+  (=> #:vars ([Name Symbol] [Imports Imports]
+              [Ss Symbol ?...] [Subsorts Subsorts]
+              [Ops Ops] [Equations Equations] [Rules Rules]
+              [NS Symbol] [NSs Symbol ?...])
+      (add (node Name Imports (sorts Ss) Subsorts Ops Equations Rules)
+           (sorts NS NSs))
+      (add (node Name Imports (sorts NS Ss) Subsorts Ops Equations Rules)
+           (sorts NSs)))
+
+  (=> #:vars ([Name Symbol] [Imports Imports]
+              [Sorts Sorts] [Subsorts Subsorts]
+              [Ops Ops] [Equations Equations] [Rules Rules]
+              [S Subsort])
+      (add (node Name Imports Sorts Subsorts Ops Equations Rules) S)
+      (node Name Imports Sorts (cons S Subsorts) Ops Equations Rules))
+
+  (=> #:vars ([Name Symbol] [Imports Imports]
+              [Sorts Sorts] [Subsorts Subsorts]
+              [Ops Ops] [Equations Equations] [Rules Rules])
+      (add (node Name Imports Sorts Subsorts Ops Equations Rules) (subsorts))
+      (node Name Imports Sorts Subsorts Ops Equations Rules))
+  (=> #:vars ([Name Symbol] [Imports Imports]
+              [Sorts Sorts] [Ss Subsort ?...]
+              [Ops Ops] [Equations Equations] [Rules Rules]
+              [NS Subsort] [NSs Subsort ?...])
+      (add (node Name Imports Sorts (subsorts Ss) Ops Equations Rules)
+           (subsorts NS NSs))
+      (add (node Name Imports Sorts (subsorts NS Ss) Ops Equations Rules)
+           (subsorts NSs)))
+
+  (=> #:vars ([Name Symbol] [Imports Imports]
+              [Sorts Sorts] [Subsorts Subsorts]
+              [Ops Ops] [Equations Equations] [Rules Rules]
+              [NO Op])
+      (add (node Name Imports Sorts Subsorts Ops Equations Rules) NO)
+      (node Name Imports Sorts Subsorts (cons NO Ops) Equations Rules))
+
+  (=> #:vars ([Name Symbol] [Imports Imports]
+              [Sorts Sorts] [Subsorts Subsorts]
+              [Ops Ops] [Equations Equations] [Rules Rules]
+              [NE Equation])
+      (add (node Name Imports Sorts Subsorts Ops Equations Rules) NE)
+      (node Name Imports Sorts Subsorts Ops (cons NE Equations) Rules))
+
+  (=> #:vars ([Name Symbol] [Imports Imports]
+              [Sorts Sorts] [Subsorts Subsorts]
+              [Ops Ops] [Equations Equations] [Rules Rules] 
+              [NR Rule])
+      (add (node Name Imports Sorts Subsorts Ops Equations Rules) NR)
+      (node Name Imports Sorts Subsorts Ops Equations (append NR Rules)))
+
+  ;
+  ; Single-sort declaration
+  ;
+  (op (sort Symbol) Declaration)
+  (=> #:var [S Symbol] (sort S) (sorts S))
 
   ;
   ; Transforms and their application
@@ -332,10 +407,10 @@
       ($apply-transform (node-name N) M)
       (node-name M N))
 
-  (op (add-import Import) Transform)
-  (=> #:vars ([I Import] [M Node])
-      ($apply-transform (add-import I) M)
-      (add-import M I))
+  (op (add Declaration) Transform)
+  (=> #:vars ([D Declaration] [N Node])
+      ($apply-transform (add D) N)
+      (add N D))
 
   (op (rename-sort Symbol Symbol) Transform)
   (=> #:vars ([S1 Symbol] [S2 Symbol] [M Node])

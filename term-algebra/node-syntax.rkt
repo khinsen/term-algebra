@@ -55,10 +55,10 @@
              #:with transform
              #'(term node-transforms
                      (node-name (quote name))))
-    (pattern ((~datum add-import) import-decl:extended-import)
+    (pattern ((~datum add) import-decl:extended-import)
              #:with transform
              #'(term node-transforms
-                     (add-import ,@import-decl.imports)))
+                     (add ,@import-decl.imports)))
     (pattern ((~datum rename-sort) name1:id name2:id)
              #:with transform
              #'(term node-transforms

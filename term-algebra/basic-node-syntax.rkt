@@ -94,7 +94,7 @@
              #:with value
              #`(if (set-member? #,var-symbols (quote symbol))
                    (term n-node (var-ref (quote symbol)))
-                   (term n-node (term (quote symbol) (args)))))
+                   (term n-node (pattern (quote symbol) (args)))))
     (pattern (symbol:id (~var arg-terms (term-pattern var-symbols)) ...)
              #:with value
              #'(term n-node

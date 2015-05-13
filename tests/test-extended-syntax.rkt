@@ -12,11 +12,11 @@
 
 (define-node test-include
   (include list-node
-           #:transforms (add-import (use builtin:string))
-           (rename-sort Element String)
-           (rename-sort List StringList)
-           (rename-sort NonEmptyList NEStringList)
-           (rename-op list string-list))
+           #:transforms (add (use builtin:string))
+                        (rename-sort Element String)
+                        (rename-sort List StringList)
+                        (rename-sort NonEmptyList NEStringList)
+                        (rename-op list string-list))
   (op bar NEStringList)
   (=> bar (string-list "a" "b" "c")))
 

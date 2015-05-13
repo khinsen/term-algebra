@@ -61,7 +61,7 @@
              (transformed-node ,list
                  (transforms
                   (node-name 'list-of-symbols)
-                  (add-import (use (builtin-node 'symbol)))
+                  (add (use (builtin-node 'symbol)))
                   (rename-sort 'Element 'Symbol)
                   (rename-sort 'List 'SymbolList)
                   (rename-sort 'NonEmptyList 'NESymbolList)
@@ -76,7 +76,7 @@
     (check-reduce symbol-list (contains? 'A (symbols 'A 'B)) true)
     (check-reduce symbol-list (contains? 'X (symbols 'A 'B)) false))
 
-  (test-case "sets"
+  (test-case "set transforms"
 
     (define symbol-set
       (reduce
@@ -84,7 +84,7 @@
              (transformed-node ,set
                  (transforms
                   (node-name 'set-of-symbols)
-                  (add-import (use (builtin-node 'symbol)))
+                  (add (use (builtin-node 'symbol)))
                   (rename-sort 'Element 'Symbol)
                   (rename-sort 'Set 'SymbolSet)
                   (rename-sort 'NonEmptySet 'NESymbolSet)
@@ -96,7 +96,40 @@
     (check-reduce symbol-set (cons 'X (symbols))
                              (symbols 'X))
     (check-reduce symbol-set (contains? 'A (symbols 'A 'B 'C 'B)) true)
-    (check-reduce symbol-set (contains? 'X (symbols 'A 'B 'C 'B)) false)))
+    (check-reduce symbol-set (contains? 'X (symbols 'A 'B 'C 'B)) false))
+
+  (test-case "node construction"
+
+    (define-node test-node
+      (sorts A B C)
+      (subsorts [A B] [A C])
+      (op foo A)
+      (op (bar A) B)
+      (=> (bar foo) foo))
+    
+    (define-node empty)
+    (define constructed-test-node
+      (reduce
+       (term node-transforms
+             (transformed-node ,empty
+                 (transforms
+                  (node-name 'test-node)
+                  (add (sort 'A))
+                  (add (sorts 'B 'C))
+                  (add (subsort 'A 'B))
+                  (add (subsorts (subsort 'A 'C)))
+                  (add (op 'foo (domain) 'A))
+                  (add (op 'bar (domain 'A) 'B))
+                  (add (=> (vars)
+                           (pattern 'bar (args (pattern 'foo (args))))
+                           (pattern 'foo (args))
+                           no-condition)))))))
+
+    (check meta:vterm-equal?
+           (meta:meta-down node-transforms (meta:meta-up test-node))
+           constructed-test-node)
+    (check-reduce test-node (bar foo) foo)
+    (check-reduce constructed-test-node (bar foo) foo)))
 
 (module* main #f
   (require rackunit/text-ui)

@@ -69,6 +69,8 @@
     
     (check-reduce symbol-list (cons 'X (symbols 'A 'B)) (symbols 'X 'A 'B))
     (check-reduce symbol-list (cons 'X (symbols)) (symbols 'X))
+    (check-reduce symbol-list (append 'X (symbols 'A 'B)) (symbols 'A 'B 'X))
+    (check-reduce symbol-list (append 'X (symbols)) (symbols 'X))
     (check-reduce symbol-list (head (symbols 'A 'B)) 'A)
     (check-reduce symbol-list (tail (symbols 'A 'B)) (symbols 'B))
     (check-reduce symbol-list (contains? 'A (symbols 'A 'B)) true)

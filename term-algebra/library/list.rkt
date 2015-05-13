@@ -27,6 +27,14 @@
   (=> #:vars ([E Element] [Es Element ?...])
       (cons E (list Es))
       (list E Es))
+
+  (op (append Element List) NonEmptyList)
+  (=> #:vars ([NE Element])
+      (append NE (list))
+      (list NE))
+  (=> #:vars ([NE Element] [E Element] [Es Element ?...])
+      (append NE (list E Es))
+      (cons E (append NE (list Es))))
   
   (op (contains? Element List) Boolean)
   (=> #:vars ([E Element])

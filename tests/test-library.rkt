@@ -125,11 +125,31 @@
                            (pattern 'foo (args))
                            no-condition)))))))
 
+    (define constructed-test-node-2
+      (reduce
+       (term flex-node
+             (node 'test-node
+                   (declarations
+                    (sort 'A)
+                    (sorts 'B 'C)
+                    (subsort 'A 'B)
+                    (subsorts (subsort 'A 'C))
+                    (op 'foo (domain) 'A)
+                    (op 'bar (domain 'A) 'B)
+                    (=> (vars)
+                        (pattern 'bar (args (pattern 'foo (args))))
+                        (pattern 'foo (args))
+                        no-condition))))))
+
     (check meta:vterm-equal?
            (meta:meta-down node-transforms (meta:meta-up test-node))
            constructed-test-node)
+    (check meta:vterm-equal?
+           (meta:meta-down flex-node (meta:meta-up test-node))
+           constructed-test-node-2)
     (check-reduce test-node (bar foo) foo)
-    (check-reduce constructed-test-node (bar foo) foo)))
+    (check-reduce constructed-test-node (bar foo) foo)
+    (check-reduce constructed-test-node-2 (bar foo) foo)))
 
 (module* main #f
   (require rackunit/text-ui)

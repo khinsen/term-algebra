@@ -1,6 +1,6 @@
 #lang racket
 
-(provide node-transforms)
+(provide node-transforms flex-node)
 
 (require term-algebra/basic-api)
 
@@ -452,3 +452,27 @@
   (=> #:vars ([M Node] [T Transform] [Ts Transform ...])
       (include M (transforms T Ts))
       (include ($apply-transform T M) (transforms Ts))))
+
+
+(define-node flex-node
+
+  (include node-transforms)
+
+  ;
+  ; Node with declarations in any order (order matters for rules)
+  ;
+  (op (node Symbol Declarations) Node)
+  (op (declarations Declaration ...) Declarations)
+  (op (declarations) Declarations)
+  (op (transformed-node Node Declarations) Node)
+  (=> #:vars ([S Symbol] [Ds Declarations])
+      (node S Ds)
+      (transformed-node (node S (imports) (sorts) (subsorts) (ops)
+                              (equations) (rules))
+                        Ds))
+  (=> #:vars ([N Node])
+      (transformed-node N (declarations))
+      N)
+  (=> #:vars ([N Node] [D Declaration] [Ds Declaration ?...])
+      (transformed-node N (declarations D Ds))
+      (transformed-node (add N D) (declarations Ds))))

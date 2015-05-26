@@ -17,6 +17,16 @@
                     (terms:make-term 'builtin-node (list 'node)
                                      (nodes:node-ops meta:n-node)))))
 
+(define (meta-up term)
+  (cond
+    [(meta:vterm? term)
+     (meta:meta-up term)]
+    [(or (symbol? term)
+         (string? term)
+         (number? term))
+     term]
+    [else (error "illegal term " term)]))
+
 (begin-for-syntax
 
   (define-syntax-class import
@@ -83,6 +93,8 @@
     (pattern s:str #:with value #'s)
     (pattern ((~literal quote) symbol:id)
              #:with value #'(quote symbol))
+    (pattern ((~literal unquote) expr:expr)
+             #:with value #'(meta-up expr))
     (pattern x:number #:when (exact? (syntax-e #'x))
              #:with value #'x))
 

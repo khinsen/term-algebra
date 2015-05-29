@@ -1,8 +1,9 @@
 #lang racket
 
-(provide node-transforms flex-node)
+(provide node-transforms flex-node extended-node)
 
-(require term-algebra/basic-api)
+(require term-algebra/basic-api
+         term-algebra/library/list)
 
 (define-node node-transforms
 
@@ -400,6 +401,7 @@
   ; Transforms and their application
   ;
   (op (transforms Transform ...) Transforms)
+  (op (transforms) Transforms)
   (op ($apply-transform Transform Node) Node)
 
   (op (node-name Symbol) Transform)
@@ -427,12 +429,12 @@
   ;
   (op (transformed-node Node Transforms) Node)
 
-  (=> #:vars ([M Node] [T Transform])
-      (transformed-node M (transforms T))
-      ($apply-transform T M))
-  (=> #:vars ([M Node] [T Transform] [Ts Transform ...])
-      (transformed-node M (transforms T Ts))
-      (transformed-node ($apply-transform T M) (transforms Ts)))
+  (=> #:vars ([N Node])
+      (transformed-node N (transforms))
+      N)
+  (=> #:vars ([N Node] [T Transform] [Ts Transform ?...])
+      (transformed-node N (transforms T Ts))
+      (transformed-node ($apply-transform T N) (transforms Ts)))
   
   ;
   ; Extended use and include
@@ -440,18 +442,18 @@
   (op (use Node Transforms) Import)
   (op (include Node Transforms) Import)
 
-  (=> #:vars ([M Node] [T Transform])
-      (use M (transforms T))
-      (use ($apply-transform T M)))
-  (=> #:vars ([M Node] [T Transform] [Ts Transform ...])
-      (use M (transforms T Ts))
-      (use ($apply-transform T M) (transforms Ts)))
-  (=> #:vars ([M Node] [T Transform])
-      (include M (transforms T))
-      (include ($apply-transform T M)))
-  (=> #:vars ([M Node] [T Transform] [Ts Transform ...])
-      (include M (transforms T Ts))
-      (include ($apply-transform T M) (transforms Ts))))
+  (=> #:vars ([N Node])
+      (use N (transforms))
+      (use N))
+  (=> #:vars ([N Node] [T Transform] [Ts Transform ?...])
+      (use N (transforms T Ts))
+      (use ($apply-transform T N) (transforms Ts)))
+  (=> #:vars ([N Node])
+      (include N (transforms))
+      (include N))
+  (=> #:vars ([N Node] [T Transform] [Ts Transform ?...])
+      (include N (transforms T Ts))
+      (include ($apply-transform T N) (transforms Ts))))
 
 
 (define-node flex-node
@@ -476,3 +478,26 @@
   (=> #:vars ([N Node] [D Declaration] [Ds Declaration ?...])
       (transformed-node N (declarations D Ds))
       (transformed-node (add N D) (declarations Ds))))
+
+
+(define-node extended-node
+
+  (include flex-node)
+  
+  ; (%list ListOp ElementSort ListSort EmptyListSort)
+  ; declares a list with associated operations
+  (op (%list Symbol Symbol Symbol Symbol) Declaration)
+  (=> #:vars ([ListOp Symbol] [ElementSort Symbol]
+              [ListSort Symbol] [NonEmptyListSort Symbol])
+      (%list ListOp ElementSort ListSort NonEmptyListSort)
+      (use (transformed-node ,list
+              (transforms
+               (rename-sort 'Element ElementSort)
+               (rename-sort 'List ListSort)
+               (rename-sort 'NonEmptyList NonEmptyListSort)
+               (rename-op 'list ListOp)))))
+  ; Shorthand: No special sort for the empty list
+  (op (%list Symbol Symbol Symbol) Declaration)
+  (=> #:vars ([ListOp Symbol] [ElementSort Symbol] [ListSort Symbol])
+      (%list ListOp ElementSort ListSort)
+      (%list ListOp ElementSort ListSort ListSort)))
